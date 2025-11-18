@@ -160,6 +160,9 @@ def generate_seating():
             "is_valid": is_valid,
             "errors": errors
         }
+        
+        # Add constraints status
+        web_data["constraints_status"] = algorithm.get_constraints_status()
 
         return jsonify(web_data)
     except Exception as e:
@@ -175,6 +178,65 @@ def validate_seating():
         return jsonify({"is_valid": True, "errors": []})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/constraints-status', methods=['POST'])
+def get_constraints_status():
+    """API endpoint to get current constraints status"""
+    try:
+        data = request.get_json()
+        rows = int(data.get('rows', 10))
+        cols = int(data.get('cols', 15))
+        num_batches = int(data.get('num_batches', 3))
+        block_width = int(data.get('block_width', 3))
+        batch_by_column = bool(data.get('batch_by_column', True))
+        enforce_no_adjacent_batches = bool(data.get('enforce_no_adjacent_batches', False))
+        
+        # Parse broken seats
+        broken_seats_str = data.get('broken_seats', '')
+        broken_seats = []
+        if broken_seats_str:
+            parts = [p.strip() for p in broken_seats_str.split(',') if p.strip()]
+            for part in parts:
+                if '-' in part:
+                    try:
+                        row_col = part.split('-')
+                        row = int(row_col[0].strip()) - 1
+                        col = int(row_col[1].strip()) - 1
+                        if 0 <= row < rows and 0 <= col < cols:
+                            broken_seats.append((row, col))
+                    except (ValueError, IndexError):
+                        pass
+        
+        # Parse batch student counts
+        batch_student_counts_str = data.get('batch_student_counts', '')
+        batch_student_counts = {}
+        if batch_student_counts_str:
+            parts = [p.strip() for p in batch_student_counts_str.split(',') if p.strip()]
+            for part in parts:
+                if ':' in part:
+                    try:
+                        k, v = part.split(':', 1)
+                        batch_student_counts[int(k.strip())] = int(v.strip())
+                    except Exception:
+                        pass
+        
+        # Create algorithm instance
+        algorithm = SeatingAlgorithm(
+            rows, cols, num_batches,
+            block_width=block_width,
+            batch_by_column=batch_by_column,
+            enforce_no_adjacent_batches=enforce_no_adjacent_batches,
+            broken_seats=broken_seats,
+            batch_student_counts=batch_student_counts,
+        )
+        algorithm.generate_seating()
+        
+        # Return constraints status
+        return jsonify(algorithm.get_constraints_status())
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 
 if __name__ == '__main__':

@@ -374,6 +374,151 @@ class SeatingAlgorithm:
 
         return len(errors) == 0, errors
     
+    def get_constraints_status(self) -> Dict:
+        """Get status of all applied constraints"""
+        constraints = []
+        
+        # 1. Broken seats constraint
+        constraints.append({
+            "name": "Broken Seats Handling",
+            "description": f"Marks {len(self.broken_seats)} seats as unavailable",
+            "applied": len(self.broken_seats) > 0,
+            "satisfied": True if len(self.broken_seats) == 0 else self._verify_broken_seats_respected()
+        })
+        
+        # 2. Batch student counts constraint
+        constraints.append({
+            "name": "Batch Student Counts",
+            "description": f"Limits per-batch allocations: {dict(self.batch_student_counts) if self.batch_student_counts else 'Not set'}",
+            "applied": bool(self.batch_student_counts),
+            "satisfied": self._verify_batch_counts_respected()
+        })
+        
+        # 3. Block width constraint
+        constraints.append({
+            "name": "Block Width Enforcement",
+            "description": f"Arranges {self.blocks} blocks of {self.block_width} columns each",
+            "applied": True,
+            "satisfied": self._verify_blocks_correct()
+        })
+        
+        # 4. Paper set alternation constraint
+        constraints.append({
+            "name": "Paper Set Alternation",
+            "description": "Paper sets A and B alternate within blocks horizontally and vertically",
+            "applied": True,
+            "satisfied": self._verify_paper_sets_alternate()
+        })
+        
+        # 5. Batch-by-column assignment
+        constraints.append({
+            "name": "Batch-by-Column Assignment",
+            "description": "Each column assigned to single batch, filled top-to-bottom",
+            "applied": self.batch_by_column,
+            "satisfied": self._verify_column_batch_assignment() if self.batch_by_column else True
+        })
+        
+        # 6. No adjacent same batch constraint
+        constraints.append({
+            "name": "No Adjacent Same Batch",
+            "description": "Adjacent seats (horizontal/vertical) have different batches",
+            "applied": self.enforce_no_adjacent_batches,
+            "satisfied": self._verify_no_adjacent_batches() if self.enforce_no_adjacent_batches else True
+        })
+        
+        # 7. Unallocated seats constraint
+        unallocated_count = sum(
+            1 for row in self.seating_plan for seat in row 
+            if not seat.is_broken and seat.roll_number is None
+        )
+        constraints.append({
+            "name": "Unallocated Seats Handling",
+            "description": f"Marks {unallocated_count} seats as unallocated (light gray)",
+            "applied": unallocated_count > 0,
+            "satisfied": True
+        })
+        
+        return {
+            "constraints": constraints,
+            "total_satisfied": sum(1 for c in constraints if c["satisfied"]),
+            "total_applied": sum(1 for c in constraints if c["applied"])
+        }
+    
+    def _verify_broken_seats_respected(self) -> bool:
+        """Verify all broken seats are properly marked"""
+        for row, col in self.broken_seats:
+            if not self.seating_plan[row][col].is_broken:
+                return False
+        return True
+    
+    def _verify_batch_counts_respected(self) -> bool:
+        """Verify batch student counts are respected"""
+        if not self.batch_student_counts:
+            return True
+        allocated = {}
+        for row in self.seating_plan:
+            for seat in row:
+                if seat.roll_number and not seat.is_broken:
+                    allocated[seat.batch] = allocated.get(seat.batch, 0) + 1
+        for b, limit in self.batch_student_counts.items():
+            if allocated.get(b, 0) > limit:
+                return False
+        return True
+    
+    def _verify_blocks_correct(self) -> bool:
+        """Verify block structure is correct"""
+        calculated = math.ceil(self.cols / self.block_width)
+        return calculated == self.blocks
+    
+    def _verify_paper_sets_alternate(self) -> bool:
+        """Verify paper sets alternate within blocks"""
+        for block in range(self.blocks):
+            start_col = block * self.block_width
+            end_col = min(start_col + self.block_width, self.cols)
+            for r in range(self.rows):
+                for c in range(start_col, end_col):
+                    seat = self.seating_plan[r][c]
+                    if seat.is_broken or not seat.roll_number:
+                        continue
+                    if c + 1 < end_col:
+                        right = self.seating_plan[r][c + 1]
+                        if not right.is_broken and right.roll_number and seat.paper_set == right.paper_set:
+                            return False
+                    if r + 1 < self.rows:
+                        down = self.seating_plan[r + 1][c]
+                        if not down.is_broken and down.roll_number and seat.paper_set == down.paper_set:
+                            return False
+        return True
+    
+    def _verify_column_batch_assignment(self) -> bool:
+        """Verify each column is assigned to single batch"""
+        for col in range(self.cols):
+            batches_in_col = set()
+            for row in range(self.rows):
+                seat = self.seating_plan[row][col]
+                if not seat.is_broken and seat.roll_number:
+                    batches_in_col.add(seat.batch)
+            if len(batches_in_col) > 1:
+                return False
+        return True
+    
+    def _verify_no_adjacent_batches(self) -> bool:
+        """Verify no adjacent seats have same batch"""
+        for r in range(self.rows):
+            for c in range(self.cols):
+                seat = self.seating_plan[r][c]
+                if seat.is_broken or not seat.roll_number:
+                    continue
+                if c + 1 < self.cols:
+                    right = self.seating_plan[r][c + 1]
+                    if not right.is_broken and right.roll_number and seat.batch == right.batch:
+                        return False
+                if r + 1 < self.rows:
+                    down = self.seating_plan[r + 1][c]
+                    if not down.is_broken and down.roll_number and seat.batch == down.batch:
+                        return False
+        return True
+    
     def to_web_format(self) -> Dict:
         """Convert seating plan to web-friendly JSON format"""
         web_data = {
@@ -467,7 +612,8 @@ class SeatingAlgorithm:
         return {
             "batch_distribution": batch_counts,
             "paper_set_distribution": set_counts,
-            "total_students": total_allocated,
+            "total_available_seats": available_seats,
+            "total_allocated_students": total_allocated,
             "broken_seats_count": broken_seats_count,
             "unallocated_per_batch": unallocated_per_batch
         }
