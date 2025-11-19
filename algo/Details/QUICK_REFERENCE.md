@@ -9,7 +9,7 @@ pip install Flask Flask-CORS
 python app.py
 # Now running on http://localhost:5000
 ```
-
+  
 ### 2. Simple API Call (JavaScript)
 ```javascript
 async function generateSeating() {

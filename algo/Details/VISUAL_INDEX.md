@@ -20,7 +20,7 @@ graph TB
 ```
 
 #### 2. **Generation Flow** - Complete Workflow
-- User fills form → Frontend validates → POST request → Backend processes → Seating generated → Validation → Display
+- User fills form → Frontend validates → POST request → Backend processes → Seating generated → Validation → Display 
 
 #### 3. **Column-Based Assignment** - Batch Distribution
 - Shows how 10 columns distribute across 3 batches
