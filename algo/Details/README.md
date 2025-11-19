@@ -8,7 +8,7 @@
 
 ### 1. **ALGORITHM_DOCUMENTATION.md** (25KB)
 **Complete Technical Reference**
-- System architecture and components
+- System architecture and components 
 - Detailed input/output format specifications
 - Step-by-step algorithm logic (5 phases)
 - 7 built-in constraints explained
