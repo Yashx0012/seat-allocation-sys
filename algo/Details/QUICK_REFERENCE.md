@@ -506,7 +506,7 @@ Priority 3 applies:
 | Batch 5 | Light Purple | `#E9D5FF` | Fifth batch |
 | Broken | Red | `#FF0000` | Unavailable seat |
 | Unallocated | Gray | `#F3F4F6` | No student |
-
+ 
 ---
 
 ## Debugging Tips

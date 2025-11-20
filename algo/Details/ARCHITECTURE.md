@@ -13,7 +13,7 @@ graph TB
         MODAL["Constraints Modal"]
         PDF["PDF Export"]
     end
-      
+       
     subgraph API["⚙️ API LAYER - Flask"]
         GET[" GET /"]
         POST1["POST /api/generate-seating"]

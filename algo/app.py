@@ -14,7 +14,7 @@ HTML_TEMPLATE = Path(__file__).with_name('index.html').read_text()
 
 @app.route('/')
 def index():
-    """Main HTML page"""
+    """Main HTML page""" 
     return render_template_string(HTML_TEMPLATE)
 
 

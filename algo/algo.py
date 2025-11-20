@@ -687,5 +687,5 @@ class SeatingAlgorithm:
             "total_available_seats": available_seats,
             "total_allocated_students": total_allocated,
             "broken_seats_count": broken_seats_count,
-            "unallocated_per_batch": unallocated_per_batch
+            "unallocated_per_batch": unallocated_per_batch 
         }

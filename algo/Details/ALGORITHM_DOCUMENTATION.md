@@ -1038,7 +1038,7 @@ flowchart TD
 ### Format: "batch:count"
 ```
 "1:10,2:8,3:7"
-```
+``` 
 
 ### Format: "row-col"
 ```
