@@ -1,4 +1,4 @@
-from flask import Flask, render_template_string, jsonify, request
+from flask import Flask, render_template_string, jsonify, request, send_file
 from flask_cors import CORS
 from pathlib import Path
 from functools import wraps
@@ -10,6 +10,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'Backend'))
 
 # Import the seating algorithm
 from algo import SeatingAlgorithm
+
+# Import PDF generation
+from pdf_gen import create_seating_pdf
 
 # Import authentication service
 from auth_service import (
@@ -389,6 +392,21 @@ def get_constraints_status():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
+@app.route('/api/generate-pdf', methods=['POST'])
+def generate_pdf():
+    """Generate PDF from seating data"""
+    try:
+        data = request.get_json()
+        if not data or 'seating' not in data:
+            return jsonify({"error": "Invalid seating data"}), 400
+        
+        filename = f"seat_plan_generated/seating_{int(__import__('time').time())}.pdf"
+        filepath = create_seating_pdf(filename=filename, data=data)
+        
+        return send_file(filepath, as_attachment=True, download_name=filename)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == '__main__':
