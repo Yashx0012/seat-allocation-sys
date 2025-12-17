@@ -101,7 +101,7 @@ except ImportError as e:
 # App setup
 # --------------------------------------------------
 app = Flask(__name__)
-CORS(app, supports_credentials=True)
+CORS(app, supports_credentials=True, resources={r"/api/*": {"origins": "*"}})
 
 BASE_DIR = Path(__file__).parent
 DB_PATH = BASE_DIR / "demo.db"
@@ -704,15 +704,6 @@ def health_check():
     })
 
 if __name__ == "__main__":
-    print("\n" + "=" * 70)
-    print("🚀 Allocation API Server Starting...")
-    print("=" * 70)
-    print(f"📁 Base Directory: {BASE_DIR}")
-    print(f"💾 Database: {DB_PATH}")
-    print(f"🔐 Auth Module: {'✅ Loaded' if auth_signup else '❌ Not Available'}")
-    print(f"📄 PDF Module: {'✅ Loaded' if create_seating_pdf else '❌ Not Available'}")
-    print(f"📊 Algorithm: {'✅ Loaded' if SeatingAlgorithm else '❌ Not Available'}")
-    print("=" * 70)
-    print("✔ Server running at http://127.0.0.1:5000")
+  
     print("=" * 70 + "\n")
     app.run(debug=True, port=5000)
