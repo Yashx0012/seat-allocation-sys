@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Users, Layout, MapPin, Download, Upload, CheckCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -13,10 +13,39 @@ const DashboardPage = ({ setCurrentPage }) => {
   ];
 
   const quickActions = [
-    { label: 'Upload Students', page: 'upload', icon: Upload, color: 'bg-blue-500 dark:bg-blue-600' },
-    { label: 'Configure Layout', page: 'layout', icon: Layout, color: 'bg-green-500 dark:bg-green-600' },
-    { label: 'Download Report', page: 'layout', icon: Download, color: 'bg-orange-500 dark:bg-orange-600' }
+    { label: 'Create Plan', page: 'create-plan', icon: Upload, color: 'bg-blue-500 dark:bg-blue-600' },
+    { label: 'Template Editor', page: 'template-editor', icon: Layout, color: 'bg-green-500 dark:bg-green-600' },
+    { label: 'Classroom Layout', page: 'classroom-layout', icon: MapPin, color: 'bg-yellow-500 dark:bg-yellow-600' },
+    { label: 'Download Report', page: 'download-report', icon: Download, color: 'bg-orange-500 dark:bg-orange-600' }
   ];
+
+  const [showDownloadModal, setShowDownloadModal] = useState(false);
+  const [downloadStatus, setDownloadStatus] = useState('');
+  const [downloading, setDownloading] = useState(false);
+
+  const handleDownload = async () => {
+    setShowDownloadModal(true);
+    setDownloading(true);
+    setDownloadStatus('Starting download...');
+    try {
+      const res = await fetch('/api/download-report');
+      if (!res.ok) throw new Error('No report available');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'Report.pdf';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setDownloadStatus('Downloaded successfully');
+    } catch (e) {
+      setDownloadStatus('Failed to download report');
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4 transition-colors duration-300">
@@ -58,7 +87,7 @@ const DashboardPage = ({ setCurrentPage }) => {
             {quickActions.map((action, index) => (
               <button
                 key={index}
-                onClick={() => setCurrentPage(action.page)}
+                onClick={() => action.page === 'download-report' ? handleDownload() : setCurrentPage(action.page)}
                 className="flex flex-col items-center gap-3 p-6 border-2 border-gray-200 dark:border-gray-700 rounded-lg hover:border-blue-500 dark:hover:border-blue-400 hover:shadow-md transition-all duration-300 bg-white dark:bg-gray-800"
               >
                 <div className={`${action.color} p-3 rounded-lg`}>
@@ -70,6 +99,23 @@ const DashboardPage = ({ setCurrentPage }) => {
           </div>
         </div>
 
+        {/* Download Modal */}
+        {showDownloadModal && (
+          <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-md shadow-xl w-full max-w-md p-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Download Report</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">{downloadStatus}</p>
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => { if (!downloading) setShowDownloadModal(false); }}
+                  className={`px-4 py-2 rounded-md ${downloading ? 'bg-gray-300 text-gray-600' : 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white hover:bg-gray-300'}`}
+                >
+                  {downloading ? 'Downloading…' : 'Close'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         {/* Recent Activity */}
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 transition-colors duration-300">
           <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Recent Activity</h2>

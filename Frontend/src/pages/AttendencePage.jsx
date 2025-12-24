@@ -106,14 +106,14 @@ const AttendancePage = ({ showToast }) => {
             <input 
               type="text"
               placeholder="Search batches..."
-              className="pl-10 pr-4 py-2 w-full md:w-64 border rounded-xl bg-white dark:bg-gray-800 dark:border-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+              className="pl-10 pr-4 py-2 w-full md:w-64 border rounded-md bg-white dark:bg-gray-800 dark:border-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-md shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
           {loading ? (
             <div className="py-20 flex flex-col items-center justify-center text-gray-500">
               <Loader2 className="animate-spin mb-2" size={32} />
@@ -144,7 +144,7 @@ const AttendancePage = ({ showToast }) => {
                           <button 
                             onClick={() => handlePreview(batch)}
                             disabled={!!actionLoading}
-                            className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition"
+                            className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md transition"
                           >
                             {actionLoading === `preview-${batch.id}` ? <Loader2 className="animate-spin" size={16}/> : <FileText size={16} />}
                             Preview
@@ -152,7 +152,7 @@ const AttendancePage = ({ showToast }) => {
                           <button 
                             onClick={() => handlePrint(batch)}
                             disabled={!!actionLoading}
-                            className="flex items-center gap-2 px-4 py-1.5 text-sm font-medium bg-green-600 hover:bg-green-700 text-white rounded-lg transition shadow-sm"
+                            className="flex items-center gap-2 px-4 py-1.5 text-sm font-medium bg-green-600 hover:bg-green-700 text-white rounded-md transition shadow-sm"
                           >
                             {actionLoading === `print-${batch.id}` ? <Loader2 className="animate-spin" size={16}/> : <Printer size={16} />}
                             Print PDF
@@ -174,8 +174,8 @@ const AttendancePage = ({ showToast }) => {
 
         {/* --- PREVIEW MODAL --- */}
         {previewData && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col shadow-2xl">
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-md w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col shadow-2xl">
               <div className="p-6 border-b dark:border-gray-700 flex justify-between items-center">
                 <h2 className="font-bold text-xl text-gray-900 dark:text-white">{previewData.batch_name}</h2>
                 <button onClick={() => setPreviewData(null)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full">
@@ -204,7 +204,7 @@ const AttendancePage = ({ showToast }) => {
                 </table>
               </div>
               <div className="p-4 border-t dark:border-gray-700 text-right">
-                <button onClick={() => setPreviewData(null)} className="px-6 py-2 bg-gray-900 dark:bg-blue-600 text-white rounded-xl">
+                <button onClick={() => setPreviewData(null)} className="px-6 py-2 bg-gray-900 dark:bg-blue-600 text-white rounded-md">
                   Close
                 </button>
               </div>

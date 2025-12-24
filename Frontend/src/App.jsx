@@ -16,8 +16,9 @@ import SignupPage from './pages/SignupPage';
 import ProfilePage from './pages/ProfilePage';
 import DashboardPage from './pages/DashboardPage';
 import UploadPage from './pages/UploadPage';
-import LayoutPage from './pages/LayoutPage';
 import Allocation from './pages/Allocation';
+import CreatePlan from './pages/CreatePlan';
+import ClassroomLayout from './pages/ClassroomLayout';
 import FeedbackPage from './pages/FeedbackPage';
 import AboutusPage from './pages/AboutusPage';
 import TemplateEditor from './pages/TemplateEditor';
@@ -51,10 +52,25 @@ const AppContent = () => {
   const { theme } = useTheme();
   const { user, loading } = useAuth();
 
-  // 🔒 Restore last page from localStorage
-  const [currentPage, setCurrentPage] = useState(() => {
+  // 🔒 Restore last page from history state, hash, or localStorage
+  const [currentPage, setCurrentPageState] = useState(() => {
+    const histState = window.history.state && window.history.state.page;
+    if (histState) return histState;
+    const hash = window.location.hash ? window.location.hash.slice(1) : null;
+    if (hash) return hash;
     return localStorage.getItem('currentPage') || 'landing';
   });
+
+  // Navigation wrapper — use this when passing to children so back/forward works
+  const setCurrentPage = (page) => {
+    // update state and push history entry
+    setCurrentPageState(page);
+    try {
+      window.history.pushState({ page }, '', `#${page}`);
+    } catch (e) {
+      // ignore (some environments may restrict pushState)
+    }
+  };
 
   const [toast, setToast] = useState(null);
 
@@ -67,6 +83,17 @@ const AppContent = () => {
     }
   }, [currentPage]);
 
+  // Handle browser back/forward
+  useEffect(() => {
+    const onPop = (e) => {
+      const page = (e.state && e.state.page) || (window.location.hash ? window.location.hash.slice(1) : null);
+      if (page) setCurrentPageState(page);
+    };
+
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
   // --------------------------------------------------
   // AUTH GUARD + INITIAL ROUTE RESOLUTION
   // --------------------------------------------------
@@ -78,7 +105,6 @@ const AppContent = () => {
       'profile',
       'upload',
       'allocation',
-      'layout',
       'template-editor',
       'attendence',
     ];
@@ -138,10 +164,13 @@ const AppContent = () => {
         return <DashboardPage setCurrentPage={setCurrentPage} />;
       case 'upload':
         return <UploadPage showToast={showToast} />;
+      case 'create-plan':
+        return <CreatePlan setCurrentPage={setCurrentPage} />;
       case 'allocation':
         return <Allocation showToast={showToast} />;
-      case 'layout':
-        return <LayoutPage showToast={showToast} />;
+      case 'classroom-layout':
+        return <ClassroomLayout setCurrentPage={setCurrentPage} />;
+      
       case 'feedback':
         return <FeedbackPage showToast={showToast} />;
       case 'aboutus':
