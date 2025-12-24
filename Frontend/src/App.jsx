@@ -16,8 +16,8 @@ import SignupPage from './pages/SignupPage';
 import ProfilePage from './pages/ProfilePage';
 import DashboardPage from './pages/DashboardPage';
 import UploadPage from './pages/UploadPage';
-import LayoutPage from './pages/LayoutPage';
 import Allocation from './pages/Allocation';
+import CreatePlan from './pages/CreatePlan';
 import FeedbackPage from './pages/FeedbackPage';
 import AboutusPage from './pages/AboutusPage';
 import TemplateEditor from './pages/TemplateEditor';
@@ -78,7 +78,6 @@ const AppContent = () => {
       'profile',
       'upload',
       'allocation',
-      'layout',
       'template-editor',
       'attendence',
     ];
@@ -138,10 +137,11 @@ const AppContent = () => {
         return <DashboardPage setCurrentPage={setCurrentPage} />;
       case 'upload':
         return <UploadPage showToast={showToast} />;
+      case 'create-plan':
+        return <CreatePlan setCurrentPage={setCurrentPage} />;
       case 'allocation':
         return <Allocation showToast={showToast} />;
-      case 'layout':
-        return <LayoutPage showToast={showToast} />;
+      
       case 'feedback':
         return <FeedbackPage showToast={showToast} />;
       case 'aboutus':

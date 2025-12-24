@@ -15,14 +15,11 @@ const Navbar = ({ currentPage, setCurrentPage }) => {
 
   const navItems = user ? [
     { name: 'Dashboard', page: 'dashboard' },
-    { name: 'Upload', page: 'upload' },
-    { name: 'Allocation', page: 'allocation' },
-    { name: 'Layout', page: 'layout' },
     { name: 'Profile', page: 'profile' },
     { name: 'Feedback', page: 'feedback'},
     { name: 'About us', page: 'aboutus'},
     { name: 'Template Editor ', page: 'template-editor'},
-    { name: 'Attendence ', page: 'attendence'}
+    { name: 'Attendence ', page: 'attendence' }
   ] : [];
 
   return (
@@ -39,17 +36,28 @@ const Navbar = ({ currentPage, setCurrentPage }) => {
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-6">
             {navItems.map(item => (
-              <button
-                key={item.page}
-                onClick={() => setCurrentPage(item.page)}
-                className={`text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition ${
-                  currentPage === item.page ? 'text-blue-600 dark:text-blue-400 font-semibold' : ''
-                }`}
-              >
-                {item.name}
-              </button>
+              <React.Fragment key={item.page}>
+                <button
+                  onClick={() => setCurrentPage(item.page)}
+                  className={`text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition ${
+                    currentPage === item.page ? 'text-blue-600 dark:text-blue-400 font-semibold' : ''
+                  }`}
+                >
+                  {item.name}
+                </button>
+
+                {user && item.page === 'dashboard' && (
+                  <button
+                    onClick={() => setCurrentPage('create-plan')}
+                    className={`text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition ${
+                      currentPage === 'create-plan' ? 'text-blue-600 dark:text-blue-400 font-semibold' : ''
+                    }`}
+                  >
+                    Create
+                  </button>
+                )}
+              </React.Fragment>
             ))}
-            
             {/* Theme Toggle Button */}
             <button
               onClick={toggleTheme}
@@ -117,16 +125,29 @@ const Navbar = ({ currentPage, setCurrentPage }) => {
         {mobileMenuOpen && (
           <div className="md:hidden pb-4 bg-white dark:bg-gray-800">
             {navItems.map(item => (
-              <button
-                key={item.page}
-                onClick={() => {
-                  setCurrentPage(item.page);
-                  setMobileMenuOpen(false);
-                }}
-                className="block w-full text-left px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-              >
-                {item.name}
-              </button>
+              <React.Fragment key={item.page}>
+                <button
+                  onClick={() => {
+                    setCurrentPage(item.page);
+                    setMobileMenuOpen(false);
+                  }}
+                  className="block w-full text-left px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  {item.name}
+                </button>
+
+                {user && item.page === 'dashboard' && (
+                  <button
+                    onClick={() => {
+                      setCurrentPage('create-plan');
+                      setMobileMenuOpen(false);
+                    }}
+                    className="block w-full text-left px-4 py-2 mb-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  >
+                    CREATE
+                  </button>
+                )}
+              </React.Fragment>
             ))}
             {user ? (
               <button
