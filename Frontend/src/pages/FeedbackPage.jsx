@@ -64,7 +64,7 @@ const FeedbackPage = ({ showToast }) => {
             <div className="max-w-5xl mx-auto space-y-8">
                 
                 {/* Hero Section */}
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-gray-200 dark:border-gray-700">
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_4px_26px_rgba(192,192,192,0.22)] dark:shadow-[0_4px_26px_rgba(138,138,138,0.22)]">
                     <div>
                         <div className="flex items-center gap-2 mb-2">
                             <div className="relative w-3 h-3">
@@ -95,7 +95,7 @@ const FeedbackPage = ({ showToast }) => {
                 {/* Submission Success Message */}
                 {isSubmitted && (
                     <div 
-                        className="glass-card border-l-4 border-emerald-500 p-6 animate-fadeIn"
+                        className="glass-card border border-[#c0c0c0] dark:border-[#8a8a8a] border-l-4 border-emerald-500 p-6 animate-fadeIn shadow-[0_0_24px_rgba(192,192,192,0.22)] dark:shadow-[0_0_24px_rgba(138,138,138,0.24)]"
                     >
                         <div className="flex items-center gap-4">
                             <div className="flex-shrink-0">
@@ -112,7 +112,7 @@ const FeedbackPage = ({ showToast }) => {
                 )}
 
                 {/* Main Form Container */}
-                <div className="glass-card p-8 md:p-10">
+                <div className="glass-card p-8 md:p-10 border border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_0_28px_rgba(192,192,192,0.24)] dark:shadow-[0_0_28px_rgba(138,138,138,0.26)]">
                     <form onSubmit={handleSubmit} className="space-y-8">
                         
                         {/* 1. Reason for Reporting (Issue Type Tags) */}
@@ -130,7 +130,7 @@ const FeedbackPage = ({ showToast }) => {
                                         className={`px-4 py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 border-2 ${
                                             issueType === issue 
                                                 ? 'bg-orange-500 dark:bg-orange-600 text-white border-orange-500 dark:border-orange-600 shadow-lg scale-105' 
-                                                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-orange-500 dark:hover:border-orange-400 hover:shadow-md'
+                                                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-[#c0c0c0] dark:border-[#8a8a8a] hover:border-orange-500 dark:hover:border-orange-400 hover:shadow-md'
                                         }`}
                                         style={{
                                             animation: `fadeIn 0.3s ease-out ${idx * 0.05}s forwards`,
@@ -161,7 +161,7 @@ const FeedbackPage = ({ showToast }) => {
                                 rows="10" 
                                 placeholder="e.g., Step 1: Click the 'Home' tab. Step 2: Resize the window to mobile width. Expected: Nav bar collapses. Actual: Nav bar overlaps content."
                                 required
-                                className="w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-white border-2 border-gray-200 dark:border-gray-700 rounded-xl p-4 focus:ring-2 focus:ring-orange-500 dark:focus:ring-orange-400 focus:border-orange-500 dark:focus:border-orange-400 placeholder-gray-400 dark:placeholder-gray-500 resize-y transition-all duration-300 outline-none"
+                                className="w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-white border-2 border-[#c0c0c0] dark:border-[#8a8a8a] rounded-xl p-4 focus:ring-2 focus:ring-orange-500 dark:focus:ring-orange-400 focus:border-orange-500 dark:focus:border-orange-400 placeholder-gray-400 dark:placeholder-gray-500 resize-y transition-all duration-300 outline-none"
                             ></textarea>
                         </div>
                         
@@ -181,7 +181,7 @@ const FeedbackPage = ({ showToast }) => {
                                 onChange={(e) => setFeatureSuggestion(e.target.value)}
                                 rows="6" 
                                 placeholder="Example: It would be great to have an export button for the seating chart in PDF format."
-                                className="w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-white border-2 border-gray-200 dark:border-gray-700 rounded-xl p-4 focus:ring-2 focus:ring-orange-500 dark:focus:ring-orange-400 focus:border-orange-500 dark:focus:border-orange-400 placeholder-gray-400 dark:placeholder-gray-500 resize-y transition-all duration-300 outline-none"
+                                className="w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-white border-2 border-[#c0c0c0] dark:border-[#8a8a8a] rounded-xl p-4 focus:ring-2 focus:ring-orange-500 dark:focus:ring-orange-400 focus:border-orange-500 dark:focus:border-orange-400 placeholder-gray-400 dark:placeholder-gray-500 resize-y transition-all duration-300 outline-none"
                             ></textarea>
                         </div>
 
@@ -203,7 +203,7 @@ const FeedbackPage = ({ showToast }) => {
                                         className={`relative overflow-hidden px-6 py-4 text-sm font-bold rounded-xl text-white transition-all duration-200 border-2 ${
                                             priority === opt.label
                                                 ? `${opt.colorClass} ${opt.borderClass} shadow-lg scale-105` 
-                                                : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 border-gray-300 dark:border-gray-600'
+                                                : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 border-[#c0c0c0] dark:border-[#8a8a8a]'
                                         }`}
                                         style={{
                                             animation: `fadeInUp 0.3s ease-out ${idx * 0.1}s forwards`,
@@ -278,7 +278,7 @@ const FeedbackPage = ({ showToast }) => {
                                 onChange={(e) => setAdditionalInfo(e.target.value)}
                                 rows="6" 
                                 placeholder="Paste error logs, URLs, or notes here."
-                                className="w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-white border-2 border-gray-200 dark:border-gray-700 rounded-xl p-4 focus:ring-2 focus:ring-orange-500 dark:focus:ring-orange-400 focus:border-orange-500 dark:focus:border-orange-400 placeholder-gray-400 dark:placeholder-gray-500 resize-y transition-all duration-300 outline-none font-mono text-sm"
+                                className="w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-white border-2 border-[#c0c0c0] dark:border-[#8a8a8a] rounded-xl p-4 focus:ring-2 focus:ring-orange-500 dark:focus:ring-orange-400 focus:border-orange-500 dark:focus:border-orange-400 placeholder-gray-400 dark:placeholder-gray-500 resize-y transition-all duration-300 outline-none font-mono text-sm"
                             ></textarea>
                         </div>
 
@@ -295,7 +295,7 @@ const FeedbackPage = ({ showToast }) => {
 
                 {/* Info Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="glass-card border-l-4 border-orange-500 p-6">
+                    <div className="glass-card border border-[#c0c0c0] dark:border-[#8a8a8a] border-l-4 border-orange-500 p-6 shadow-[0_0_22px_rgba(192,192,192,0.22)] dark:shadow-[0_0_22px_rgba(138,138,138,0.24)]">
                         <div className="flex gap-4">
                             <div className="flex-shrink-0">
                                 <div className="w-10 h-10 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
@@ -311,7 +311,7 @@ const FeedbackPage = ({ showToast }) => {
                         </div>
                     </div>
 
-                    <div className="glass-card border-l-4 border-amber-500 p-6">
+                    <div className="glass-card border border-[#c0c0c0] dark:border-[#8a8a8a] border-l-4 border-amber-500 p-6 shadow-[0_0_22px_rgba(192,192,192,0.22)] dark:shadow-[0_0_22px_rgba(138,138,138,0.24)]">
                         <div className="flex gap-4">
                             <div className="flex-shrink-0">
                                 <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">

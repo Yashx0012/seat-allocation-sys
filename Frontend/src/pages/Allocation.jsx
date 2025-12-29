@@ -192,7 +192,7 @@ const AllocationPage = ({ showToast }) => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[#050505] py-8 px-4 transition-colors duration-300">
       <div className="max-w-[1600px] mx-auto space-y-8">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_4px_26px_rgba(192,192,192,0.22)] dark:shadow-[0_4px_26px_rgba(138,138,138,0.22)]">
           <div>
             <div className="flex items-center gap-2 mb-2">
               <div className="relative w-3 h-3">
@@ -212,8 +212,8 @@ const AllocationPage = ({ showToast }) => {
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
-          <Card className="xl:col-span-4 h-full flex flex-col overflow-hidden border-2 border-gray-200 dark:border-gray-700">
-             <div className="p-6 bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20 border-b-2 border-gray-200 dark:border-gray-700">
+           <Card className="xl:col-span-4 h-full flex flex-col overflow-hidden border-2 border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_0_28px_rgba(192,192,192,0.22)] dark:shadow-[0_0_28px_rgba(138,138,138,0.24)]">
+             <div className="p-6 bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20 border-b-2 border-[#c0c0c0] dark:border-[#8a8a8a]">
                <h2 className="text-xl font-bold text-orange-900 dark:text-orange-100 flex items-center gap-2">
                  <Flame size={24} className="text-orange-500"/>
                  Configuration Panel
@@ -226,7 +226,7 @@ const AllocationPage = ({ showToast }) => {
                     <Monitor size={16} className="text-orange-500" />
                     1. Select Venue
                   </label>
-                  <select value={selectedRoomId} onChange={e=>handleRoomChange(e.target.value)} className="w-full h-12 px-4 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-xl font-bold dark:text-white outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all">
+                  <select value={selectedRoomId} onChange={e=>handleRoomChange(e.target.value)} className="w-full h-12 px-4 bg-white dark:bg-gray-800 border-2 border-[#c0c0c0] dark:border-[#8a8a8a] rounded-xl font-bold dark:text-white outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all">
                      <option value="">-- Manual Configuration --</option>
                      {classrooms.map(r=><option key={r.id} value={r.id}>{r.name}</option>)}
                   </select>
@@ -248,21 +248,21 @@ const AllocationPage = ({ showToast }) => {
                   </div>
                   <div className="space-y-3">
                      {batchConfigs.map((b, i) => (
-                       <div key={b.id} className="p-4 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-750 rounded-xl border-2 border-gray-200 dark:border-gray-700 space-y-3 hover:border-orange-500 dark:hover:border-orange-400 transition-all">
+                       <div key={b.id} className="p-4 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-750 rounded-xl border-2 border-[#c0c0c0] dark:border-[#8a8a8a] space-y-3 hover:border-orange-500 dark:hover:border-orange-400 transition-all">
                           <div className="flex gap-2">
-                            <input value={b.label} onChange={e=>updateBatch(i,'label',e.target.value)} className="flex-1 h-9 px-3 text-xs border-2 border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 dark:text-white font-bold focus:ring-2 focus:ring-orange-500" placeholder="Batch Label" />
-                            <input type="color" value={b.color} onChange={e=>updateBatch(i,'color',e.target.value)} className="w-9 h-9 p-0.5 border-2 border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer" />
+                            <input value={b.label} onChange={e=>updateBatch(i,'label',e.target.value)} className="flex-1 h-9 px-3 text-xs border-2 border-[#c0c0c0] dark:border-[#8a8a8a] rounded-lg bg-white dark:bg-gray-800 dark:text-white font-bold focus:ring-2 focus:ring-orange-500" placeholder="Batch Label" />
+                            <input type="color" value={b.color} onChange={e=>updateBatch(i,'color',e.target.value)} className="w-9 h-9 p-0.5 border-2 border-[#c0c0c0] dark:border-[#8a8a8a] rounded-lg cursor-pointer" />
                           </div>
                           <div className="flex items-center gap-2">
                              <Hash size={14} className="text-orange-500"/>
-                             <input value={b.startRoll} onChange={e=>updateBatch(i,'startRoll',e.target.value)} className="flex-1 h-9 px-3 text-xs border-2 border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 dark:text-white font-mono focus:ring-2 focus:ring-orange-500" placeholder="Start Roll Number" />
+                             <input value={b.startRoll} onChange={e=>updateBatch(i,'startRoll',e.target.value)} className="flex-1 h-9 px-3 text-xs border-2 border-[#c0c0c0] dark:border-[#8a8a8a] rounded-lg bg-white dark:bg-gray-800 dark:text-white font-mono focus:ring-2 focus:ring-orange-500" placeholder="Start Roll Number" />
                           </div>
                        </div>
                      ))}
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-3 pt-4 border-t-2 border-gray-200 dark:border-gray-700">
+                <div className="flex flex-col gap-3 pt-4 border-t-2 border-[#c0c0c0] dark:border-[#8a8a8a]">
                    <label className="flex items-center gap-3 text-sm font-bold text-gray-700 dark:text-gray-300 cursor-pointer hover:text-orange-600 dark:hover:text-orange-400 transition-colors">
                      <input type="checkbox" checked={useDemoDb} onChange={e=>setUseDemoDb(e.target.checked)} className="w-5 h-5 rounded border-2 border-gray-300 text-orange-600 focus:ring-2 focus:ring-orange-500"/>
                      <Database size={16} className="text-orange-500" />
@@ -280,7 +280,7 @@ const AllocationPage = ({ showToast }) => {
                    </label>
                 </div>
 
-                <div className="pt-4 border-t-2 border-gray-200 dark:border-gray-700">
+                <div className="pt-4 border-t-2 border-[#c0c0c0] dark:border-[#8a8a8a]">
                   <Button onClick={handleResetDatabase} variant="destructive" className="w-full h-11 text-sm font-bold uppercase tracking-wide" disabled={resetting}>
                     {resetting ? <Loader2 className="animate-spin mr-2" size={16}/> : <Trash2 size={16} className="mr-2"/>}
                     {resetting ? 'Resetting Database...' : 'Reset All Data'}
@@ -288,14 +288,14 @@ const AllocationPage = ({ showToast }) => {
                 </div>
              </div>
              
-             <div className="p-6 border-t-2 border-gray-200 dark:border-gray-700 bg-gradient-to-br from-orange-50 to-amber-50 dark:from-gray-800 dark:to-gray-750">
+             <div className="p-6 border-t-2 border-[#c0c0c0] dark:border-[#8a8a8a] bg-gradient-to-br from-orange-50 to-amber-50 dark:from-gray-800 dark:to-gray-750">
                 <Button onClick={generate} disabled={loading} className="w-full h-14 bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600 shadow-lg hover:shadow-xl text-base font-black uppercase tracking-wide">
                   {loading ? <><Loader2 className="animate-spin mr-2" size={20}/>Generating...</> : <><Play className="mr-2" size={20}/>Generate Seating Plan</>}
                 </Button>
              </div>
           </Card>
 
-          <Card className="xl:col-span-8 h-full flex flex-col relative overflow-hidden p-6 border-2 border-gray-200 dark:border-gray-700" ref={chartRef}>
+          <Card className="xl:col-span-8 h-full flex flex-col relative overflow-hidden p-6 border-2 border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_0_32px_rgba(192,192,192,0.24)] dark:shadow-[0_0_32px_rgba(138,138,138,0.26)]" ref={chartRef}>
              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                 <div>
                   <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight flex items-center gap-2">
@@ -313,7 +313,7 @@ const AllocationPage = ({ showToast }) => {
                         <Button className="h-10 px-4 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white hover:from-emerald-600 hover:to-emerald-700 text-xs font-bold flex gap-2">
                           <Download size={14}/> Export PDF
                         </Button>
-                        <div className="absolute right-0 top-full mt-2 w-52 bg-white dark:bg-gray-800 shadow-2xl rounded-xl border-2 border-gray-200 dark:border-gray-700 hidden group-hover:block z-50 p-2 animate-fadeIn">
+                        <div className="absolute right-0 top-full mt-2 w-52 bg-white dark:bg-gray-800 shadow-[0_0_32px_rgba(192,192,192,0.3)] dark:shadow-[0_0_32px_rgba(138,138,138,0.32)] rounded-xl border-2 border-[#c0c0c0] dark:border-[#8a8a8a] hidden group-hover:block z-50 p-2 animate-fadeIn">
                           <button onClick={()=>downloadPdf('client')} className="w-full text-left px-4 py-3 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-lg text-sm font-bold text-gray-900 dark:text-white transition-colors flex items-center gap-2">
                             <Zap size={14} className="text-orange-500" />
                             Client PDF (Fast)

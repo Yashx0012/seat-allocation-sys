@@ -9,14 +9,14 @@ const Button = ({ className, variant = "primary", size = "default", children, on
   const base = "inline-flex items-center justify-center rounded-xl font-bold transition-all focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 hover:scale-105 active:scale-95";
   const variants = {
     primary: "bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600 shadow-lg",
-    secondary: "bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-600 border-2 border-gray-200 dark:border-gray-600",
+    secondary: "bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-600 border-2 border-[#c0c0c0] dark:border-[#8a8a8a]",
     destructive: "bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 border-2 border-red-200 dark:border-red-800",
-    outline: "border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-orange-500 dark:hover:border-orange-400"
+    outline: "border-2 border-[#c0c0c0] dark:border-[#8a8a8a] bg-white dark:bg-gray-800 hover:border-orange-500 dark:hover:border-orange-400 shadow-[0_0_20px_rgba(192,192,192,0.18)] dark:shadow-[0_0_20px_rgba(138,138,138,0.22)]"
   };
   const sizes = { default: "h-10 px-5 py-2", icon: "h-10 w-10" };
   return <button className={`${base} ${variants[variant] || variants.primary} ${sizes[size]} ${className}`} onClick={onClick} disabled={disabled} title={title}>{children}</button>;
 };
-const Input = (props) => <input {...props} className={`flex h-10 w-full rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-1 text-sm shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 dark:text-white ${props.className}`} />;
+const Input = (props) => <input {...props} className={`flex h-10 w-full rounded-xl border-2 border-[#c0c0c0] dark:border-[#8a8a8a] bg-white dark:bg-gray-800 px-3 py-1 text-sm shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 dark:text-white ${props.className}`} />;
 const Label = ({ className, children }) => <label className={`text-xs uppercase font-bold tracking-widest text-gray-600 dark:text-gray-400 ${className}`}>{children}</label>;
 
 export default function Classrooms({ showToast }) {
@@ -116,7 +116,7 @@ export default function Classrooms({ showToast }) {
       <div className="max-w-7xl mx-auto space-y-8">
         
         {/* Hero Section */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_4px_26px_rgba(192,192,192,0.22)] dark:shadow-[0_4px_26px_rgba(138,138,138,0.22)]">
           <div>
             <div className="flex items-center gap-2 mb-2">
               <div className="relative w-3 h-3">
@@ -152,8 +152,8 @@ export default function Classrooms({ showToast }) {
           className="grid grid-cols-1 lg:grid-cols-12 gap-6"
         >
           {/* SIDEBAR */}
-          <Card className="lg:col-span-4 flex flex-col overflow-hidden border-2 border-gray-200 dark:border-gray-700">
-            <div className="p-6 bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20 border-b-2 border-gray-200 dark:border-gray-700">
+          <Card className="lg:col-span-4 flex flex-col overflow-hidden border-2 border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_0_28px_rgba(192,192,192,0.24)] dark:shadow-[0_0_28px_rgba(138,138,138,0.26)]">
+            <div className="p-6 bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20 border-b-2 border-[#c0c0c0] dark:border-[#8a8a8a]">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Building className="text-orange-500" size={24} />
@@ -179,7 +179,7 @@ export default function Classrooms({ showToast }) {
                         w-full text-left p-4 rounded-xl transition-all duration-200 border-2 group
                         ${selectedRoomId === room.id 
                           ? "border-orange-500 bg-orange-50 dark:bg-orange-900/20 shadow-lg" 
-                          : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-orange-500 dark:hover:border-orange-400 hover:shadow-md"}
+                          : "border-[#c0c0c0] dark:border-[#8a8a8a] bg-white dark:bg-gray-800 hover:border-orange-500 dark:hover:border-orange-400 hover:shadow-md"}
                       `}
                     >
                       <div className="flex justify-between items-center mb-2">
@@ -194,8 +194,8 @@ export default function Classrooms({ showToast }) {
                         )}
                       </div>
                       <div className="text-xs text-gray-500 dark:text-gray-400 font-mono flex gap-3">
-                        <span className="bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded">{room.rows} × {room.cols}</span>
-                        <span className="bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded">CAP: {room.rows * room.cols}</span>
+                        <span className="bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded border border-[#e0e0e0] dark:border-[#5c5c5c]">{room.rows} × {room.cols}</span>
+                        <span className="bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded border border-[#e0e0e0] dark:border-[#5c5c5c]">CAP: {room.rows * room.cols}</span>
                       </div>
                     </motion.button>
                   ))}
@@ -211,9 +211,9 @@ export default function Classrooms({ showToast }) {
           </Card>
 
           {/* MAIN DESIGNER */}
-          <Card className="lg:col-span-8 flex flex-col relative overflow-hidden border-2 border-gray-200 dark:border-gray-700 min-h-[600px]">
+          <Card className="lg:col-span-8 flex flex-col relative overflow-hidden border-2 border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_0_32px_rgba(192,192,192,0.26)] dark:shadow-[0_0_32px_rgba(138,138,138,0.28)] min-h-[600px]">
             {!selectedRoomId ? (
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400 dark:text-gray-600 border-4 border-dashed border-gray-200 dark:border-gray-700 rounded-2xl m-8">
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400 dark:text-gray-600 border-4 border-dashed border-[#c0c0c0] dark:border-[#8a8a8a] rounded-2xl m-8 shadow-[0_0_26px_rgba(192,192,192,0.22)] dark:shadow-[0_0_26px_rgba(138,138,138,0.24)]">
                 <div className="relative mb-6">
                   <div className="absolute inset-0 bg-orange-500 rounded-full blur-2xl opacity-20"></div>
                   <LayoutGrid className="h-24 w-24 relative opacity-20" />
@@ -224,7 +224,7 @@ export default function Classrooms({ showToast }) {
             ) : (
               <div className="flex flex-col h-full">
                  {/* Toolbar */}
-                 <div className="p-6 border-b-2 border-gray-200 dark:border-gray-700 bg-gradient-to-br from-orange-50 to-amber-50 dark:from-gray-800 dark:to-gray-750">
+                 <div className="p-6 border-b-2 border-[#c0c0c0] dark:border-[#8a8a8a] bg-gradient-to-br from-orange-50 to-amber-50 dark:from-gray-800 dark:to-gray-750">
                     <div className="space-y-4">
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                           <div className="space-y-2">
@@ -285,7 +285,7 @@ export default function Classrooms({ showToast }) {
                                             h-12 w-12 rounded-xl flex items-center justify-center text-xs font-bold transition-all duration-200 border-2 shadow-sm
                                             ${isBroken 
                                                 ? "bg-red-50 dark:bg-red-900/20 border-red-500 dark:border-red-600 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 shadow-red-500/20" 
-                                                : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-600 hover:border-orange-500 dark:hover:border-orange-400 hover:text-orange-500 hover:-translate-y-1 hover:shadow-lg"}
+                                              : "bg-white dark:bg-gray-800 border-[#c0c0c0] dark:border-[#8a8a8a] text-gray-400 dark:text-gray-600 hover:border-orange-500 dark:hover:border-orange-400 hover:text-orange-500 hover:-translate-y-1 hover:shadow-lg"}
                                         `}
                                         title={`Row ${r}, Col ${c}${isBroken ? ' (Broken)' : ''}`}
                                     >
@@ -297,11 +297,11 @@ export default function Classrooms({ showToast }) {
 
                         {/* Legend */}
                         <div className="flex gap-4 justify-center mt-8 text-xs">
-                          <div className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-                            <div className="w-4 h-4 rounded bg-white border-2 border-gray-200"></div>
+                          <div className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-gray-800 rounded-lg border border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_0_18px_rgba(192,192,192,0.18)] dark:shadow-[0_0_18px_rgba(138,138,138,0.22)]">
+                            <div className="w-4 h-4 rounded bg-white border-2 border-[#c0c0c0]"></div>
                             <span className="font-medium text-gray-600 dark:text-gray-400">Available</span>
                           </div>
-                          <div className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                          <div className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-gray-800 rounded-lg border border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_0_18px_rgba(192,192,192,0.18)] dark:shadow-[0_0_18px_rgba(138,138,138,0.22)]">
                             <div className="w-4 h-4 rounded bg-red-50 border-2 border-red-500 flex items-center justify-center">
                               <X size={10} className="text-red-500"/>
                             </div>

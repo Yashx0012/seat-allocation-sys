@@ -108,7 +108,7 @@ const UploadPage = ({ showToast }) => {
       <div className="max-w-5xl mx-auto space-y-8">
         
         {/* Hero Section */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_4px_26px_rgba(192,192,192,0.22)] dark:shadow-[0_4px_26px_rgba(138,138,138,0.22)]">
           <div>
             <div className="flex items-center gap-2 mb-2">
               <div className="relative w-3 h-3">
@@ -127,7 +127,7 @@ const UploadPage = ({ showToast }) => {
         </div>
 
         {/* Main Card */}
-        <div className="glass-card rounded-3xl shadow-2xl p-8 border-2 border-gray-200 dark:border-gray-700">
+        <div className="glass-card rounded-3xl p-8 border-2 border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_0_32px_rgba(192,192,192,0.25)] dark:shadow-[0_0_32px_rgba(138,138,138,0.28)]">
           
           {/* Error Display */}
           {error && (
@@ -290,7 +290,7 @@ const UploadPage = ({ showToast }) => {
 
           {/* Preview Section */}
           {uploadResult && (
-            <div className="mt-8 glass-card rounded-2xl border-2 border-gray-200 dark:border-gray-700 overflow-hidden shadow-xl animate-fadeInUp">
+            <div className="mt-8 glass-card rounded-2xl border-2 border-[#c0c0c0] dark:border-[#8a8a8a] overflow-hidden shadow-[0_0_28px_rgba(192,192,192,0.24)] dark:shadow-[0_0_28px_rgba(138,138,138,0.26)] animate-fadeInUp">
               <div className="bg-gradient-to-r from-emerald-50 to-green-50 dark:from-emerald-900/30 dark:to-green-900/30 p-6 border-b-2 border-emerald-200 dark:border-emerald-800">
                 <div className="flex items-center gap-3 mb-6">
                   <div className="p-2 rounded-lg bg-emerald-500">
@@ -344,7 +344,7 @@ const UploadPage = ({ showToast }) => {
                     <Database size={16} className="text-orange-500" />
                     Sample Data Preview
                   </h4>
-                  <div className="overflow-x-auto border-2 border-gray-200 dark:border-gray-700 rounded-xl">
+                  <div className="overflow-x-auto border-2 border-[#c0c0c0] dark:border-[#8a8a8a] rounded-xl shadow-[0_0_24px_rgba(192,192,192,0.22)] dark:shadow-[0_0_24px_rgba(138,138,138,0.24)]">
                     <table className="w-full text-sm">
                       <thead className="bg-gradient-to-r from-orange-500 to-amber-500 text-white">
                         <tr>

@@ -90,7 +90,7 @@ const AttendancePage = ({ showToast }) => {
       <div className="max-w-6xl mx-auto space-y-8">
         
         {/* Hero Section */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_4px_26px_rgba(192,192,192,0.22)] dark:shadow-[0_4px_26px_rgba(138,138,138,0.22)]">
           <div>
             <div className="flex items-center gap-2 mb-2">
               <div className="relative w-3 h-3">
@@ -119,13 +119,13 @@ const AttendancePage = ({ showToast }) => {
         </div>
 
         {/* Search Bar */}
-        <div className="glass-card p-6">
+        <div className="glass-card p-6 border border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_0_24px_rgba(192,192,192,0.22)] dark:shadow-[0_0_24px_rgba(138,138,138,0.24)]">
           <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
             <input 
               type="text"
               placeholder="Search batches by name..."
-              className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:border-orange-500 dark:focus:border-orange-400 focus:ring-2 focus:ring-orange-500/20 outline-none transition-all duration-200"
+              className="w-full pl-12 pr-4 py-3.5 border-2 border-[#c0c0c0] dark:border-[#8a8a8a] rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:border-orange-500 dark:focus:border-orange-400 focus:ring-2 focus:ring-orange-500/20 outline-none transition-all duration-200"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -133,7 +133,7 @@ const AttendancePage = ({ showToast }) => {
         </div>
 
         {/* Table Card */}
-        <div className="glass-card overflow-hidden">
+        <div className="glass-card overflow-hidden border border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_0_26px_rgba(192,192,192,0.24)] dark:shadow-[0_0_26px_rgba(138,138,138,0.26)]">
           {loading ? (
             <div className="py-20 flex flex-col items-center justify-center text-gray-500">
               <Loader2 className="animate-spin mb-4 text-orange-500" size={40} />
@@ -143,7 +143,7 @@ const AttendancePage = ({ showToast }) => {
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="border-b-2 border-gray-200 dark:border-gray-700">
+                  <tr className="border-b-2 border-[#c0c0c0] dark:border-[#8a8a8a]">
                     <th className="px-6 py-4 text-sm font-bold uppercase tracking-wide text-gray-700 dark:text-gray-300">
                       <div className="flex items-center gap-2">
                         <ClipboardList className="text-orange-500" size={18} />
@@ -161,7 +161,7 @@ const AttendancePage = ({ showToast }) => {
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                <tbody className="divide-y divide-[#d9d9d9] dark:divide-[#6b6b6b]">
                   {filteredAllocations.map((batch, idx) => (
                     <tr 
                       key={batch.id} 
@@ -245,10 +245,10 @@ const AttendancePage = ({ showToast }) => {
         {/* Preview Modal */}
         {previewData && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn">
-            <div className="glass-card w-full max-w-3xl max-h-[85vh] overflow-hidden flex flex-col shadow-2xl border-2 border-gray-200 dark:border-gray-700 animate-fadeInUp">
+            <div className="glass-card w-full max-w-3xl max-h-[85vh] overflow-hidden flex flex-col border-2 border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_0_32px_rgba(192,192,192,0.26)] dark:shadow-[0_0_32px_rgba(138,138,138,0.28)] animate-fadeInUp">
               
               {/* Modal Header */}
-              <div className="p-6 border-b-2 border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gradient-to-r from-orange-50 to-amber-50 dark:from-gray-800 dark:to-gray-750">
+              <div className="p-6 border-b-2 border-[#c0c0c0] dark:border-[#8a8a8a] flex justify-between items-center bg-gradient-to-r from-orange-50 to-amber-50 dark:from-gray-800 dark:to-gray-750">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <Eye className="text-orange-500" size={20} />
@@ -269,7 +269,7 @@ const AttendancePage = ({ showToast }) => {
               
               {/* Modal Body - Scrollable Table */}
               <div className="flex-1 overflow-y-auto p-6">
-                <div className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
+                <div className="border border-[#c0c0c0] dark:border-[#8a8a8a] rounded-xl overflow-hidden shadow-[0_0_22px_rgba(192,192,192,0.22)] dark:shadow-[0_0_22px_rgba(138,138,138,0.24)]">
                   <table className="w-full text-sm">
                     <thead className="bg-gradient-to-r from-orange-500 to-amber-500 text-white sticky top-0">
                       <tr>
@@ -289,7 +289,7 @@ const AttendancePage = ({ showToast }) => {
                           <td className="p-4 font-mono font-semibold text-gray-900 dark:text-gray-200">{student.enrollment}</td>
                           <td className="p-4 text-gray-700 dark:text-gray-300">{student.name || '---'}</td>
                           <td className="p-4">
-                            <div className="h-8 border-b-2 border-dashed border-gray-300 dark:border-gray-600"></div>
+                            <div className="h-8 border-b-2 border-dashed border-[#c0c0c0] dark:border-[#8a8a8a]"></div>
                           </td>
                         </tr>
                       ))}
@@ -299,7 +299,7 @@ const AttendancePage = ({ showToast }) => {
               </div>
               
               {/* Modal Footer */}
-              <div className="p-6 border-t-2 border-gray-200 dark:border-gray-700 flex justify-end gap-3 bg-gray-50 dark:bg-gray-800/50">
+              <div className="p-6 border-t-2 border-[#c0c0c0] dark:border-[#8a8a8a] flex justify-end gap-3 bg-gray-50 dark:bg-gray-800/50">
                 <button 
                   onClick={() => setPreviewData(null)} 
                   className="px-6 py-2.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition-all duration-200"

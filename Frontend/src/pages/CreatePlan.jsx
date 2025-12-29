@@ -55,7 +55,7 @@ const CreatePlan = ({ setCurrentPage }) => {
       <div className="max-w-7xl mx-auto space-y-8">
         
         {/* Hero Section */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_4px_26px_rgba(192,192,192,0.22)] dark:shadow-[0_4px_26px_rgba(138,138,138,0.22)]">
           <div>
             <div className="flex items-center gap-2 mb-2">
               <div className="relative w-3 h-3">
@@ -91,7 +91,7 @@ const CreatePlan = ({ setCurrentPage }) => {
               onClick={action.onClick}
               onMouseEnter={() => setHoveredCard(index)}
               onMouseLeave={() => setHoveredCard(null)}
-              className={`glass-card relative overflow-hidden p-8 ${action.hoverBorder} hover:shadow-2xl hover:shadow-${action.color}-500/10 transition-all duration-300 group border-2`}
+              className={`glass-card relative overflow-hidden p-8 border border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_0_24px_rgba(192,192,192,0.22)] dark:shadow-[0_0_24px_rgba(138,138,138,0.24)] ${action.hoverBorder} hover:shadow-2xl hover:shadow-${action.color}-500/10 transition-all duration-300 group`}
               style={{
                 opacity: 0,
                 animation: `fadeInUp 0.5s ease-out ${index * 0.1}s forwards`
@@ -136,7 +136,7 @@ const CreatePlan = ({ setCurrentPage }) => {
         </div>
 
         {/* Recent Plans Section */}
-        <div className="glass-card p-8">
+        <div className="glass-card p-8 border border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_0_26px_rgba(192,192,192,0.24)] dark:shadow-[0_0_26px_rgba(138,138,138,0.26)]">
           <div className="flex items-center justify-between mb-6">
             <div>
               <SplitText text={`Recent Plans`} className="text-2xl font-bold text-gray-900 dark:text-gray-100" splitType="chars" delay={20} />
@@ -149,7 +149,7 @@ const CreatePlan = ({ setCurrentPage }) => {
           </div>
 
           {plans.length === 0 ? (
-            <div className="text-center py-16 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-800/50">
+            <div className="text-center py-16 border-2 border-dashed border-[#c0c0c0] dark:border-[#8a8a8a] rounded-xl bg-gray-50 dark:bg-gray-800/50 shadow-[0_0_20px_rgba(192,192,192,0.2)] dark:shadow-[0_0_20px_rgba(138,138,138,0.22)]">
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-200 dark:bg-gray-700 mb-4">
                 <Layout className="text-gray-400 dark:text-gray-500" size={32} />
               </div>
@@ -161,7 +161,7 @@ const CreatePlan = ({ setCurrentPage }) => {
               {plans.map((p, idx) => (
                 <div
                   key={idx}
-                  className="group flex items-center justify-between p-5 rounded-xl bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-750 transition-all duration-300 border border-gray-200 dark:border-gray-700 hover:border-orange-500 dark:hover:border-orange-400 hover:shadow-lg cursor-pointer"
+                  className="group flex items-center justify-between p-5 rounded-xl bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-750 transition-all duration-300 border border-[#c0c0c0] dark:border-[#8a8a8a] hover:border-orange-500 dark:hover:border-orange-400 shadow-[0_0_20px_rgba(192,192,192,0.18)] dark:shadow-[0_0_20px_rgba(138,138,138,0.22)] hover:shadow-lg cursor-pointer"
                   style={{
                     opacity: 0,
                     animation: `fadeIn 0.3s ease-out ${idx * 0.05}s forwards`

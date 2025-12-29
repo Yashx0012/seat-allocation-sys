@@ -87,7 +87,7 @@ const ProfilePage = ({ showToast, setCurrentPage }) => {
       <div className="max-w-4xl mx-auto space-y-6">
         
         {/* Hero Section */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_4px_26px_rgba(192,192,192,0.22)] dark:shadow-[0_4px_26px_rgba(138,138,138,0.22)]">
           <div>
             <div className="flex items-center gap-2 mb-2">
               <div className="relative w-3 h-3">
@@ -104,7 +104,7 @@ const ProfilePage = ({ showToast, setCurrentPage }) => {
         </div>
 
         {/* Main Profile Card */}
-        <div className="glass-card overflow-hidden">
+        <div className="glass-card overflow-hidden border border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_0_30px_rgba(192,192,192,0.24)] dark:shadow-[0_0_30px_rgba(138,138,138,0.26)]">
           {/* Decorative Header with Gradient */}
           <div className="relative bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 p-8 overflow-hidden">
             {/* Animated background elements */}
@@ -152,7 +152,7 @@ const ProfilePage = ({ showToast, setCurrentPage }) => {
           <div className="p-8">
             {/* Stats Row */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-              <div className="bg-gradient-to-br from-orange-50 to-amber-50 dark:from-gray-800 dark:to-gray-750 p-4 rounded-xl border border-orange-200 dark:border-gray-700">
+              <div className="bg-gradient-to-br from-orange-50 to-amber-50 dark:from-gray-800 dark:to-gray-750 p-4 rounded-xl border border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_0_20px_rgba(192,192,192,0.2)] dark:shadow-[0_0_20px_rgba(138,138,138,0.22)]">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Member Since</p>
@@ -162,7 +162,7 @@ const ProfilePage = ({ showToast, setCurrentPage }) => {
                 </div>
               </div>
               
-              <div className="bg-gradient-to-br from-orange-50 to-amber-50 dark:from-gray-800 dark:to-gray-750 p-4 rounded-xl border border-orange-200 dark:border-gray-700">
+              <div className="bg-gradient-to-br from-orange-50 to-amber-50 dark:from-gray-800 dark:to-gray-750 p-4 rounded-xl border border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_0_20px_rgba(192,192,192,0.2)] dark:shadow-[0_0_20px_rgba(138,138,138,0.22)]">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Account Type</p>
@@ -172,7 +172,7 @@ const ProfilePage = ({ showToast, setCurrentPage }) => {
                 </div>
               </div>
               
-              <div className="bg-gradient-to-br from-orange-50 to-amber-50 dark:from-gray-800 dark:to-gray-750 p-4 rounded-xl border border-orange-200 dark:border-gray-700">
+              <div className="bg-gradient-to-br from-orange-50 to-amber-50 dark:from-gray-800 dark:to-gray-750 p-4 rounded-xl border border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_0_20px_rgba(192,192,192,0.2)] dark:shadow-[0_0_20px_rgba(138,138,138,0.22)]">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Status</p>
@@ -202,8 +202,8 @@ const ProfilePage = ({ showToast, setCurrentPage }) => {
                     onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                     className={`w-full px-4 py-3.5 border-2 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white transition-all duration-200 focus:outline-none ${
                       isEditing 
-                        ? 'border-gray-300 dark:border-gray-600 focus:border-orange-500 dark:focus:border-orange-400' 
-                        : 'border-gray-200 dark:border-gray-700 cursor-not-allowed opacity-60'
+                        ? 'border-[#b0b0b0] dark:border-[#797979] focus:border-orange-500 dark:focus:border-orange-400' 
+                        : 'border-[#c0c0c0] dark:border-[#8a8a8a] cursor-not-allowed opacity-60'
                     }`}
                   />
                 </div>
@@ -221,7 +221,7 @@ const ProfilePage = ({ showToast, setCurrentPage }) => {
                     type="text"
                     disabled
                     value={user?.fullName || ''}
-                    className="w-full px-4 py-3.5 border-2 border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-750 cursor-not-allowed text-gray-600 dark:text-gray-400 opacity-60"
+                    className="w-full px-4 py-3.5 border-2 border-[#c0c0c0] dark:border-[#8a8a8a] rounded-xl bg-gray-50 dark:bg-gray-750 cursor-not-allowed text-gray-600 dark:text-gray-400 opacity-60"
                   />
                 </div>
               </div>
@@ -240,8 +240,8 @@ const ProfilePage = ({ showToast, setCurrentPage }) => {
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     className={`w-full px-4 py-3.5 border-2 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white transition-all duration-200 focus:outline-none ${
                       isEditing 
-                        ? 'border-gray-300 dark:border-gray-600 focus:border-orange-500 dark:focus:border-orange-400' 
-                        : 'border-gray-200 dark:border-gray-700 cursor-not-allowed opacity-60'
+                        ? 'border-[#b0b0b0] dark:border-[#797979] focus:border-orange-500 dark:focus:border-orange-400' 
+                        : 'border-[#c0c0c0] dark:border-[#8a8a8a] cursor-not-allowed opacity-60'
                     }`}
                   />
                 </div>
@@ -258,7 +258,7 @@ const ProfilePage = ({ showToast, setCurrentPage }) => {
                     type="text"
                     disabled
                     value={user?.role || ''}
-                    className="w-full px-4 py-3.5 border-2 border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-750 cursor-not-allowed text-gray-600 dark:text-gray-400 capitalize opacity-60"
+                    className="w-full px-4 py-3.5 border-2 border-[#c0c0c0] dark:border-[#8a8a8a] rounded-xl bg-gray-50 dark:bg-gray-750 cursor-not-allowed text-gray-600 dark:text-gray-400 capitalize opacity-60"
                   />
                 </div>
               </div>
@@ -266,7 +266,7 @@ const ProfilePage = ({ showToast, setCurrentPage }) => {
 
             {/* Action Buttons */}
             {isEditing && (
-              <div className="flex gap-3 mb-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex gap-3 mb-8 pt-6 border-t border-[#c0c0c0] dark:border-[#8a8a8a]">
                 <button
                   onClick={handleSave}
                   disabled={loading}
@@ -296,7 +296,7 @@ const ProfilePage = ({ showToast, setCurrentPage }) => {
             )}
 
             {/* Logout Section */}
-            <div className="pt-8 border-t border-gray-200 dark:border-gray-700">
+            <div className="pt-8 border-t border-[#c0c0c0] dark:border-[#8a8a8a]">
               <button
                 onClick={handleLogout}
                 className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl hover:from-red-600 hover:to-red-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl hover:scale-[1.02] group"
@@ -310,7 +310,7 @@ const ProfilePage = ({ showToast, setCurrentPage }) => {
         </div>
 
         {/* Info Card */}
-        <div className="glass-card border-l-4 border-orange-500 p-6">
+        <div className="glass-card border border-[#c0c0c0] dark:border-[#8a8a8a] border-l-4 border-orange-500 p-6 shadow-[0_0_24px_rgba(192,192,192,0.22)] dark:shadow-[0_0_24px_rgba(138,138,138,0.24)]">
           <div className="flex gap-4">
             <div className="flex-shrink-0">
               <div className="w-10 h-10 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">

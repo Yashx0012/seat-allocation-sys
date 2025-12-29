@@ -54,7 +54,7 @@ const StatCard = ({ stat, index }) => {
   return (
     <div
       style={cardStyle}
-      className="glass-card relative overflow-hidden p-6 hover:scale-[1.01] hover:shadow-2xl hover:shadow-orange-500/10 transition-all duration-300 group"
+      className="glass-card relative overflow-hidden p-6 border border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_0_22px_rgba(192,192,192,0.2)] dark:shadow-[0_0_22px_rgba(138,138,138,0.22)] hover:scale-[1.01] hover:shadow-2xl hover:shadow-orange-500/10 transition-all duration-300 group"
     >
       {/* Background Icon */}
       <div className="absolute top-0 right-0 p-4 opacity-5 transform rotate-12 group-hover:scale-110 transition-transform duration-500">
@@ -63,7 +63,7 @@ const StatCard = ({ stat, index }) => {
       
       <div className="relative z-10">
         <div className="flex items-center justify-between mb-4">
-          <div className="p-2 rounded-xl bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
+          <div className="p-2 rounded-xl bg-gray-100 dark:bg-gray-700 border border-[#c0c0c0] dark:border-[#8a8a8a]">
             <stat.icon className={`w-6 h-6 ${stat.color}`} />
           </div>
           <div className="flex items-center gap-1 text-xs font-mono text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded-full">
@@ -141,7 +141,7 @@ const DashboardPage = ({ setCurrentPage }) => {
       <div className="max-w-7xl mx-auto space-y-8">
         
         {/* Hero Section */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_4px_26px_rgba(192,192,192,0.22)] dark:shadow-[0_4px_26px_rgba(138,138,138,0.22)]">
           <div>
             <div className="flex items-center gap-2 mb-2">
               <div className="relative w-3 h-3">
@@ -182,14 +182,14 @@ const DashboardPage = ({ setCurrentPage }) => {
         </div>
 
         {/* Quick Actions */}
-        <div className="glass-card p-6">
+        <div className="glass-card p-6 border border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_0_26px_rgba(192,192,192,0.22)] dark:shadow-[0_0_26px_rgba(138,138,138,0.24)]">
           <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-6">Quick Actions</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {quickActions.map((action, index) => (
               <button
                 key={index}
                 onClick={() => action.page === 'download-report' ? handleDownload() : setCurrentPage(action.page)}
-                className="flex flex-col items-center gap-3 p-6 border-2 border-gray-200 dark:border-gray-700 rounded-lg hover:border-orange-500 dark:hover:border-orange-400 hover:shadow-md transition-all duration-300 bg-white dark:bg-gray-800 group"
+                className="flex flex-col items-center gap-3 p-6 border-2 border-[#c0c0c0] dark:border-[#8a8a8a] rounded-lg shadow-[0_0_18px_rgba(192,192,192,0.18)] dark:shadow-[0_0_18px_rgba(138,138,138,0.22)] hover:border-orange-500 dark:hover:border-orange-400 hover:shadow-md transition-all duration-300 bg-white dark:bg-gray-800 group"
               >
                 <div className={`${action.color} p-3 rounded-lg group-hover:scale-110 transition-transform duration-300`}>
                   <action.icon className="text-white" size={24} />
@@ -204,7 +204,7 @@ const DashboardPage = ({ setCurrentPage }) => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
           {/* Chart Area */}
-          <div className="lg:col-span-2 glass-card min-h-[400px] p-6 flex flex-col relative overflow-hidden">
+          <div className="lg:col-span-2 glass-card min-h-[400px] p-6 border border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_0_28px_rgba(192,192,192,0.2)] dark:shadow-[0_0_28px_rgba(138,138,138,0.24)] flex flex-col relative overflow-hidden">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Allocation Velocity</h2>
               <div className="flex gap-2">
@@ -252,8 +252,8 @@ const DashboardPage = ({ setCurrentPage }) => {
           </div>
 
           {/* Terminal Log */}
-          <div className="glass-card p-6 flex flex-col h-[400px]">
-            <div className="flex items-center gap-2 mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
+          <div className="glass-card p-6 border border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_0_28px_rgba(192,192,192,0.2)] dark:shadow-[0_0_28px_rgba(138,138,138,0.24)] flex flex-col h-[400px]">
+            <div className="flex items-center gap-2 mb-6 pb-4 border-b border-[#c0c0c0] dark:border-[#8a8a8a]">
               <Terminal className="w-5 h-5 text-gray-500 dark:text-gray-400" />
               <h2 className="text-sm font-bold tracking-widest uppercase text-gray-900 dark:text-gray-100">System Log</h2>
             </div>
@@ -288,7 +288,7 @@ const DashboardPage = ({ setCurrentPage }) => {
         {/* Download Modal */}
         {showDownloadModal && (
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="glass-card w-full max-w-md p-6 animate-fadeIn">
+            <div className="glass-card w-full max-w-md p-6 border border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_0_26px_rgba(192,192,192,0.24)] dark:shadow-[0_0_26px_rgba(138,138,138,0.26)] animate-fadeIn">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Download Report</h3>
               <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">{downloadStatus}</p>
               <div className="flex justify-end gap-2">

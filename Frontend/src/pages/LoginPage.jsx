@@ -40,7 +40,7 @@ const LoginPage = ({ setCurrentPage, showToast }) => {
 
       <div className="w-full max-w-md relative z-10">
         {/* Card Container */}
-        <div className="glass-card rounded-3xl shadow-2xl p-8 border-2 border-gray-200 dark:border-gray-700 animate-fadeInUp">
+        <div className="glass-card rounded-3xl p-8 border border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_0_32px_rgba(192,192,192,0.24)] dark:shadow-[0_0_32px_rgba(138,138,138,0.26)] animate-fadeInUp">
           
           {/* Header */}
           <div className="text-center mb-8">
@@ -81,7 +81,7 @@ const LoginPage = ({ setCurrentPage, showToast }) => {
                   onChange={handleChange}
                   placeholder="you@example.com"
                   required
-                  className="w-full pl-4 pr-4 py-3.5 border-2 border-gray-200 dark:border-gray-700 rounded-xl focus:border-orange-500 dark:focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 transition-all duration-300"
+                  className="w-full pl-4 pr-4 py-3.5 border border-[#c0c0c0] dark:border-[#8a8a8a] rounded-xl focus:border-orange-500 dark:focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 transition-all duration-300 shadow-[0_0_18px_rgba(192,192,192,0.16)] dark:shadow-[0_0_18px_rgba(138,138,138,0.2)]"
                 />
               </div>
             </div>
@@ -100,7 +100,7 @@ const LoginPage = ({ setCurrentPage, showToast }) => {
                   onChange={handleChange}
                   placeholder="••••••••"
                   required
-                  className="w-full pl-4 pr-4 py-3.5 border-2 border-gray-200 dark:border-gray-700 rounded-xl focus:border-orange-500 dark:focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 transition-all duration-300"
+                  className="w-full pl-4 pr-4 py-3.5 border border-[#c0c0c0] dark:border-[#8a8a8a] rounded-xl focus:border-orange-500 dark:focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 transition-all duration-300 shadow-[0_0_18px_rgba(192,192,192,0.16)] dark:shadow-[0_0_18px_rgba(138,138,138,0.2)]"
                 />
               </div>
             </div>
@@ -139,7 +139,7 @@ const LoginPage = ({ setCurrentPage, showToast }) => {
           </div>
 
           {/* Divider Note */}
-          <div className="mt-6 pt-6 border-t-2 border-gray-200 dark:border-gray-700">
+          <div className="mt-6 pt-6 border-t border-[#c0c0c0] dark:border-[#8a8a8a]">
             <div className="flex items-center justify-center gap-2 text-xs text-gray-500 dark:text-gray-400">
               <Shield size={14} className="text-orange-500" />
               <p>Secured with Google Sign-In and JWT authentication</p>

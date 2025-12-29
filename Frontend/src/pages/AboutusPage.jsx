@@ -5,7 +5,7 @@ import { Shield, Zap, FileText, Users, Award, Target } from 'lucide-react';
 // --- Component for Team Member Card ---
 const TeamMemberCard = ({ initials, name, role, description, index }) => (
     <div 
-        className="glass-card p-6 text-center hover:scale-[1.02] hover:shadow-2xl hover:shadow-orange-500/10 transition-all duration-300 w-full sm:w-64 border-2 border-gray-200 dark:border-gray-700 hover:border-orange-500 dark:hover:border-orange-400 group"
+        className="glass-card p-6 text-center hover:scale-[1.02] hover:shadow-2xl hover:shadow-orange-500/10 transition-all duration-300 w-full sm:w-64 border-2 border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_0_22px_rgba(192,192,192,0.2)] dark:shadow-[0_0_22px_rgba(138,138,138,0.24)] hover:border-orange-500 dark:hover:border-orange-400 group"
         style={{
             animation: `fadeInUp 0.5s ease-out ${index * 0.1}s forwards`,
             opacity: 0
@@ -30,7 +30,7 @@ const TeamMemberCard = ({ initials, name, role, description, index }) => (
 // --- Component for Core Value Card ---
 const ValueCard = ({ icon: Icon, title, description, index }) => (
     <div 
-        className="glass-card p-8 hover:scale-[1.02] hover:shadow-2xl hover:shadow-orange-500/10 transition-all duration-300 border-2 border-gray-200 dark:border-gray-700 hover:border-orange-500 dark:hover:border-orange-400 group"
+        className="glass-card p-8 hover:scale-[1.02] hover:shadow-2xl hover:shadow-orange-500/10 transition-all duration-300 border-2 border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_0_26px_rgba(192,192,192,0.22)] dark:shadow-[0_0_26px_rgba(138,138,138,0.26)] hover:border-orange-500 dark:hover:border-orange-400 group"
         style={{
             animation: `fadeInUp 0.5s ease-out ${index * 0.15}s forwards`,
             opacity: 0
@@ -84,7 +84,7 @@ const AboutUs = ({ showToast }) => {
             <div className="max-w-7xl mx-auto space-y-20">
 
                 {/* --- Hero Section --- */}
-                <section className="pb-12 border-b border-gray-200 dark:border-gray-700">
+                <section className="pb-12 border-b border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_4px_26px_rgba(192,192,192,0.22)] dark:shadow-[0_4px_26px_rgba(138,138,138,0.22)]">
                     <div className="flex items-center justify-center gap-2 mb-4">
                         <div className="relative w-3 h-3">
                             <div className="absolute inset-0 bg-orange-500 rounded-full animate-ping opacity-75"></div>
@@ -104,7 +104,7 @@ const AboutUs = ({ showToast }) => {
 
                 {/* --- Mission Section --- */}
                 <section className="max-w-4xl mx-auto">
-                    <div className="glass-card p-8 md:p-12 border-l-4 border-orange-500">
+                    <div className="glass-card p-8 md:p-12 border border-[#c0c0c0] dark:border-[#8a8a8a] border-l-4 border-orange-500 shadow-[0_0_28px_rgba(192,192,192,0.24)] dark:shadow-[0_0_28px_rgba(138,138,138,0.26)]">
                         <div className="flex items-center gap-3 mb-6">
                             <Target className="text-orange-500" size={32} />
                             <h2 className="text-3xl font-bold uppercase text-gray-900 dark:text-white">
@@ -171,7 +171,7 @@ const AboutUs = ({ showToast }) => {
                         ))}
                     </div>
                     
-                    <div className="glass-card p-8 border-l-4 border-amber-500 max-w-3xl mx-auto">
+                    <div className="glass-card p-8 border border-[#c0c0c0] dark:border-[#8a8a8a] border-l-4 border-amber-500 max-w-3xl mx-auto shadow-[0_0_28px_rgba(192,192,192,0.24)] dark:shadow-[0_0_28px_rgba(138,138,138,0.26)]">
                         <div className="flex gap-4">
                             <div className="flex-shrink-0">
                                 <div className="w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
@@ -199,7 +199,7 @@ const AboutUs = ({ showToast }) => {
                         ].map((stat, index) => (
                             <div 
                                 key={index}
-                                className="glass-card p-6 text-center hover:scale-105 transition-transform duration-300"
+                                className="glass-card p-6 text-center hover:scale-105 transition-transform duration-300 border border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_0_24px_rgba(192,192,192,0.22)] dark:shadow-[0_0_24px_rgba(138,138,138,0.24)]"
                                 style={{
                                     animation: `fadeIn 0.5s ease-out ${index * 0.1}s forwards`,
                                     opacity: 0
@@ -219,7 +219,7 @@ const AboutUs = ({ showToast }) => {
             </div>
 
             {/* Footer */}
-            <div className="text-center mt-16 py-8 border-t border-gray-200 dark:border-gray-700">
+            <div className="text-center mt-16 py-8 border-t border-[#c0c0c0] dark:border-[#8a8a8a]">
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                     &copy; {new Date().getFullYear()} Automated Seat Allocation System. All rights reserved.
                 </p>

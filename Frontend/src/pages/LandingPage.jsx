@@ -88,7 +88,7 @@ const LandingPage = ({ setCurrentPage }) => {
             </button>
             <button
               onClick={() => setCurrentPage('login')}
-              className="px-8 py-4 bg-white dark:bg-gray-800 text-orange-600 dark:text-orange-400 rounded-xl text-lg font-bold border-2 border-orange-600 dark:border-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-all shadow-md hover:shadow-lg"
+              className="px-8 py-4 bg-white dark:bg-gray-800 text-orange-600 dark:text-orange-400 rounded-xl text-lg font-bold border border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_0_20px_rgba(192,192,192,0.16)] dark:shadow-[0_0_20px_rgba(138,138,138,0.2)] hover:border-orange-500 dark:hover:border-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-all"
             >
               Login
             </button>
@@ -97,7 +97,7 @@ const LandingPage = ({ setCurrentPage }) => {
           {/* Benefits List */}
           <div className="inline-flex flex-wrap justify-center gap-4 animate-fadeInUp" style={{ animationDelay: '0.3s' }}>
             {benefits.map((benefit, idx) => (
-              <div key={idx} className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+              <div key={idx} className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 rounded-lg border border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_0_18px_rgba(192,192,192,0.18)] dark:shadow-[0_0_18px_rgba(138,138,138,0.22)]">
                 <CheckCircle className="text-emerald-500" size={16} />
                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{benefit}</span>
               </div>
@@ -110,7 +110,7 @@ const LandingPage = ({ setCurrentPage }) => {
           {features.map((feature, index) => (
             <div
               key={index}
-              className="glass-card p-8 hover:scale-105 transition-all duration-300 group border-2 border-gray-200 dark:border-gray-700 hover:border-orange-500 dark:hover:border-orange-400"
+              className="glass-card p-8 hover:scale-105 transition-all duration-300 group border border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_0_24px_rgba(192,192,192,0.2)] dark:shadow-[0_0_24px_rgba(138,138,138,0.24)] hover:border-orange-500 dark:hover:border-orange-400"
               style={{
                 animation: `fadeInUp 0.5s ease-out ${index * 0.1}s forwards`,
                 opacity: 0
@@ -135,7 +135,7 @@ const LandingPage = ({ setCurrentPage }) => {
         </div>
 
         {/* Workflow Section */}
-        <div className="mt-32 glass-card rounded-3xl shadow-2xl p-12 border-2 border-gray-200 dark:border-gray-700">
+        <div className="mt-32 glass-card rounded-3xl p-12 border border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_0_30px_rgba(192,192,192,0.22)] dark:shadow-[0_0_30px_rgba(138,138,138,0.25)]">
           <div className="text-center mb-12">
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-orange-100 dark:bg-orange-900/30 border border-orange-200 dark:border-orange-800 rounded-full mb-4">
               <Zap className="text-orange-500" size={16} />
@@ -189,7 +189,7 @@ const LandingPage = ({ setCurrentPage }) => {
 
         {/* Final CTA Section */}
         <div className="mt-32 text-center">
-          <div className="glass-card p-12 rounded-3xl border-2 border-orange-200 dark:border-orange-800">
+          <div className="glass-card p-12 rounded-3xl border border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_0_28px_rgba(192,192,192,0.22)] dark:shadow-[0_0_28px_rgba(138,138,138,0.25)]">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
               Ready to streamline your seat allocation?
             </h2>

@@ -65,7 +65,7 @@ const Navbar = ({ currentPage, setCurrentPage }) => {
         className="sticky top-0 z-40 hidden md:block"
       >
         <div className="w-[95%] max-w-7xl mx-auto pt-4">
-          <div className="glass-card backdrop-blur-md rounded-2xl px-6 h-20 flex items-center justify-between shadow-lg border font-sans">
+          <div className="glass-card backdrop-blur-md rounded-2xl px-6 h-20 flex items-center justify-between shadow-lg border border-[#c0c0c0] dark:border-[#8a8a8a] font-sans">
           {/* Logo */}
           <div
             className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
@@ -180,7 +180,7 @@ const Navbar = ({ currentPage, setCurrentPage }) => {
         initial={{ y: -100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.5, ease: 'easeOut' }}
-        className="sticky top-0 z-40 w-full md:hidden bg-white/40 dark:bg-phantom-black/40 border-b border-gray-200/40 dark:border-gray-700/40 shadow-md font-sans backdrop-blur-md"
+        className="sticky top-0 z-40 w-full md:hidden bg-white/40 dark:bg-phantom-black/40 border-b border-[#c0c0c0] dark:border-[#8a8a8a] shadow-md font-sans backdrop-blur-md"
       >
         <div className="px-4 h-16 flex items-center justify-between">
           {/* Logo */}

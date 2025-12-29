@@ -173,7 +173,7 @@ function TemplateEditor({ showToast }) {
             <div className="max-w-6xl mx-auto space-y-8">
                 
                 {/* Hero Section */}
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-gray-200 dark:border-gray-700">
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_4px_26px_rgba(192,192,192,0.22)] dark:shadow-[0_4px_26px_rgba(138,138,138,0.22)]">
                     <div>
                         <div className="flex items-center gap-2 mb-2">
                             <div className="relative w-3 h-3">
@@ -199,7 +199,7 @@ function TemplateEditor({ showToast }) {
 
                 {/* Message and Error Alerts */}
                 {message && (
-                    <div className="glass-card border-l-4 border-emerald-500 p-6 animate-fadeIn">
+                    <div className="glass-card border border-[#c0c0c0] dark:border-[#8a8a8a] border-l-4 border-emerald-500 p-6 animate-fadeIn shadow-[0_0_24px_rgba(192,192,192,0.22)] dark:shadow-[0_0_24px_rgba(138,138,138,0.24)]">
                         <div className="flex items-center gap-4">
                             <div className="flex-shrink-0">
                                 <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
@@ -215,7 +215,7 @@ function TemplateEditor({ showToast }) {
                 )}
 
                 {error && (
-                    <div className="glass-card border-l-4 border-red-500 p-6 animate-fadeIn">
+                    <div className="glass-card border border-[#c0c0c0] dark:border-[#8a8a8a] border-l-4 border-red-500 p-6 animate-fadeIn shadow-[0_0_24px_rgba(192,192,192,0.22)] dark:shadow-[0_0_24px_rgba(138,138,138,0.24)]">
                         <div className="flex items-center gap-4">
                             <div className="flex-shrink-0">
                                 <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
@@ -234,8 +234,8 @@ function TemplateEditor({ showToast }) {
                 <form onSubmit={handleSubmit} className="space-y-6">
                     
                     {/* Header Information */}
-                    <div className="glass-card p-8">
-                        <div className="flex items-center gap-3 mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
+                    <div className="glass-card p-8 border border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_0_26px_rgba(192,192,192,0.24)] dark:shadow-[0_0_26px_rgba(138,138,138,0.26)]">
+                        <div className="flex items-center gap-3 mb-6 pb-4 border-b border-[#c0c0c0] dark:border-[#8a8a8a]">
                             <div className="p-2 rounded-lg bg-orange-100 dark:bg-orange-900/30">
                                 <FileText className="text-orange-600 dark:text-orange-400" size={24} />
                             </div>
@@ -285,8 +285,8 @@ function TemplateEditor({ showToast }) {
                     </div>
 
                     {/* Branch and Room Information */}
-                    <div className="glass-card p-8">
-                        <div className="flex items-center gap-3 mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
+                    <div className="glass-card p-8 border border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_0_26px_rgba(192,192,192,0.24)] dark:shadow-[0_0_26px_rgba(138,138,138,0.26)]">
+                        <div className="flex items-center gap-3 mb-6 pb-4 border-b border-[#c0c0c0] dark:border-[#8a8a8a]">
                             <div className="p-2 rounded-lg bg-orange-100 dark:bg-orange-900/30">
                                 <Building className="text-orange-600 dark:text-orange-400" size={24} />
                             </div>
@@ -322,8 +322,8 @@ function TemplateEditor({ showToast }) {
                     </div>
 
                     {/* Coordinator Information */}
-                    <div className="glass-card p-8">
-                        <div className="flex items-center gap-3 mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
+                    <div className="glass-card p-8 border border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_0_26px_rgba(192,192,192,0.24)] dark:shadow-[0_0_26px_rgba(138,138,138,0.26)]">
+                        <div className="flex items-center gap-3 mb-6 pb-4 border-b border-[#c0c0c0] dark:border-[#8a8a8a]">
                             <div className="p-2 rounded-lg bg-orange-100 dark:bg-orange-900/30">
                                 <User className="text-orange-600 dark:text-orange-400" size={24} />
                             </div>
@@ -359,8 +359,8 @@ function TemplateEditor({ showToast }) {
                     </div>
 
                     {/* Banner Image */}
-                    <div className="glass-card p-8">
-                        <div className="flex items-center gap-3 mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
+                    <div className="glass-card p-8 border border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_0_26px_rgba(192,192,192,0.24)] dark:shadow-[0_0_26px_rgba(138,138,138,0.26)]">
+                        <div className="flex items-center gap-3 mb-6 pb-4 border-b border-[#c0c0c0] dark:border-[#8a8a8a]">
                             <div className="p-2 rounded-lg bg-orange-100 dark:bg-orange-900/30">
                                 <ImageIcon className="text-orange-600 dark:text-orange-400" size={24} />
                             </div>
@@ -377,7 +377,7 @@ function TemplateEditor({ showToast }) {
                                     type="text"
                                     value={template.banner_image_path || 'No image set'}
                                     readOnly
-                                    className="w-full px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-2 border-gray-200 dark:border-gray-700 cursor-not-allowed"
+                                    className="w-full px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-2 border-[#c0c0c0] dark:border-[#8a8a8a] cursor-not-allowed"
                                 />
                             </div>
                             
@@ -407,7 +407,7 @@ function TemplateEditor({ showToast }) {
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="flex flex-wrap gap-4 justify-center pt-6 border-t border-gray-200 dark:border-gray-700">
+                    <div className="flex flex-wrap gap-4 justify-center pt-6 border-t border-[#c0c0c0] dark:border-[#8a8a8a]">
                         <button
                             type="submit"
                             disabled={saving}
@@ -457,15 +457,15 @@ function TemplateEditor({ showToast }) {
                 </form>
 
                 {/* Preview Section */}
-                <div className="glass-card p-8">
-                    <div className="flex items-center gap-3 mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
+                <div className="glass-card p-8 border border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_0_26px_rgba(192,192,192,0.24)] dark:shadow-[0_0_26px_rgba(138,138,138,0.26)]">
+                    <div className="flex items-center gap-3 mb-6 pb-4 border-b border-[#c0c0c0] dark:border-[#8a8a8a]">
                         <div className="p-2 rounded-lg bg-orange-100 dark:bg-orange-900/30">
                             <Eye className="text-orange-600 dark:text-orange-400" size={24} />
                         </div>
                         <h3 className="text-2xl font-bold text-gray-900 dark:text-white uppercase tracking-wide">Current Configuration Preview</h3>
                     </div>
                     
-                    <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-700 space-y-3 text-sm">
+                    <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-xl border-2 border-dashed border-[#c0c0c0] dark:border-[#8a8a8a] space-y-3 text-sm shadow-[0_0_20px_rgba(192,192,192,0.2)] dark:shadow-[0_0_20px_rgba(138,138,138,0.22)]">
                         {[
                             { label: 'Department', value: template.dept_name },
                             { label: 'Title', value: template.seating_plan_title },
