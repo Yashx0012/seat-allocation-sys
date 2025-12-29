@@ -188,7 +188,7 @@ const AppContent = () => {
   // --------------------------------------------------
   return (
     <>
-      <div className="min-h-screen flex flex-col transition-colors duration-300 bg-white dark:bg-gray-900">
+      <div className="min-h-screen flex flex-col transition-colors duration-300 bg-white dark:bg-[#050505]">
         <Navbar currentPage={currentPage} setCurrentPage={setCurrentPage} />
 
         <main className="flex-1" style={{ paddingTop: 'var(--navbar-offset, 80px)' }}>{renderPage()}</main>

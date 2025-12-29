@@ -8,6 +8,9 @@ export default {
   theme: {
     extend: {
       colors: {
+        phantom: {
+          black: '#050505',
+        },
         primary: {
           DEFAULT: 'rgb(249, 115, 22)', // orange-500
           foreground: 'rgb(255, 255, 255)',

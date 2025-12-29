@@ -1,4 +1,5 @@
 import React from 'react';
+import SplitText from '../components/SplitText';
 import { Upload, Layout, MapPin, Download, Zap, ArrowRight, CheckCircle, Sparkles } from 'lucide-react';
 
 const LandingPage = ({ setCurrentPage }) => {
@@ -37,7 +38,7 @@ const LandingPage = ({ setCurrentPage }) => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-amber-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-300 overflow-hidden">
+    <div className="min-h-screen bg-white dark:bg-phantom-black transition-colors duration-300 overflow-hidden">
       
       {/* Decorative Elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -57,12 +58,14 @@ const LandingPage = ({ setCurrentPage }) => {
           </div>
 
           {/* Main Heading */}
-          <h1 className="text-5xl md:text-7xl font-black text-gray-900 dark:text-white mb-6 leading-tight animate-fadeInUp">
-            Seat Allocation
-            <br />
-            <span className="bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 bg-clip-text text-transparent">
-              Made Simple
-            </span>
+          <h1 className="animate-fadeInUp">
+            <SplitText
+              text={`Seat Allocation\nMade Simple`}
+              className="text-5xl md:text-7xl font-black text-gray-900 dark:text-white mb-6 leading-tight"
+              splitType="chars"
+              delay={35}
+              duration={0.6}
+            />
           </h1>
 
           {/* Subheading */}
@@ -140,9 +143,12 @@ const LandingPage = ({ setCurrentPage }) => {
                 Simple Process
               </span>
             </div>
-            <h2 className="text-4xl md:text-5xl font-black text-gray-900 dark:text-white">
-              How It Works
-            </h2>
+            <SplitText
+              text={`How It Works`}
+              className="text-4xl md:text-5xl font-black text-gray-900 dark:text-white"
+              splitType="chars"
+              delay={30}
+            />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12">

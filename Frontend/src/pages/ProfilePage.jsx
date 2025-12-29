@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import SplitText from '../components/SplitText';
 import { User, LogOut, Mail, Edit2, Check, X, Loader2, Shield, Calendar, ArrowUpRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -56,7 +57,7 @@ const ProfilePage = ({ showToast, setCurrentPage }) => {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-[#050505] flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="animate-spin mx-auto mb-4 text-orange-600" size={40} />
           <p className="text-gray-600 dark:text-gray-400">Loading your profile...</p>
@@ -82,7 +83,7 @@ const ProfilePage = ({ showToast, setCurrentPage }) => {
   const roleColor = roleColors[user?.role?.toLowerCase()] || roleColors.student;
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4 transition-colors duration-300">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#050505] py-8 px-4 transition-colors duration-300">
       <div className="max-w-4xl mx-auto space-y-6">
         
         {/* Hero Section */}
@@ -95,9 +96,7 @@ const ProfilePage = ({ showToast, setCurrentPage }) => {
               </div>
               <span className="text-xs font-mono text-orange-500 tracking-wider uppercase">Account Settings</span>
             </div>
-            <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-gray-900 via-gray-700 to-gray-500 dark:from-gray-100 dark:via-gray-300 dark:to-gray-500 bg-clip-text text-transparent">
-              Your Profile
-            </h1>
+            <SplitText text={`Your Profile`} className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-gray-900 via-gray-700 to-gray-500 dark:from-gray-100 dark:via-gray-300 dark:to-gray-500 bg-clip-text text-transparent" splitType="chars" delay={30} />
             <p className="text-gray-600 dark:text-gray-400 mt-2">
               Manage your account information and preferences
             </p>
@@ -157,7 +156,7 @@ const ProfilePage = ({ showToast, setCurrentPage }) => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Member Since</p>
-                    <p className="text-lg font-bold text-gray-900 dark:text-white mt-1">2024</p>
+                    <p className="text-lg font-bold text-gray-900 dark:text-white mt-1 stat-number">2024</p>
                   </div>
                   <Calendar className="text-orange-500" size={24} />
                 </div>

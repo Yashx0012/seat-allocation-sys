@@ -40,6 +40,7 @@ const Navbar = ({ currentPage, setCurrentPage }) => {
   const navItems = user
     ? [
         { name: 'Dashboard', page: 'dashboard' },
+        { name: 'Create', page: 'create-plan' },
         { name: 'Profile', page: 'profile' },
         { name: 'Feedback', page: 'feedback' },
         { name: 'About us', page: 'aboutus' },
@@ -54,10 +55,10 @@ const Navbar = ({ currentPage, setCurrentPage }) => {
       className="fixed top-0 left-0 right-0 z-50 flex justify-center transition-all duration-500"
     >
       <div
-        className={`w-[95%] max-w-7xl px-6 h-20 flex items-center justify-between transition-all duration-500 shadow-md rounded-b-2xl backdrop-blur-sm ${
+        className={`w-[95%] max-w-7xl px-6 h-20 flex items-center justify-between transition-all duration-500 shadow-md rounded-b-2xl bg-transparent backdrop-blur-2xl backdrop-saturate-150 border-b ${
           theme === 'dark'
-            ? 'bg-gray-900/20 border-b border-gray-700/30'
-            : 'bg-white/30 border-b border-gray-200/30'
+            ? 'border-gray-800/40'
+            : 'border-gray-200/30'
         }`}
       >
         <div className="flex items-center gap-3 cursor-pointer" onClick={() => setCurrentPage('landing')}>
@@ -142,7 +143,7 @@ const Navbar = ({ currentPage, setCurrentPage }) => {
       </div>
 
       {mobileMenuOpen && (
-        <div className="md:hidden pb-4 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-t border-gray-200 dark:border-gray-700 animate-slideDown">
+        <div className="md:hidden pb-4 bg-transparent backdrop-blur-2xl backdrop-saturate-150 border-t border-gray-200/30 dark:border-gray-800/40 animate-slideDown">
           <div className="space-y-2">
             {navItems.map((item) => (
               <button

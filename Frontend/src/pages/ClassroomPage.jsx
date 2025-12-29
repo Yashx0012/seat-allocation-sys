@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import SplitText from '../components/SplitText';
 import { motion } from "framer-motion";
 import { Plus, Save, Trash2, LayoutGrid, AlertCircle, Monitor, X, CheckCircle2, Flame, Building } from "lucide-react";
 
@@ -111,7 +112,7 @@ export default function Classrooms({ showToast }) {
   const brokenSeatsList = roomData.broken_seats ? roomData.broken_seats.split(',').map(s => s.trim()) : [];
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4 transition-colors duration-300">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#050505] py-8 px-4 transition-colors duration-300">
       <div className="max-w-7xl mx-auto space-y-8">
         
         {/* Hero Section */}
@@ -124,9 +125,12 @@ export default function Classrooms({ showToast }) {
               </div>
               <span className="text-xs font-mono text-orange-500 tracking-wider uppercase">Classroom Manager</span>
             </div>
-            <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-gray-900 via-gray-700 to-gray-500 dark:from-gray-100 dark:via-gray-300 dark:to-gray-500 bg-clip-text text-transparent">
-              Classroom Registry
-            </h1>
+            <SplitText
+              text={`Classroom Registry`}
+              className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-gray-900 via-gray-700 to-gray-500 dark:from-gray-100 dark:via-gray-300 dark:to-gray-500 bg-clip-text text-transparent"
+              splitType="chars"
+              delay={30}
+            />
             <p className="text-gray-600 dark:text-gray-400 mt-2">
               Design and manage your classroom layouts
             </p>
@@ -135,7 +139,7 @@ export default function Classrooms({ showToast }) {
           <div className="flex gap-4">
             <div className="text-right">
               <div className="micro-label mb-1">Total Rooms</div>
-              <div className="font-mono text-2xl text-orange-600 dark:text-orange-400">{classrooms.length}</div>
+              <div className="font-mono text-2xl text-orange-600 dark:text-orange-400 stat-number">{classrooms.length}</div>
             </div>
           </div>
         </div>
@@ -257,7 +261,7 @@ export default function Classrooms({ showToast }) {
                  </div>
 
                  {/* Canvas */}
-                 <div className="flex-1 overflow-auto p-8 flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+                 <div className="flex-1 overflow-auto p-8 flex items-center justify-center bg-gray-50 dark:bg-[#050505]">
                     <div className="relative">
                         <div className="absolute -top-16 left-0 right-0 flex justify-center">
                             <div className="bg-gradient-to-r from-orange-500 to-amber-500 px-6 py-2 rounded-xl text-xs font-bold uppercase tracking-widest text-white flex items-center gap-2 shadow-lg">

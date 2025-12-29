@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Users, Loader2, ArrowRight, Sparkles, Mail, Lock, User, Shield } from 'lucide-react';
+import SplitText from '../components/SplitText';
 import { useAuth } from '../context/AuthContext';
 
 const SignupPage = ({ setCurrentPage, showToast }) => {
@@ -56,7 +57,7 @@ const SignupPage = ({ setCurrentPage, showToast }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-orange-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center px-4 py-12 transition-colors duration-300 relative overflow-hidden">
+    <div className="min-h-screen bg-white dark:bg-phantom-black flex items-center justify-center px-4 py-12 transition-colors duration-300 relative overflow-hidden">
       
       {/* Decorative Elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -86,9 +87,7 @@ const SignupPage = ({ setCurrentPage, showToast }) => {
               </span>
             </div>
 
-            <h2 className="text-4xl font-black text-gray-900 dark:text-white mb-3">
-              Create Account
-            </h2>
+            <SplitText text={`Create Account`} className="text-4xl font-black text-gray-900 dark:text-white mb-3" splitType="chars" delay={30} />
             <p className="text-gray-600 dark:text-gray-400">
               Sign up to get started with seat allocation
             </p>

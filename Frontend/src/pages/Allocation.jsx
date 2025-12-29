@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import SplitText from '../components/SplitText';
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Users, Layout, MapPin, Download, Play, 
@@ -189,7 +190,7 @@ const AllocationPage = ({ showToast }) => {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4 transition-colors duration-300">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#050505] py-8 px-4 transition-colors duration-300">
       <div className="max-w-[1600px] mx-auto space-y-8">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-gray-200 dark:border-gray-700">
           <div>
@@ -200,9 +201,12 @@ const AllocationPage = ({ showToast }) => {
               </div>
               <span className="text-xs font-mono text-orange-500 tracking-wider uppercase">Live Allocation</span>
             </div>
-            <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-gray-900 via-gray-700 to-gray-500 dark:from-gray-100 dark:via-gray-300 dark:to-gray-500 bg-clip-text text-transparent">
-              Allocation Cockpit
-            </h1>
+            <SplitText
+              text={`Allocation Cockpit`}
+              className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-gray-900 via-gray-700 to-gray-500 dark:from-gray-100 dark:via-gray-300 dark:to-gray-500 bg-clip-text text-transparent"
+              splitType="chars"
+              delay={30}
+            />
             <p className="text-gray-600 dark:text-gray-400 mt-2">Configure and generate intelligent seat arrangements</p>
           </div>
         </div>
@@ -296,7 +300,7 @@ const AllocationPage = ({ showToast }) => {
                 <div>
                   <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight flex items-center gap-2">
                     <Layout className="text-orange-500" size={24} />
-                    Live Preview
+                    <SplitText text={`Live Preview`} className="uppercase" splitType="chars" delay={20} />
                   </h2>
                   {webData && <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 font-mono">{webData.seating.flat().filter(s => !s.is_unallocated && !s.is_broken).length} seats allocated</p>}
                 </div>

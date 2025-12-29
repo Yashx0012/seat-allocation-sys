@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import SplitText from '../components/SplitText';
 import { ClipboardList, Download, FileText, Search, Printer, X, Loader2, UserCheck, Calendar, Hash, Eye } from 'lucide-react';
 
 const AttendancePage = ({ showToast }) => {
@@ -85,7 +86,7 @@ const AttendancePage = ({ showToast }) => {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4 transition-colors duration-300">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#050505] py-8 px-4 transition-colors duration-300">
       <div className="max-w-6xl mx-auto space-y-8">
         
         {/* Hero Section */}
@@ -98,9 +99,12 @@ const AttendancePage = ({ showToast }) => {
               </div>
               <span className="text-xs font-mono text-orange-500 tracking-wider uppercase">Attendance Management</span>
             </div>
-            <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-gray-900 via-gray-700 to-gray-500 dark:from-gray-100 dark:via-gray-300 dark:to-gray-500 bg-clip-text text-transparent">
-              Attendance Sheets
-            </h1>
+            <SplitText
+              text={`Attendance Sheets`}
+              className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-gray-900 via-gray-700 to-gray-500 dark:from-gray-100 dark:via-gray-300 dark:to-gray-500 bg-clip-text text-transparent"
+              splitType="chars"
+              delay={30}
+            />
             <p className="text-gray-600 dark:text-gray-400 mt-2">
               Generate printable signature sheets for allocated batches
             </p>
@@ -109,7 +113,7 @@ const AttendancePage = ({ showToast }) => {
           <div className="flex gap-4">
             <div className="text-right">
               <div className="micro-label mb-1">Total Batches</div>
-              <div className="font-mono text-2xl text-orange-600 dark:text-orange-400">{allocations.length}</div>
+              <div className="font-mono text-2xl text-orange-600 dark:text-orange-400 stat-number">{allocations.length}</div>
             </div>
           </div>
         </div>

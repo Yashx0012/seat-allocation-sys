@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Mail, Lock, Loader2, ArrowRight, Shield, Sparkles } from 'lucide-react';
+import SplitText from '../components/SplitText';
 import { useAuth } from '../context/AuthContext';
 import GoogleLoginComponent from '../components/GoogleLoginComponent';
 
@@ -29,7 +30,7 @@ const LoginPage = ({ setCurrentPage, showToast }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-orange-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center px-4 py-12 transition-colors duration-300 relative overflow-hidden">
+    <div className="min-h-screen bg-white dark:bg-phantom-black flex items-center justify-center px-4 py-12 transition-colors duration-300 relative overflow-hidden">
       
       {/* Decorative Elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -51,9 +52,7 @@ const LoginPage = ({ setCurrentPage, showToast }) => {
               </span>
             </div>
 
-            <h2 className="text-4xl font-black text-gray-900 dark:text-white mb-3">
-              Welcome Back
-            </h2>
+            <SplitText text={`Welcome Back`} className="text-4xl font-black text-gray-900 dark:text-white mb-3" splitType="chars" delay={30} />
             <p className="text-gray-600 dark:text-gray-400">
               Login to your account to continue
             </p>

@@ -82,3 +82,10 @@
     transform: rotate(360deg);
   }
 }
+
+/* Dark-mode stat highlight (silver glow) */
+.dark .stat-number {
+  color: #c0c0c0 !important;
+  text-shadow: 0 0 10px rgba(192,192,192,0.95);
+  transition: text-shadow 0.3s ease, color 0.3s ease;
+}

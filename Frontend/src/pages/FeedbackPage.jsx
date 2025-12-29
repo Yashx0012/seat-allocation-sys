@@ -1,4 +1,5 @@
 import React from 'react';
+import SplitText from '../components/SplitText';
 import { AlertCircle, Lightbulb, Upload, Send, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
 
 const FeedbackPage = ({ showToast }) => {
@@ -59,7 +60,7 @@ const FeedbackPage = ({ showToast }) => {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4 transition-colors duration-300">
+        <div className="min-h-screen bg-gray-50 dark:bg-[#050505] py-8 px-4 transition-colors duration-300">
             <div className="max-w-5xl mx-auto space-y-8">
                 
                 {/* Hero Section */}
@@ -72,9 +73,12 @@ const FeedbackPage = ({ showToast }) => {
                             </div>
                             <span className="text-xs font-mono text-orange-500 tracking-wider uppercase">Feedback System</span>
                         </div>
-                        <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-gray-900 via-gray-700 to-gray-500 dark:from-gray-100 dark:via-gray-300 dark:to-gray-500 bg-clip-text text-transparent">
-                            Report Bugs & Suggest Features
-                        </h1>
+                        <SplitText
+                            text={`Report Bugs & Suggest Features`}
+                            className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-gray-900 via-gray-700 to-gray-500 dark:from-gray-100 dark:via-gray-300 dark:to-gray-500 bg-clip-text text-transparent"
+                            splitType="chars"
+                            delay={30}
+                        />
                         <p className="text-gray-600 dark:text-gray-400 mt-2">
                             Help us improve by sharing your feedback and suggestions
                         </p>

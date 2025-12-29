@@ -11,6 +11,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import SplitText from '../components/SplitText';
 
 // StatCard Component with counter animation
 const StatCard = ({ stat, index }) => {
@@ -72,7 +73,7 @@ const StatCard = ({ stat, index }) => {
         </div>
         
         <div className="space-y-1">
-          <div className="text-4xl font-black tracking-tight text-gray-900 dark:text-gray-100 font-mono">
+          <div className="text-4xl font-black tracking-tight text-gray-900 dark:text-gray-100 font-mono stat-number">
             {count}
           </div>
           <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">{stat.label}</p>
@@ -136,7 +137,7 @@ const DashboardPage = ({ setCurrentPage }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4 transition-colors duration-300">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#050505] py-8 px-4 transition-colors duration-300">
       <div className="max-w-7xl mx-auto space-y-8">
         
         {/* Hero Section */}
@@ -149,9 +150,15 @@ const DashboardPage = ({ setCurrentPage }) => {
               </div>
               <span className="text-xs font-mono text-emerald-500 tracking-wider uppercase">Live Connection</span>
             </div>
-            <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-gray-900 via-gray-700 to-gray-500 dark:from-gray-100 dark:via-gray-300 dark:to-gray-500 bg-clip-text text-transparent">
-              Good Morning, <br />{user?.name || 'Administrator'}
-            </h1>
+            <SplitText
+              text={`Good Morning,\n${user?.name || 'Administrator'}`}
+              className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-gray-900 via-gray-700 to-gray-500 dark:from-gray-100 dark:via-gray-300 dark:to-gray-500 bg-clip-text text-transparent"
+              delay={45}
+              duration={0.6}
+              ease="ease-out"
+              splitType="chars"
+              onLetterAnimationComplete={() => {}}
+            />
           </div>
           
           <div className="flex gap-4">
@@ -326,6 +333,11 @@ const DashboardPage = ({ setCurrentPage }) => {
         .animate-fadeIn {
           animation: fadeIn 0.3s ease-out forwards;
           opacity: 0;
+        }
+        :global(.dark) .stat-number {
+          color: #c0c0c0 !important;
+          text-shadow: 0 0 10px rgba(192,192,192,0.95);
+          transition: text-shadow 0.3s ease, color 0.3s ease;
         }
       `}</style>
     </div>

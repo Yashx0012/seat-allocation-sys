@@ -104,7 +104,7 @@ const UploadPage = ({ showToast }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4 transition-colors duration-300">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#050505] py-8 px-4 transition-colors duration-300">
       <div className="max-w-5xl mx-auto space-y-8">
         
         {/* Hero Section */}

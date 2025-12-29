@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import SplitText from '../components/SplitText';
 
 // --- Component Imports ---
 import StyledButton from '../components/Template/StyledButton.jsx'; 
@@ -158,7 +159,7 @@ function TemplateEditor({ showToast }) {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+            <div className="min-h-screen bg-gray-50 dark:bg-[#050505] flex items-center justify-center">
                 <div className="text-center">
                     <RefreshCw className="animate-spin mx-auto mb-4 text-orange-600" size={40} />
                     <p className="text-gray-600 dark:text-gray-400 font-medium">Loading template configuration...</p>
@@ -168,7 +169,7 @@ function TemplateEditor({ showToast }) {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4 transition-colors duration-300">
+        <div className="min-h-screen bg-gray-50 dark:bg-[#050505] py-8 px-4 transition-colors duration-300">
             <div className="max-w-6xl mx-auto space-y-8">
                 
                 {/* Hero Section */}
@@ -181,9 +182,7 @@ function TemplateEditor({ showToast }) {
                             </div>
                             <span className="text-xs font-mono text-orange-500 tracking-wider uppercase">Template Configuration</span>
                         </div>
-                        <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-gray-900 via-gray-700 to-gray-500 dark:from-gray-100 dark:via-gray-300 dark:to-gray-500 bg-clip-text text-transparent">
-                            PDF Template Editor
-                        </h1>
+                        <SplitText text={`PDF Template Editor`} className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-gray-900 via-gray-700 to-gray-500 dark:from-gray-100 dark:via-gray-300 dark:to-gray-500 bg-clip-text text-transparent" splitType="chars" delay={30} />
                         <p className="text-gray-600 dark:text-gray-400 mt-2">
                             Customize your PDF templates for seating plans
                         </p>

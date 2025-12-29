@@ -1,4 +1,5 @@
 import React from 'react';
+import SplitText from '../components/SplitText';
 import { Shield, Zap, FileText, Users, Award, Target } from 'lucide-react';
 
 // --- Component for Team Member Card ---
@@ -79,7 +80,7 @@ const AboutUs = ({ showToast }) => {
     ];
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4 transition-colors duration-300">
+        <div className="min-h-screen bg-gray-50 dark:bg-[#050505] py-8 px-4 transition-colors duration-300">
             <div className="max-w-7xl mx-auto space-y-20">
 
                 {/* --- Hero Section --- */}
@@ -92,15 +93,11 @@ const AboutUs = ({ showToast }) => {
                         <span className="text-xs font-mono text-orange-500 tracking-wider uppercase">About the Project</span>
                     </div>
                     
-                    <h1 className="text-4xl sm:text-6xl md:text-7xl font-black text-center uppercase leading-tight mb-6 bg-gradient-to-r from-gray-900 via-gray-700 to-gray-500 dark:from-gray-100 dark:via-gray-300 dark:to-gray-500 bg-clip-text text-transparent">
-                        Automated Seat<br />Allocation System
-                    </h1>
+                    <SplitText text={`Automated Seat\nAllocation System`} className="text-4xl sm:text-6xl md:text-7xl font-black text-center uppercase leading-tight mb-6 bg-gradient-to-r from-gray-900 via-gray-700 to-gray-500 dark:from-gray-100 dark:via-gray-300 dark:to-gray-500 bg-clip-text text-transparent" splitType="chars" delay={25} />
                     
                     <div className="flex items-center justify-center gap-3">
                         <div className="h-px w-12 bg-gradient-to-r from-transparent to-orange-500"></div>
-                        <h2 className="text-xl sm:text-2xl md:text-3xl font-light text-orange-600 dark:text-orange-400 tracking-wide text-center">
-                            Simplifying Exam Integrity
-                        </h2>
+                        <SplitText text={`Simplifying Exam Integrity`} className="text-xl sm:text-2xl md:text-3xl font-light text-orange-600 dark:text-orange-400 tracking-wide text-center" splitType="chars" delay={20} />
                         <div className="h-px w-12 bg-gradient-to-l from-transparent to-orange-500"></div>
                     </div>
                 </section>
@@ -208,7 +205,7 @@ const AboutUs = ({ showToast }) => {
                                     opacity: 0
                                 }}
                             >
-                                <div className="text-4xl font-black text-orange-600 dark:text-orange-400 mb-2">
+                                <div className="text-4xl font-black text-orange-600 dark:text-orange-400 mb-2 stat-number">
                                     {stat.value}
                                 </div>
                                 <div className="text-sm font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import SplitText from '../components/SplitText';
 import { Upload, Layout, Monitor, Clock, ArrowRight } from 'lucide-react';
 
 const CreatePlan = ({ setCurrentPage }) => {
@@ -50,7 +51,7 @@ const CreatePlan = ({ setCurrentPage }) => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4 transition-colors duration-300">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#050505] py-8 px-4 transition-colors duration-300">
       <div className="max-w-7xl mx-auto space-y-8">
         
         {/* Hero Section */}
@@ -63,9 +64,12 @@ const CreatePlan = ({ setCurrentPage }) => {
               </div>
               <span className="text-xs font-mono text-orange-500 tracking-wider uppercase">Planning Mode</span>
             </div>
-            <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-gray-900 via-gray-700 to-gray-500 dark:from-gray-100 dark:via-gray-300 dark:to-gray-500 bg-clip-text text-transparent">
-              Create Your Plan
-            </h1>
+            <SplitText
+              text={`Create Your Plan`}
+              className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-gray-900 via-gray-700 to-gray-500 dark:from-gray-100 dark:via-gray-300 dark:to-gray-500 bg-clip-text text-transparent"
+              splitType="chars"
+              delay={30}
+            />
             <p className="text-gray-600 dark:text-gray-400 mt-2">
               Choose how you'd like to organize your seating arrangements
             </p>
@@ -74,7 +78,7 @@ const CreatePlan = ({ setCurrentPage }) => {
           <div className="flex gap-4">
             <div className="text-right">
               <div className="micro-label mb-1">Active Plans</div>
-              <div className="font-mono text-2xl text-orange-600 dark:text-orange-400">{plans.length}</div>
+              <div className="font-mono text-2xl text-orange-600 dark:text-orange-400 stat-number">{plans.length}</div>
             </div>
           </div>
         </div>
@@ -135,7 +139,7 @@ const CreatePlan = ({ setCurrentPage }) => {
         <div className="glass-card p-8">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Recent Plans</h2>
+              <SplitText text={`Recent Plans`} className="text-2xl font-bold text-gray-900 dark:text-gray-100" splitType="chars" delay={20} />
               <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Your latest seating arrangements</p>
             </div>
             <div className="flex items-center gap-2 text-xs font-mono text-orange-500 bg-orange-500/10 px-3 py-2 rounded-full">
