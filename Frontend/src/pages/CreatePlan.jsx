@@ -55,7 +55,7 @@ const CreatePlan = ({ setCurrentPage }) => {
       <div className="max-w-7xl mx-auto space-y-8">
         
         {/* Hero Section */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_4px_26px_rgba(192,192,192,0.22)] dark:shadow-[0_4px_26px_rgba(138,138,138,0.22)]">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-t-0 border-r-0 border-l-0 border-[#c0c0c0] dark:border-[#8a8a8a] bg-transparent shadow-none dark:shadow-none">
           <div>
             <div className="flex items-center gap-2 mb-2">
               <div className="relative w-3 h-3">
