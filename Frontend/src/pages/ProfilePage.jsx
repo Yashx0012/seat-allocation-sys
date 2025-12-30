@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { User, LogOut, Mail, Edit2, Check, X, Loader2, Shield, Calendar } from 'lucide-react';
+import SplitText from '../components/SplitText';
+import { User, LogOut, Mail, Edit2, Check, X, Loader2, Shield, Calendar, ArrowUpRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const ProfilePage = ({ showToast, setCurrentPage }) => {
@@ -56,9 +57,9 @@ const ProfilePage = ({ showToast, setCurrentPage }) => {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-[#050505] flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="animate-spin mx-auto mb-4 text-blue-600" size={40} />
+          <Loader2 className="animate-spin mx-auto mb-4 text-orange-600" size={40} />
           <p className="text-gray-600 dark:text-gray-400">Loading your profile...</p>
         </div>
       </div>
@@ -74,71 +75,123 @@ const ProfilePage = ({ showToast, setCurrentPage }) => {
   };
 
   const roleColors = {
-    admin: 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300',
-    student: 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300',
-    staff: 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300',
+    admin: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800',
+    student: 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-800',
+    staff: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800',
   };
 
   const roleColor = roleColors[user?.role?.toLowerCase()] || roleColors.student;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 py-8 px-4 transition-colors duration-300">
-      <div className="max-w-2xl mx-auto">
-        {/* Main Card */}
-        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg overflow-hidden transition-colors duration-300">
-          {/* Hero Header with Gradient */}
-          <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 dark:from-blue-700 dark:via-blue-800 dark:to-indigo-800 p-8 text-white relative overflow-hidden">
-            {/* Decorative circles */}
-            <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -mr-20 -mt-20"></div>
-            <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/10 rounded-full -ml-16 -mb-16"></div>
+    <div className="min-h-screen bg-gray-50 dark:bg-[#050505] py-8 px-4 transition-colors duration-300">
+      <div className="max-w-4xl mx-auto space-y-6">
+        
+        {/* Hero Section */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-t-0 border-r-0 border-l-0 border-[#c0c0c0] dark:border-[#8a8a8a] bg-transparent shadow-none dark:shadow-none">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <div className="relative w-3 h-3">
+                <div className="absolute inset-0 bg-orange-500 rounded-full animate-ping opacity-75"></div>
+                <div className="relative w-3 h-3 bg-orange-500 rounded-full border border-orange-400"></div>
+              </div>
+              <span className="text-xs font-mono text-orange-500 tracking-wider uppercase">Account Settings</span>
+            </div>
+            <SplitText text={`Your Profile`} className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-gray-900 via-gray-700 to-gray-500 dark:from-gray-100 dark:via-gray-300 dark:to-gray-500 bg-clip-text text-transparent" splitType="chars" delay={30} />
+            <p className="text-gray-600 dark:text-gray-400 mt-2">
+              Manage your account information and preferences
+            </p>
+          </div>
+        </div>
 
-            <div className="relative z-10">
-              <div className="flex items-start gap-6">
-                {/* Avatar */}
-                <div className="w-24 h-24 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-full flex items-center justify-center shadow-lg border-4 border-white/20">
-                  <span className="text-3xl font-bold text-white">{getInitials(user?.fullName)}</span>
-                </div>
+        {/* Main Profile Card */}
+        <div className="glass-card overflow-hidden border border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_0_30px_rgba(192,192,192,0.24)] dark:shadow-[0_0_30px_rgba(138,138,138,0.26)]">
+          {/* Decorative Header with Gradient */}
+          <div className="relative bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 p-8 overflow-hidden">
+            {/* Animated background elements */}
+            <div className="absolute inset-0">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32 animate-pulse"></div>
+              <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/10 rounded-full -ml-24 -mb-24 animate-pulse" style={{ animationDelay: '1s' }}></div>
+            </div>
 
-                {/* User Info */}
-                <div className="flex-1 pt-1">
-                  <h1 className="text-3xl font-bold mb-2">{user?.fullName}</h1>
-                  <div className="flex items-center gap-2 text-blue-100 mb-4">
-                    <Mail size={16} />
-                    <p>{user?.email}</p>
-                  </div>
-                  <div className={`inline-block px-4 py-1.5 rounded-full text-sm font-semibold ${roleColor} capitalize`}>
-                    {user?.role}
-                  </div>
+            <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center gap-6">
+              {/* Avatar with animated border */}
+              <div className="relative group">
+                <div className="absolute inset-0 bg-gradient-to-r from-orange-300 to-amber-300 rounded-full blur-md group-hover:blur-lg transition-all duration-300 opacity-50"></div>
+                <div className="relative w-28 h-28 bg-gradient-to-br from-orange-400 to-amber-500 rounded-full flex items-center justify-center shadow-2xl border-4 border-white/30 group-hover:scale-105 transition-transform duration-300">
+                  <span className="text-4xl font-bold text-white">{getInitials(user?.fullName)}</span>
                 </div>
               </div>
+
+              {/* User Info */}
+              <div className="flex-1 text-white">
+                <h2 className="text-3xl font-bold mb-2">{user?.fullName}</h2>
+                <div className="flex items-center gap-2 text-orange-100 mb-4">
+                  <Mail size={16} />
+                  <p className="text-sm">{user?.email}</p>
+                </div>
+                <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold ${roleColor} bg-white/90 dark:bg-gray-800/90 capitalize shadow-md`}>
+                  <Shield size={14} />
+                  {user?.role}
+                </div>
+              </div>
+
+              {/* Edit Button */}
+              {!isEditing && (
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="inline-flex items-center gap-2 px-5 py-3 bg-white/20 backdrop-blur-md text-white border-2 border-white/30 rounded-lg hover:bg-white/30 transition-all duration-200 font-medium shadow-lg hover:shadow-xl hover:scale-105 group"
+                >
+                  <Edit2 size={18} className="group-hover:rotate-12 transition-transform" />
+                  Edit Profile
+                </button>
+              )}
             </div>
           </div>
 
           {/* Profile Content */}
           <div className="p-8">
-            {/* Section Header */}
-            <div className="flex justify-between items-center mb-8">
-              <div className="flex items-center gap-3">
-                <Shield size={24} className="text-blue-600 dark:text-blue-400" />
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Account Settings</h2>
+            {/* Stats Row */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+              <div className="bg-gradient-to-br from-orange-50 to-amber-50 dark:from-gray-800 dark:to-gray-750 p-4 rounded-xl border border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_0_20px_rgba(192,192,192,0.2)] dark:shadow-[0_0_20px_rgba(138,138,138,0.22)]">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Member Since</p>
+                    <p className="text-lg font-bold text-gray-900 dark:text-white mt-1 stat-number">2024</p>
+                  </div>
+                  <Calendar className="text-orange-500" size={24} />
+                </div>
               </div>
-
-              {!isEditing && (
-                <button
-                  onClick={() => setIsEditing(true)}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-all duration-200 font-medium shadow-md hover:shadow-lg"
-                >
-                  <Edit2 size={18} />
-                  Edit Profile
-                </button>
-              )}
+              
+              <div className="bg-gradient-to-br from-orange-50 to-amber-50 dark:from-gray-800 dark:to-gray-750 p-4 rounded-xl border border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_0_20px_rgba(192,192,192,0.2)] dark:shadow-[0_0_20px_rgba(138,138,138,0.22)]">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Account Type</p>
+                    <p className="text-lg font-bold text-gray-900 dark:text-white mt-1 capitalize">{user?.role}</p>
+                  </div>
+                  <User className="text-orange-500" size={24} />
+                </div>
+              </div>
+              
+              <div className="bg-gradient-to-br from-orange-50 to-amber-50 dark:from-gray-800 dark:to-gray-750 p-4 rounded-xl border border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_0_20px_rgba(192,192,192,0.2)] dark:shadow-[0_0_20px_rgba(138,138,138,0.22)]">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Status</p>
+                    <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400 mt-1">Active</p>
+                  </div>
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-emerald-500 rounded-full blur-md opacity-50"></div>
+                    <div className="relative w-3 h-3 bg-emerald-500 rounded-full"></div>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Form Fields */}
             <div className="space-y-6 mb-8">
               {/* Username Field */}
               <div className="group">
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                <label className="flex items-center gap-2 text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 uppercase tracking-wide">
+                  <User size={16} className="text-orange-500" />
                   Username
                 </label>
                 <div className="relative">
@@ -147,30 +200,36 @@ const ProfilePage = ({ showToast, setCurrentPage }) => {
                     disabled={!isEditing}
                     value={formData.username}
                     onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                    className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-600 rounded-lg disabled:bg-gray-50 dark:disabled:bg-slate-700 disabled:cursor-not-allowed bg-white dark:bg-slate-700 text-gray-900 dark:text-white transition-all duration-200 focus:border-blue-500 focus:outline-none"
+                    className={`w-full px-4 py-3.5 border-2 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white transition-all duration-200 focus:outline-none ${
+                      isEditing 
+                        ? 'border-[#b0b0b0] dark:border-[#797979] focus:border-orange-500 dark:focus:border-orange-400' 
+                        : 'border-[#c0c0c0] dark:border-[#8a8a8a] cursor-not-allowed opacity-60'
+                    }`}
                   />
                 </div>
               </div>
 
               {/* Full Name Field (Read-only from Google) */}
               <div className="group">
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                <label className="flex items-center gap-2 text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 uppercase tracking-wide">
+                  <User size={16} className="text-orange-500" />
                   Full Name
-                  <span className="text-xs font-normal text-gray-500 dark:text-gray-400 ml-2">(from Google)</span>
+                  <span className="text-xs font-normal text-gray-500 dark:text-gray-400 normal-case">(from Google)</span>
                 </label>
                 <div className="relative">
                   <input
                     type="text"
                     disabled
                     value={user?.fullName || ''}
-                    className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-slate-700 cursor-not-allowed text-gray-600 dark:text-gray-400 transition-all duration-200"
+                    className="w-full px-4 py-3.5 border-2 border-[#c0c0c0] dark:border-[#8a8a8a] rounded-xl bg-gray-100 dark:bg-gray-700 cursor-not-allowed text-gray-600 dark:text-gray-400 opacity-60"
                   />
                 </div>
               </div>
 
               {/* Email Field */}
               <div className="group">
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                <label className="flex items-center gap-2 text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 uppercase tracking-wide">
+                  <Mail size={16} className="text-orange-500" />
                   Email Address
                 </label>
                 <div className="relative">
@@ -179,14 +238,19 @@ const ProfilePage = ({ showToast, setCurrentPage }) => {
                     disabled={!isEditing}
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-600 rounded-lg disabled:bg-gray-50 dark:disabled:bg-slate-700 disabled:cursor-not-allowed bg-white dark:bg-slate-700 text-gray-900 dark:text-white transition-all duration-200 focus:border-blue-500 focus:outline-none"
+                    className={`w-full px-4 py-3.5 border-2 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white transition-all duration-200 focus:outline-none ${
+                      isEditing 
+                        ? 'border-[#b0b0b0] dark:border-[#797979] focus:border-orange-500 dark:focus:border-orange-400' 
+                        : 'border-[#c0c0c0] dark:border-[#8a8a8a] cursor-not-allowed opacity-60'
+                    }`}
                   />
                 </div>
               </div>
 
               {/* Role Field (Read-only) */}
               <div className="group">
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                <label className="flex items-center gap-2 text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 uppercase tracking-wide">
+                  <Shield size={16} className="text-orange-500" />
                   Role
                 </label>
                 <div className="relative">
@@ -194,7 +258,7 @@ const ProfilePage = ({ showToast, setCurrentPage }) => {
                     type="text"
                     disabled
                     value={user?.role || ''}
-                    className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-slate-700 cursor-not-allowed text-gray-600 dark:text-gray-400 capitalize transition-all duration-200"
+                    className="w-full px-4 py-3.5 border-2 border-[#c0c0c0] dark:border-[#8a8a8a] rounded-xl bg-gray-100 dark:bg-gray-700 cursor-not-allowed text-gray-600 dark:text-gray-400 capitalize opacity-60"
                   />
                 </div>
               </div>
@@ -202,11 +266,11 @@ const ProfilePage = ({ showToast, setCurrentPage }) => {
 
             {/* Action Buttons */}
             {isEditing && (
-              <div className="flex gap-3 mb-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex gap-3 mb-8 pt-6 border-t border-[#c0c0c0] dark:border-[#8a8a8a]">
                 <button
                   onClick={handleSave}
                   disabled={loading}
-                  className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-3 bg-green-600 dark:bg-green-600 text-white rounded-lg hover:bg-green-700 dark:hover:bg-green-700 transition-all duration-200 font-medium disabled:opacity-60 disabled:cursor-not-allowed shadow-md hover:shadow-lg"
+                  className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl hover:from-emerald-600 hover:to-emerald-700 transition-all duration-200 font-semibold disabled:opacity-60 disabled:cursor-not-allowed shadow-lg hover:shadow-xl hover:scale-[1.02]"
                 >
                   {loading ? (
                     <>
@@ -223,7 +287,7 @@ const ProfilePage = ({ showToast, setCurrentPage }) => {
                 <button
                   onClick={handleCancel}
                   disabled={loading}
-                  className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-3 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-all duration-200 font-medium disabled:opacity-60"
+                  className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-300 dark:hover:bg-gray-600 transition-all duration-200 font-semibold disabled:opacity-60"
                 >
                   <X size={18} />
                   Cancel
@@ -232,23 +296,34 @@ const ProfilePage = ({ showToast, setCurrentPage }) => {
             )}
 
             {/* Logout Section */}
-            <div className="pt-8 border-t border-gray-200 dark:border-gray-700">
+            <div className="pt-8 border-t border-[#c0c0c0] dark:border-[#8a8a8a]">
               <button
                 onClick={handleLogout}
-                className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-red-500 dark:bg-red-600 text-white rounded-lg hover:bg-red-600 dark:hover:bg-red-700 transition-all duration-200 font-medium shadow-md hover:shadow-lg"
+                className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl hover:from-red-600 hover:to-red-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl hover:scale-[1.02] group"
               >
-                <LogOut size={20} />
+                <LogOut size={20} className="group-hover:-translate-x-1 transition-transform" />
                 Logout from Account
+                <ArrowUpRight size={16} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
               </button>
             </div>
           </div>
         </div>
 
         {/* Info Card */}
-        <div className="mt-6 bg-blue-50 dark:bg-slate-700 border-l-4 border-blue-500 p-6 rounded-lg">
-          <p className="text-sm text-blue-900 dark:text-blue-200">
-            <span className="font-semibold">💡 Tip:</span> Your full name is fetched from your Google account and cannot be changed directly. Update your profile picture and name in your Google Account settings if needed.
-          </p>
+        <div className="glass-card border border-[#c0c0c0] dark:border-[#8a8a8a] border-l-4 border-orange-500 p-6 shadow-[0_0_24px_rgba(192,192,192,0.22)] dark:shadow-[0_0_24px_rgba(138,138,138,0.24)]">
+          <div className="flex gap-4">
+            <div className="flex-shrink-0">
+              <div className="w-10 h-10 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
+                <span className="text-lg">💡</span>
+              </div>
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Profile Information</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Your full name is fetched from your Google account and cannot be changed directly. Update your profile picture and name in your Google Account settings if needed.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </div>

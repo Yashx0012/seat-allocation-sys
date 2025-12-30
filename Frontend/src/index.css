@@ -14,10 +14,10 @@ html {
               border-color 0.25s ease,
               color 0.25s ease;
 }
+
 .no-transition * {
   transition: none !important;
 }
-
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
@@ -25,20 +25,19 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-    background-color: #0d1117; 
+  background-color: #0d1117; 
   background-image: linear-gradient(180deg, #161b22, #0d1117);
   color: #c9d1d9; 
 }
 
+
+
 #root {
   min-height: 100vh;
   width: 100%;
-  /* REMOVED: display: flex; justify-content: center; align-items: center; */ 
-  /* ADD back padding if needed, but usually the children handle it */
 }
 
-/* Frontend/src/index.css (Add this section) */
-
+/* ==================== CSS VARIABLES FOR THEMING ==================== */
 :root {
   /* Light Mode Input Variables */
   --input-bg-color: #ffffff;
@@ -46,19 +45,188 @@ body {
   --input-placeholder-color: #9ca3af; /* gray-400 */
   --input-border-color: #d1d5db; /* gray-300 */
   --input-focus-ring-color: #4f46e5; /* indigo-600 */
-  --input-focus-ring-color-light: rgba(79, 70, 229, 0.25); /* Adjusted for light mode ring */
+  --input-focus-ring-color-light: rgba(79, 70, 229, 0.25);
+
+  /* Dashboard Theme Variables - Orange/Amber Theme */
+  --color-primary: 249, 115, 22; /* orange-500 */
+  --color-primary-foreground: 255, 255, 255;
+  --color-secondary: 243, 244, 246; /* gray-100 */
+  --color-border: 229, 231, 235; /* gray-200 */
+  --color-foreground: 17, 24, 39; /* gray-900 */
+  --color-muted-foreground: 107, 114, 128; /* gray-500 */
+  --color-accent: 251, 146, 60; /* orange-400 for highlights */
+
+  /* PillNav theme variables */
+  --pillnav-base: 255 255 255;
+  --pillnav-pill: var(--color-primary);
+  --pillnav-pill-text: 5 5 5;
+  --pillnav-hover-text: 5 5 5;
+  --pillnav-hover-pill: var(--color-primary);
 }
 
 .dark {
-  /* Dark Mode Input Variables (When the 'dark' class is present) */
+  /* Dark Mode Input Variables */
   --input-bg-color: #374151; /* gray-700 */
   --input-text-color: #ffffff; /* white */
   --input-placeholder-color: #6b7280; /* gray-500 */
   --input-border-color: #4b5563; /* gray-600 */
   --input-focus-ring-color: #818cf8; /* indigo-400 */
-  --input-focus-ring-color-light: rgba(129, 140, 248, 0.3); /* Adjusted for dark mode ring */
+  --input-focus-ring-color-light: rgba(129, 140, 248, 0.3);
+
+  /* Dashboard Theme Variables (Dark Mode) - Orange/Amber Theme */
+  --color-primary: 249, 115, 22; /* orange-500 */
+  --color-primary-foreground: 255, 255, 255;
+  --color-secondary: 31, 41, 55; /* gray-800 */
+  --color-border: 55, 65, 81; /* gray-700 */
+  --color-foreground: 243, 244, 246; /* gray-100 */
+  --color-muted-foreground: 156, 163, 175; /* gray-400 */
+  --color-accent: 251, 146, 60; /* orange-400 for highlights */
+
+  /* PillNav theme variables */
+  --pillnav-base: 5 5 5;
+  --pillnav-pill: var(--color-secondary);
+  --pillnav-pill-text: var(--color-foreground);
+  --pillnav-hover-text: 5 5 5;
+  --pillnav-hover-pill: var(--color-primary);
 }
 
 .font-bogle {
-    font-family: 'BBH Bogle', sans-serif !important;
+  font-family: 'BBH Bogle', sans-serif !important;
+}
+
+/* ==================== GLASS CARD & CUSTOM COMPONENTS ==================== */
+@layer components {
+  .glass-card {
+    @apply bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl border border-gray-200 dark:border-gray-700 rounded-2xl shadow-lg;
+  }
+
+  .micro-label {
+    @apply text-xs font-bold tracking-widest uppercase text-gray-500 dark:text-gray-400;
+  }
+
+  .text-primary {
+    color: rgb(var(--color-primary));
+  }
+
+  .bg-primary {
+    background-color: rgb(var(--color-primary));
+  }
+
+  .text-primary-foreground {
+    color: rgb(var(--color-primary-foreground));
+  }
+
+  .bg-secondary {
+    background-color: rgb(var(--color-secondary));
+  }
+
+  .border-border {
+    border-color: rgb(var(--color-border));
+  }
+
+  .text-foreground {
+    color: rgb(var(--color-foreground));
+  }
+
+  .text-muted-foreground {
+    color: rgb(var(--color-muted-foreground));
+  }
+
+  .text-accent {
+    color: rgb(var(--color-accent));
+  }
+
+  .bg-accent {
+    background-color: rgb(var(--color-accent));
+  }
+
+  .border-primary {
+    border-color: rgb(var(--color-primary));
+  }
+
+  .hover\:border-primary:hover {
+    border-color: rgb(var(--color-primary));
+  }
+
+  .shadow-primary {
+    box-shadow: 0 0 15px rgba(var(--color-primary), 0.3);
+  }
+}
+
+/* ==================== CUSTOM SCROLLBAR ==================== */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-gray-100 dark:bg-gray-800;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-300 dark:bg-gray-600 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-400 dark:bg-gray-500;
+}
+
+/* ==================== CUSTOM ANIMATIONS ==================== */
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 2s infinite linear;
+  background: linear-gradient(
+    to right,
+    transparent 0%,
+    rgba(255, 255, 255, 0.1) 50%,
+    transparent 100%
+  );
+  background-size: 1000px 100%;
+}
+
+@keyframes ping {
+  75%, 100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+.animate-ping {
+  animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+.animate-fadeInUp {
+  animation: fadeInUp 0.5s ease-out forwards;
 }

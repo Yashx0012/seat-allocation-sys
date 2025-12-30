@@ -170,7 +170,6 @@ const AppContent = () => {
         return <Allocation showToast={showToast} />;
       case 'classroom':
         return <ClassroomPage setCurrentPage={setCurrentPage} />;
-      
       case 'feedback':
         return <FeedbackPage showToast={showToast} />;
       case 'aboutus':
@@ -189,9 +188,7 @@ const AppContent = () => {
   // --------------------------------------------------
   return (
     <>
-      <PatternBackground isDark={theme === 'dark'} />
-
-      <div className="min-h-screen flex flex-col transition-colors duration-300 relative z-10">
+      <div className="min-h-screen flex flex-col transition-colors duration-300 bg-white dark:bg-phantom-black">
         <Navbar currentPage={currentPage} setCurrentPage={setCurrentPage} />
 
         <main className="flex-1">{renderPage()}</main>
