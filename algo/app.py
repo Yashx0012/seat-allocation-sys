@@ -11,6 +11,7 @@ from typing import Dict, List, Tuple
 
 from flask import Flask, jsonify, request, send_file, render_template_string, session, render_template
 from flask_cors import CORS
+from leftover_calculator import LeftoverCalculator
 
 from pdf_gen.pdf_generation import get_or_create_seating_pdf
 from pdf_gen.template_manager import template_manager
@@ -151,6 +152,23 @@ def ensure_demo_db():
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS feedback (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            issue_type TEXT NOT NULL,
+            priority TEXT NOT NULL,
+            description TEXT NOT NULL,
+            feature_suggestion TEXT,
+            additional_info TEXT,
+            file_path TEXT,
+            file_name TEXT,
+            status TEXT DEFAULT 'pending',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            resolved_at DATETIME,
+            admin_response TEXT
+        );
+    """)
 
     conn.commit()
     conn.close()
@@ -229,6 +247,255 @@ def token_required(fn):
         request.user_id = payload.get("user_id")
         return fn(*args, **kwargs)
     return wrapper
+# FEEDBACK ROUTES
+# --------------------------------------------------
+
+@app.route("/api/feedback", methods=["POST"])
+@token_required
+def submit_feedback():
+    """Submit new feedback"""
+    try:
+        issue_type = request.form.get('issueType')
+        priority = request.form.get('priority')
+        description = request.form.get('description')
+        feature_suggestion = request.form.get('featureSuggestion', '')
+        additional_info = request.form.get('additionalInfo', '')
+        
+        if not all([issue_type, priority, description]):
+            return jsonify({"error": "Missing required fields"}), 400
+        
+        file_path = None
+        file_name = None
+        if 'file' in request.files:
+            file = request.files['file']
+            if file and file.filename:
+                app.config['FEEDBACK_FOLDER'].mkdir(exist_ok=True)
+                timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+                safe_filename = f"{timestamp}_{file.filename}"
+                file_path = app.config['FEEDBACK_FOLDER'] / safe_filename
+                file.save(file_path)
+                file_name = file.filename
+        
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO feedback (
+                user_id, issue_type, priority, description, 
+                feature_suggestion, additional_info, file_path, file_name
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            request.user_id, issue_type, priority, description,
+            feature_suggestion, additional_info,
+            str(file_path) if file_path else None, file_name
+        ))
+        feedback_id = cur.lastrowid
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            "success": True, 
+            "message": "Feedback submitted successfully",
+            "feedback_id": feedback_id
+        }), 201
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/feedback", methods=["GET"])
+@token_required
+def get_user_feedback():
+    """Get all feedback submitted by the current user"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        
+        cur.execute("""
+            SELECT id, issue_type, priority, description, 
+                   feature_suggestion, additional_info, file_name,
+                   status, created_at, resolved_at, admin_response
+            FROM feedback 
+            WHERE user_id = ?
+            ORDER BY created_at DESC
+        """, (request.user_id,))
+        
+        feedback_list = [dict(row) for row in cur.fetchall()]
+        conn.close()
+        
+        return jsonify({
+            "success": True,
+            "feedback": feedback_list
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/feedback/<int:feedback_id>", methods=["GET"])
+@token_required
+def get_feedback_detail(feedback_id):
+    """Get detailed feedback by ID"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        
+        cur.execute("""
+            SELECT * FROM feedback 
+            WHERE id = ? AND user_id = ?
+        """, (feedback_id, request.user_id))
+        
+        row = cur.fetchone()
+        conn.close()
+        
+        if not row:
+            return jsonify({"error": "Feedback not found"}), 404
+        
+        return jsonify({
+            "success": True,
+            "feedback": dict(row)
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/feedback/<int:feedback_id>/file", methods=["GET"])
+@token_required
+def download_feedback_file(feedback_id):
+    """Download attached file from feedback"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        
+        cur.execute("""
+            SELECT file_path, file_name FROM feedback 
+            WHERE id = ? AND user_id = ?
+        """, (feedback_id, request.user_id))
+        
+        row = cur.fetchone()
+        conn.close()
+        
+        if not row or not row['file_path']:
+            return jsonify({"error": "File not found"}), 404
+        
+        file_path = Path(row['file_path'])
+        if not file_path.exists():
+            return jsonify({"error": "File no longer exists"}), 404
+        
+        return send_file(
+            file_path,
+            as_attachment=True,
+            download_name=row['file_name']
+        )
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# --------------------------------------------------
+# ADMIN ROUTES
+# --------------------------------------------------
+
+@app.route("/api/admin/feedback", methods=["GET"])
+@token_required
+def get_all_feedback():
+    """Get all feedback (admin only)"""
+    try:
+        status = request.args.get('status', None)
+        
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        
+        if status:
+            cur.execute("""
+                SELECT f.*, u.username, u.email 
+                FROM feedback f
+                LEFT JOIN users u ON f.user_id = u.id
+                WHERE f.status = ?
+                ORDER BY f.created_at DESC
+            """, (status,))
+        else:
+            cur.execute("""
+                SELECT f.*, u.username, u.email 
+                FROM feedback f
+                LEFT JOIN users u ON f.user_id = u.id
+                ORDER BY f.created_at DESC
+            """)
+        
+        feedback_list = [dict(row) for row in cur.fetchall()]
+        conn.close()
+        
+        return jsonify({
+            "success": True,
+            "feedback": feedback_list
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/admin/feedback/<int:feedback_id>/resolve", methods=["PUT"])
+@token_required
+def resolve_feedback(feedback_id):
+    """Mark feedback as resolved (admin only)"""
+    try:
+        data = request.get_json()
+        admin_response = data.get('adminResponse', '')
+        
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        
+        cur.execute("""
+            UPDATE feedback 
+            SET status = 'resolved',
+                resolved_at = CURRENT_TIMESTAMP,
+                admin_response = ?
+            WHERE id = ?
+        """, (admin_response, feedback_id))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            "success": True,
+            "message": "Feedback marked as resolved"
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/admin/feedback/<int:feedback_id>", methods=["DELETE"])
+@token_required
+def delete_feedback(feedback_id):
+    """Delete feedback (admin only)"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        
+        cur.execute("SELECT file_path FROM feedback WHERE id = ?", (feedback_id,))
+        row = cur.fetchone()
+        
+        if row and row[0]:
+            file_path = Path(row[0])
+            if file_path.exists():
+                file_path.unlink()
+        
+        cur.execute("DELETE FROM feedback WHERE id = ?", (feedback_id,))
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            "success": True,
+            "message": "Feedback deleted successfully"
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # --------------------------------------------------
 # 7. API ROUTES: CLASSROOMS
@@ -552,6 +819,10 @@ def generate_seating():
     
     ok, errors = algo.validate_constraints()
     web["validation"] = {"is_valid": ok, "errors": errors}
+     
+    # NEW: Calculate leftover students
+    leftover_data = LeftoverCalculator.get_leftover_report(web["seating"], counts)
+    web["leftover_analysis"] = LeftoverCalculator.format_for_display(leftover_data)
     return jsonify(web)
 
 @app.route("/api/constraints-status", methods=["POST"])
