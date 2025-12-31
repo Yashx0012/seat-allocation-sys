@@ -16,6 +16,11 @@ from leftover_calculator import LeftoverCalculator
 from pdf_gen.pdf_generation import get_or_create_seating_pdf
 from pdf_gen.template_manager import template_manager
 
+from cache_manager import CacheManager
+from attendence_gen.attend_gen import create_attendance_pdf
+cache_manager = CacheManager()
+import uuid
+
 # Attendence generation module import 
 try:
     from attendence_gen.attend_gen import generate_attendance_pdf
@@ -215,14 +220,23 @@ def get_batch_counts_and_labels_from_db():
 def get_batch_roll_numbers_from_db():
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
-    cur.execute("SELECT batch_name, enrollment FROM students ORDER BY id")
+    # 1. Fetch all three necessary columns
+    cur.execute("SELECT batch_name, enrollment, name FROM students ORDER BY id")
     rows = cur.fetchall()
     conn.close()
+    
     groups = {}
-    for batch, enr in rows:
-        groups.setdefault(batch, []).append(enr)
+    # 2. Correctly unpack all three values from the row
+    for batch_name, enr, name in rows:
+        # 3. Store as a dictionary so algo.py can access both roll and name
+        groups.setdefault(batch_name, []).append({
+            "roll": enr,
+            "name": name if name else ""  # Handle empty names safely
+        })
+        
+        
+    # 4. Return the integer-mapped dictionary required by the Algorithm
     return {i + 1: groups[k] for i, k in enumerate(sorted(groups))}
-
 # --------------------------------------------------
 # Auth Decorator
 # --------------------------------------------------
@@ -793,16 +807,28 @@ def api_students():
     return jsonify(rows)
 
 # --------------------------------------------------
-# Allocation Routes
+# Allocation Routes (Permanent ID Logic)
 # --------------------------------------------------
+
 @app.route("/api/generate-seating", methods=["POST"])
 def generate_seating():
     if SeatingAlgorithm is None:
         return jsonify({"error": "SeatingAlgorithm module not available"}), 500
     
     data = request.get_json(force=True)
-    use_db = bool(data.get("use_demo_db", True))
+    
+    # --- PERMANENT ID LOGIC ---
+    # 1. Determine the Plan ID
+    plan_id = data.get("plan_id")
+    is_new_plan = False
 
+    if not plan_id:
+        # Generate a fresh ID only if one wasn't provided
+        plan_id = f"plan_{uuid.uuid4().hex[:8]}"
+        is_new_plan = True
+    
+    # 2. Extract settings for the Algorithm
+    use_db = bool(data.get("use_demo_db", True))
     if use_db:
         counts, labels = get_batch_counts_and_labels_from_db()
         rolls = get_batch_roll_numbers_from_db()
@@ -813,16 +839,16 @@ def generate_seating():
         rolls = data.get("batch_roll_numbers") or {}
         num_batches = int(data.get("num_batches", 3))
 
+    # Parse broken seats
     broken_str = data.get("broken_seats", "")
     broken_seats = []
     if isinstance(broken_str, str) and "-" in broken_str:
-        broken_seats = [
-            (int(r)-1, int(c)-1) 
-            for r, c in (p.split("-") for p in broken_str.split(",") if "-" in p)
-        ]
+        broken_seats = [(int(r)-1, int(c)-1) for r, c in (p.split("-") for p in broken_str.split(",") if "-" in p)]
     elif isinstance(broken_str, list):
         broken_seats = broken_str 
 
+    # 3. Run the Algorithm
+    # We pass all configuration data to the algorithm
     algo = SeatingAlgorithm(
         rows=int(data.get("rows", 10)),
         cols=int(data.get("cols", 6)),
@@ -842,18 +868,27 @@ def generate_seating():
 
     algo.generate_seating()
     web = algo.to_web_format()
+    
+    # 4. Finalize response object
     web.setdefault("metadata", {})
+    # Crucial: Send the ID back so the Frontend can include it in the next request
+    web["plan_id"] = plan_id  
     
     ok, errors = algo.validate_constraints()
     web["validation"] = {"is_valid": ok, "errors": errors}
-     
-    # NEW: Calculate leftover students
-    leftover_data = LeftoverCalculator.get_leftover_report(web["seating"], counts)
-    web["leftover_analysis"] = LeftoverCalculator.format_for_display(leftover_data)
+    
+    # 5. OVERWRITE CACHE: This ensures we update the SAME file
+    # Using save_or_update prevents duplication in the /cache folder
+    cache_manager.save_or_update(plan_id, data, web)
+    
+    action_type = "Created" if is_new_plan else "Updated"
+    print(f"💾 {action_type} plan: {plan_id} (Cache Overwritten)")
+
     return jsonify(web)
 
 @app.route("/api/constraints-status", methods=["POST"])
 def constraints_status():
+    """Remains dynamic for real-time UI feedback (not cached)"""
     if SeatingAlgorithm is None: 
         return jsonify({"error": "Algorithm module not available"}), 500
     
@@ -868,7 +903,6 @@ def constraints_status():
     )
     algo.generate_seating()
     return jsonify(algo.get_constraints_status())
-
 # ============================================================================
 # PDF GENERATION
 # ============================================================================
@@ -919,18 +953,44 @@ def manage_template():
             
         except Exception as e:
             return jsonify({'error': f'Failed to update template: {str(e)}'}), 500
+# ============================================================================
+# FIXED PDF GENERATION (Snapshot-Aware)
+# ============================================================================
 
 @app.route('/api/generate-pdf', methods=['POST'])
 def generate_pdf():
     try:
         data = request.get_json()
-        if not data or 'seating' not in data:
-            return jsonify({"error": "Invalid seating data"}), 400
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
         
+        # 1. Try to load from Central Cache if a snapshot_id is provided
+        # This ensures the PDF exactly matches what was generated by the algo
+        snapshot_id = data.get('snapshot_id')
+        
+        if snapshot_id:
+            snapshot = cache_manager.load_snapshot(snapshot_id)
+            if snapshot:
+                seating_payload = snapshot['seating_data']
+                print(f"📄 Generating PDF from Snapshot: {snapshot_id}")
+            else:
+                return jsonify({"error": "Cached snapshot not found. Please regenerate seating."}), 404
+        else:
+            # Fallback for direct data sends (like from your frontend preview)
+            if 'seating' not in data:
+                return jsonify({"error": "Invalid seating data"}), 400
+            seating_payload = data
+            print("📄 Generating PDF from raw request data")
+
         user_id = 'test_user'
         template_name = request.args.get('template_name', 'default')
         
-        pdf_path = get_or_create_seating_pdf(data, user_id=user_id, template_name=template_name)
+        # 2. Call the generator with the validated payload
+        pdf_path = get_or_create_seating_pdf(
+            seating_payload, 
+            user_id=user_id, 
+            template_name=template_name
+        )
         
         return send_file(
             pdf_path,
@@ -938,10 +998,12 @@ def generate_pdf():
             download_name=f"seating_plan_{datetime.now().strftime('%Y%m%d%H%M%S')}.pdf"
         )
     except Exception as e:
+        print(f"❌ PDF Error: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/test-pdf', methods=['GET'])
 def test_pdf():
+    """Generates a sample PDF to verify the generator and template system work."""
     user_id = 'test_user'
     template_name = request.args.get('template_name', 'default')
     
@@ -962,6 +1024,7 @@ def test_pdf():
     }
     
     try:
+        # Note: We don't cache test PDFs to avoid cluttering the system
         pdf_path = get_or_create_seating_pdf(sample_data, user_id=user_id, template_name=template_name)
         return send_file(
             pdf_path,
@@ -970,40 +1033,100 @@ def test_pdf():
         )
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+# ============================================================================
+# ATTENDANCE GENERATION & ALLOCATIONS
+# ============================================================================
 
-# ============================================================================
-# ATTENDANCE GENERATION
-# ============================================================================
 @app.route('/api/allocations', methods=['GET'])
 def get_all_allocations():
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    cur.execute("SELECT DISTINCT batch_id, batch_name, created_at FROM uploads")
-    rows = cur.fetchall()
-    conn.close()
-    return jsonify([{"id": r[0], "batch_name": r[1], "date": r[2]} for r in rows])
-
-@app.route('/api/generate-attendance', methods=['POST'])
-def get_attendance():
-    if generate_attendance_pdf is None:
-        return jsonify({"error": "Attendance module not found"}), 500
-        
+    """Fetches list of previous uploads/plans for the frontend to select from"""
     try:
-        data = request.get_json()
-        seating = data.get('seating', [])
-        batch = data.get('batch_name', 'Examination')
-        
-        pdf_buffer = generate_attendance_pdf(seating, batch)
-        
-        return send_file(
-            pdf_buffer,
-            mimetype='application/pdf',
-            as_attachment=True,
-            download_name=f"attendance_{batch}.pdf"
-        )
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        cur.execute("SELECT DISTINCT batch_id, batch_name, created_at FROM uploads")
+        rows = cur.fetchall()
+        conn.close()
+        return jsonify([{"id": r[0], "batch_name": r[1], "date": r[2]} for r in rows])
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/api/plan-batches/<plan_id>', methods=['GET'])
+def get_plan_batches(plan_id):
+    """
+    NEW: This route helps the frontend 'Attendance Page' know 
+    which batches exist in a plan so it can render the forms.
+    """
+    cache_data = cache_manager.load_snapshot(plan_id)
+    if not cache_data:
+        return jsonify({"error": "Plan not found"}), 404
+    
+    # Return just the batch names and their pre-parsed info
+    batch_list = {}
+    for label, data in cache_data.get('batches', {}).items():
+        batch_list[label] = data.get('info', {})
+        
+    return jsonify({
+        "plan_id": plan_id,
+        "batches": batch_list,
+        "room_no": cache_data.get('inputs', {}).get('room_id', 'N/A')
+    })
+
+@app.route('/api/export-attendance', methods=['POST'])
+def export_attendance():
+    """
+    FIXED: The main route to generate a PDF for a SPECIFIC batch 
+    using the structured cache data.
+    """
+    try:
+        data = request.get_json()
+        plan_id = data.get('plan_id')
+        batch_name = data.get('batch_name')
+        frontend_metadata = data.get('metadata', {}) 
+
+        # 1. Load the structured cache created by CacheManager
+        cache_data = cache_manager.load_snapshot(plan_id)
+        if not cache_data:
+            return jsonify({"error": "Seating plan cache not found"}), 404
+
+        # 2. Get the specific batch data organized by CacheManager
+        batch_data = cache_data.get('batches', {}).get(batch_name)
+        if not batch_data:
+            return jsonify({"error": f"Batch '{batch_name}' not found in this plan"}), 404
+
+        # 3. Path for temporary PDF generation
+        temp_filename = f"temp_{plan_id}_{batch_name.replace(' ', '_')}.pdf"
+        
+        # 4. Generate PDF using the pre-structured data
+        # student_list = batch_data['students']
+        # extracted_info = batch_data['info']
+        create_attendance_pdf(
+            temp_filename, 
+            batch_data['students'], 
+            batch_name, 
+            frontend_metadata, 
+            batch_data['info']
+        )
+
+        # 5. Read PDF into memory and return to user
+        return_data = io.BytesIO()
+        with open(temp_filename, 'rb') as f:
+            return_data.write(f.read())
+        return_data.seek(0)
+        
+        # 6. Cleanup the temp file
+        if os.path.exists(temp_filename):
+            os.remove(temp_filename)
+
+        return send_file(
+            return_data,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=f"Attendance_{batch_name}_{frontend_metadata.get('course_code', '')}.pdf"
+        )
+
+    except Exception as e:
+        print(f"Export Error: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 # --------------------------------------------------
 # Admin/Maintenance Routes
 # --------------------------------------------------

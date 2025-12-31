@@ -20,6 +20,8 @@ class Seat:
     block: Optional[int] = None
     # roll_number may be an integer or a formatted string (e.g. BTCS24O1134 or enrollment)
     roll_number: Optional[str] = None
+    # Name of the student 
+    student_name: Optional[str] = None 
     # is_broken: True if this seat is broken/unavailable
     is_broken: bool = False
     # color: color code for display (e.g., "#FF0000" for red, "#F3F4F6" for light gray)
@@ -199,7 +201,7 @@ class SeatingAlgorithm:
                 # NEW: if real enrollment list is provided for this batch, use that directly
                 if self.batch_roll_numbers and b in self.batch_roll_numbers:
                     # We don't pad or format; we just treat them as final roll/enrollment strings
-                    rolls = [str(r).strip() for r in self.batch_roll_numbers[b] if str(r).strip()]
+                    rolls = [r for r in self.batch_roll_numbers[b] if r]
                     batch_queues[b] = deque(rolls)
                     continue
 
@@ -312,27 +314,44 @@ class SeatingAlgorithm:
                             )
                         except Exception:
                             rn = template_for_this_batch.replace("{serial}", serial_str)
+                    # FIND THIS AROUND LINE 243
                     elif batch_queues[b]:
-                        # This covers both:
-                        # - real enrollment numbers (batch_roll_numbers)
-                        # - pre-generated serials
-                        rn = batch_queues[b].popleft()
-
-                    paper_set = self._calculate_paper_set(row, col)
-                    block = col // self.block_width
-                    if rn is not None:
-                        batch_color = self.batch_colors.get(b, "#E5E7EB")
-                        seat = Seat(
-                            row=row,
-                            col=col,
-                            batch=b,
-                            paper_set=paper_set,
-                            block=block,
-                            roll_number=str(rn),
-                            color=batch_color,
-                        )
-                        self.seating_plan[row][col] = seat
-                        batch_allocated[b] += 1
+                        data_item = batch_queues[b].popleft()
+                    
+                        # Robust extraction
+                        if isinstance(data_item, dict):
+                            rn = data_item.get('roll', '')
+                            st_name = data_item.get('name', '')
+                        elif isinstance(data_item, str) and data_item.startswith('{'):
+                            # Fallback in case a stringified dict somehow sneaks in
+                            try:
+                                import ast
+                                d = ast.literal_eval(data_item)
+                                rn = d.get('roll', '')
+                                st_name = d.get('name', '')
+                            except:
+                                rn = data_item
+                                st_name = ""
+                        else:
+                            rn = data_item
+                            st_name = ""
+                    
+                        paper_set = self._calculate_paper_set(row, col)
+                        block = col // self.block_width
+                    
+                        if rn:
+                            seat = Seat(
+                                row=row,
+                                col=col,
+                                batch=b,
+                                paper_set=paper_set,
+                                block=block,
+                                roll_number=str(rn),   # Clean Roll
+                                student_name=st_name, # Clean Name
+                                color=self.batch_colors.get(b, "#E5E7EB"),
+                            )
+                            self.seating_plan[row][col] = seat
+                            batch_allocated[b] += 1
                     else:
                         # No more rolls available for this batch, mark as unallocated
                         seat = Seat(
@@ -772,6 +791,7 @@ class SeatingAlgorithm:
                         "block": seat.block,
                         # This is now your enrollment number when batch_roll_numbers is used
                         "roll_number": seat.roll_number,
+                        "student_name": seat.student_name,
                         "is_broken": False,
                         "is_unallocated": is_unallocated,
                         "display": display_value,

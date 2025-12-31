@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom'; // ADDED: For navigation
 import SplitText from '../components/SplitText';
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Users, Layout, MapPin, Download, Play, 
   Settings, Monitor, Palette, Hash, Type, 
   Loader2, AlertCircle, RefreshCw, CheckCircle2,
-  Database, ChevronRight, FileDown, Zap, Trash2, Flame, Building
+  Database, ChevronRight, FileDown, Zap, Trash2, Flame, Building, UserCheck // ADDED: UserCheck icon
 } from 'lucide-react';
 
 // --- INLINE UI COMPONENTS ---
-const Card = ({ className, children }) => <div className={`glass-card ${className}`}>{children}</div>;
+const Card = ({ className, children, ref }) => <div ref={ref} className={`glass-card ${className}`}>{children}</div>;
 const Button = ({ className, children, onClick, disabled, title, variant }) => {
     const base = "inline-flex items-center justify-center rounded-xl font-bold transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none hover:scale-105";
     const bg = variant === "destructive" 
@@ -20,6 +21,12 @@ const Button = ({ className, children, onClick, disabled, title, variant }) => {
 const Input = (props) => <input {...props} className={`flex h-10 w-full rounded-lg border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 dark:focus:ring-orange-400 focus:border-orange-500 dark:text-white ${props.className}`} />;
 
 const AllocationPage = ({ showToast }) => {
+  const navigate = useNavigate(); // ADDED: for navigation
+  
+  // FIXED: Static ID used to overwrite the same cache file every time
+  const STATIC_PLAN_ID = "current_plan_fixed";
+
+  const [planId, setPlanId] = useState(null);
   const [classrooms, setClassrooms] = useState([]);
   const [selectedRoomId, setSelectedRoomId] = useState("");
   const [rows, setRows] = useState(8);
@@ -63,6 +70,7 @@ const AllocationPage = ({ showToast }) => {
 
   const handleRoomChange = (roomId) => {
     setSelectedRoomId(roomId);
+    setPlanId(null);
     if (!roomId) return;
     const room = classrooms.find(r => r.id === parseInt(roomId));
     if (room) {
@@ -79,6 +87,7 @@ const AllocationPage = ({ showToast }) => {
     const startRolls = {}, batchLabels = {}, batchColors = {};
     batchConfigs.forEach((b, i) => { startRolls[i+1] = b.startRoll; batchLabels[i+1] = b.label; batchColors[i+1] = b.color; });
     return {
+      plan_id: STATIC_PLAN_ID, // UPDATED: Use static ID
       room_id: selectedRoomId, rows, cols, block_width: blockWidth, broken_seats: brokenSeats,
       num_batches: numBatches, batch_by_column: batchByColumn, enforce_no_adjacent_batches: enforceNoAdjacentBatches,
       use_demo_db: useDemoDb, start_rolls: startRolls, batch_labels: batchLabels, batch_colors: batchColors
@@ -94,6 +103,8 @@ const AllocationPage = ({ showToast }) => {
       });
       const data = await res.json();
       if(!res.ok) throw new Error(data.error);
+      
+      setPlanId(data.plan_id); 
       setWebData(data);
       setTimeout(() => chartRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
     } catch (e) { if(showToast) showToast(e.message, "error"); } 
@@ -115,7 +126,7 @@ const AllocationPage = ({ showToast }) => {
     try {
         const token = localStorage.getItem('token');
         const res = await fetch("http://localhost:5000/api/reset-data", { method: "POST", headers: token ? { 'Authorization': `Bearer ${token}` } : {} });
-        if (res.ok) { if (showToast) showToast("Database cleared", "success"); setWebData(null); }
+        if (res.ok) { if (showToast) showToast("Database cleared", "success"); setWebData(null); setPlanId(null); }
     } catch (e) { alert(e.message); } finally { setResetting(false); }
   };
 
@@ -151,12 +162,12 @@ const AllocationPage = ({ showToast }) => {
        }, 500);
     } else {
        try {
-         const payload = { ...preparePayload(), seating: webData.seating, metadata: webData.metadata };
+         const payload = { ...preparePayload() }; // Uses STATIC_PLAN_ID via preparePayload
          const res = await fetch('http://localhost:5000/api/generate-pdf', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
          if (!res.ok) throw new Error('Server failed');
          const blob = await res.blob();
          const url = window.URL.createObjectURL(blob);
-         const a = document.createElement('a'); a.href = url; a.download = 'seating_hq.pdf'; a.click();
+         const a = document.createElement('a'); a.href = url; a.download = `seating_${STATIC_PLAN_ID}.pdf`; a.click();
          window.URL.revokeObjectURL(url);
        } catch(e) { alert(e.message); } finally { setPdfLoading(false); }
     }
@@ -318,6 +329,14 @@ const AllocationPage = ({ showToast }) => {
                 </div>
                 {webData && (
                   <div className="flex gap-2 flex-wrap">
+                     {/* ADDED: Take Attendance Button */}
+                     <Button 
+                       onClick={() => navigate(`/attendance/${STATIC_PLAN_ID}`)} 
+                       className="h-10 px-4 bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300 text-xs font-bold"
+                     >
+                       <UserCheck size={14} className="mr-2"/> Attendance
+                     </Button>
+                     
                      <Button onClick={showConstraints} className="h-10 px-4 bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:hover:bg-purple-900/50 text-xs font-bold">
                        <Settings size={14} className="mr-2"/> Rules
                      </Button>

@@ -1,90 +1,202 @@
-import io
-import os
 import json
-import hashlib
-from datetime import datetime
+import os
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.units import cm
 
-# Define a cache directory
-CACHE_DIR = os.path.join(os.path.dirname(__file__), 'cache')
-if not os.path.exists(CACHE_DIR):
-    os.makedirs(CACHE_DIR)
+# --- CONFIGURATION ---
+IMAGE_PATH = "/home/blazex/Documents/git/seat-allocation-sys/algo/attendence_gen/data/banner.png"
+CACHE_DIR = "../cache" 
 
-def get_data_hash(seating_data, batch_name):
-    """Creates a unique MD5 hash for the input data."""
-    # We sort keys to ensure the same data always produces the same hash
-    data_str = json.dumps(seating_data, sort_keys=True) + batch_name
-    return hashlib.md5(data_str.encode('utf-8')).hexdigest()
+def header_and_footer(c, doc, room_no):
+    """Restored your exact original header/footer logic"""
+    c.saveState()
+    page_width, page_height = A4
+    BANNER_HEIGHT = 3.2 * cm
+    CONTENT_WIDTH = page_width - doc.leftMargin - doc.rightMargin 
+    
+    try:
+        c.drawImage(IMAGE_PATH,
+                    x=doc.leftMargin - 0.8*cm,
+                    y=page_height - doc.topMargin - 0.3* cm,
+                    width=CONTENT_WIDTH +50,
+                    height=BANNER_HEIGHT ,
+                    preserveAspectRatio=True)
+    except Exception:
+        c.setFont('Times-Bold', 12)
+        c.drawCentredString(page_width / 2, page_height - 2*cm, "Header Image Missing")
 
-def generate_attendance_pdf(seating_data, batch_name="General"):
-    # 1. Hashing Check
-    data_hash = get_data_hash(seating_data, batch_name)
-    cache_path = os.path.join(CACHE_DIR, f"{data_hash}.pdf")
+    room_box_width = 3.1 * cm
+    room_box_height = 0.65 * cm
+    c.rect(page_width - doc.rightMargin - room_box_width + 14, 
+           page_height - 0.98 * cm, 
+           room_box_width, room_box_height)
+    
+    c.setFont('Times-Roman', 10)
+    c.drawString(page_width - doc.rightMargin - room_box_width + 17, 
+                 page_height - 0.8 * cm, f"Room No. {room_no}")
+    c.restoreState()
 
-    # If file exists in cache, return the path (or bytes)
-    if os.path.exists(cache_path):
-        print(f"♻️ Using cached PDF for: {batch_name}")
-        with open(cache_path, 'rb') as f:
-            return io.BytesIO(f.read())
-
-    # 2. PDF Generation Logic
-    print(f"🔄 Generating new PDF for: {batch_name}")
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=18)
-    elements = []
+def create_attendance_pdf(filename, student_list, batch_label, metadata, extracted_info):
+    """Your original PDF layout and table styles - UNCHANGED"""
+    doc = SimpleDocTemplate(
+        filename,
+        pagesize=A4,
+        topMargin=3.8 * cm,
+        bottomMargin=2.0 * cm,
+        leftMargin=1.2 * cm,
+        rightMargin=1.2 * cm
+    )
+    story = []
     styles = getSampleStyleSheet()
 
-    # Header
-    title = Paragraph(f"<b>Attendance Sheet: {batch_name}</b>", styles['Title'])
-    elements.append(title)
+    for style in styles.byName.values():
+        style.fontName = 'Times-Roman'
+
+    header_style = styles['Normal'].clone('HeaderStyle')
+    header_style.alignment = 1 
     
-    date_str = datetime.now().strftime("%d-%m-%Y %H:%M")
-    sub_title = Paragraph(f"Generated on: {date_str}", styles['Normal'])
-    elements.append(sub_title)
-    elements.append(Spacer(1, 20))
-
-    data = [["S.No", "Enrollment No.", "Student Name", "Signature / Mark"]]
+    story.append(Paragraph(f"<u><b>DEPARTMENT OF {batch_label}</b></u>", header_style))
+    story.append(Spacer(1, 0.1*cm))
     
-    # FIX: Robust Flattening Logic
-    student_list = []
-    for row in seating_data:
-        # Check if row is a list (grid format) or if seating_data is already a list of students
-        current_row = row if isinstance(row, list) else [row]
-        for cell in current_row:
-            if isinstance(cell, dict) and cell.get('roll_number'):
-                student_list.append(cell)
+    degree = extracted_info.get('degree', 'B.Tech')
+    branch = extracted_info.get('branch', 'N/A')
+    joining_year = extracted_info.get('joining_year', '2024')
+    current_year = metadata.get('year', '2025')
+    
+    story.append(Paragraph(
+        f"<b>{degree} ({branch}), Batch - {joining_year}, Year {current_year}</b>", 
+        header_style
+    ))
+    
+    title_style = styles['Normal'].clone('TitleStyle')
+    title_style.alignment = 1
+    title_style.textColor = colors.darkgreen
+    exam_title = metadata.get('exam_title', 'EXAMINATION-ATTENDANCE SHEET')
+    story.append(Paragraph(f"<b>{exam_title}</b>", title_style))
+    story.append(Spacer(1, 0.3*cm))
 
-    # Sort students
-    student_list.sort(key=lambda x: str(x.get('roll_number', '')))
+    info_style = styles['Normal'].clone('InfoStyle')
+    info_data = [
+        [Paragraph(f"<b>Course Name :- {metadata.get('course_name', 'N/A')}</b>", info_style), 
+         Paragraph(f"<b>Course Code :- {metadata.get('course_code', 'N/A')}</b>", info_style)],
+        [Paragraph(f"<b>Date :- {metadata.get('date', '')}</b>", info_style), 
+         Paragraph(f"<b>Time :- {metadata.get('time', '')}</b>", info_style)]
+    ]
+    info_table = Table(info_data, colWidths=[10*cm, 8.5*cm])
+    info_table.setStyle(TableStyle([
+        ('LEFTPADDING', (0,0), (-1,-1), 0),
+        ('FONTNAME', (0,0), (-1,-1), 'Times-Roman')
+    ]))
+    story.append(info_table)
+    story.append(Spacer(1, 0.3*cm))
 
-    for idx, student in enumerate(student_list, 1):
-        data.append([idx,
-            student.get('roll_number', 'N/A'),
-            student.get('name', '___________'),
-            "" 
+    table_headers = ["S. No.", "Name of the Student", "Enrolment No.", "Set A/ Set B", "Answer Booklet No.", "Signature"]
+    data = [table_headers]
+
+    for i, student in enumerate(student_list):
+        data.append([
+            str(i + 1),
+            student.get('student_name',''), 
+            student.get('roll_number', ''),
+            student.get('paper_set', ''),
+            "DU                           ",
+            ""
         ])
 
-    # Styling
-    t = Table(data, colWidths=[40, 100, 230, 120])
-    t.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+    col_widths = [1.3*cm, 5.5*cm, 3.6*cm, 2.4*cm, 3.6*cm, 3.1*cm]
+    total_table_width = sum(col_widths)
+
+    attendance_table = Table(data, colWidths=col_widths, repeatRows=1)
+    attendance_table.setStyle(TableStyle([
         ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ('ROWHEIGHT', (0, 1), (-1, -1), 25),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10), 
+        ('FONTNAME', (0, 0), (-1, -1), 'Times-Roman'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Times-Bold'),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('ALIGN', (1, 1), (1, -1), 'LEFT'),
     ]))
+    story.append(attendance_table)
+
+    summary_data = [
+        [Paragraph(f"<b>No. of Students Registered = {len(student_list)}</b>", info_style)],
+        [Paragraph("<b>No. of Students Appeared =</b>", info_style)],
+        [Paragraph("<b>No. of Students Absent =</b>", info_style)],
+        [Paragraph("<b>No. of Students Detained =</b>", info_style)]
+    ]
+    summary_table = Table(summary_data, colWidths=[total_table_width])
+    summary_table.setStyle(TableStyle([
+        ('GRID', (0, 0), (-1, -1), 0.8, colors.black),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 4),
+        ('TOPPADDING', (0, 0), (-1, -1), 3),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ('FONTNAME', (0,0), (-1,-1), 'Times-Roman')
+    ]))
+    story.append(summary_table)
+    story.append(Spacer(1, 1.7 * cm))
     
-    elements.append(t)
-    doc.build(elements)
-    
-    # 3. Save to Cache before returning
-    pdf_bytes = buffer.getvalue()
-    with open(cache_path, 'wb') as f:
-        f.write(pdf_bytes)
+    sig_style = styles['Normal'].clone('SigStyle')
+    sig_data = [[
+        Paragraph("<b>1. Signature and Name of invigilator</b>", sig_style),
+        Paragraph("<b>2. Signature and Name of invigilator</b>", sig_style)
+    ]]
+    sig_table = Table(sig_data, colWidths=[total_table_width/1.5, total_table_width/2 - 80])
+    sig_table.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (0, 0), 'LEFT'),
+        ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
+    ]))
+    story.append(sig_table)
+
+    room_no = metadata.get('room_no', 'N/A')
+    doc.build(story, 
+              onFirstPage=lambda canvas, doc: header_and_footer(canvas, doc, room_no), 
+              onLaterPages=lambda canvas, doc: header_and_footer(canvas, doc, room_no))
+
+def process_and_generate_from_cache(plan_id, frontend_metadata=None):
+    """
+    CLEANED: Uses the structured 'batches' directly from CacheManager.
+    No more regex parsing or manual batching loops here.
+    """
+    file_path = os.path.join(CACHE_DIR, f"{plan_id}.json")
+    if not os.path.exists(file_path): return None
+
+    with open(file_path, 'r') as f:
+        json_data = json.load(f)
+
+    # 1. Directly access pre-structured batches
+    batches = json_data.get('batches', {})
+    inputs = json_data.get('inputs', {})
+
+    # 2. Setup metadata
+    metadata = {
+        "room_no": inputs.get('room_id', 'Manual'),
+        "date": json_data.get('metadata', {}).get('last_updated', '').split('T')[0],
+        "course_name": "N/A", "course_code": "N/A", "exam_title": "ATTENDANCE SHEET", "year": "2025"
+    }
+    if frontend_metadata: metadata.update(frontend_metadata)
+
+    # 3. Print each batch using cached data
+    output_files = []
+    output_dir = "generated_report"
+    os.makedirs(output_dir, exist_ok=True)
+
+    for b_label, b_data in batches.items():
+        students = b_data.get('students', [])
+        extracted_info = b_data.get('info', {}) # Already parsed by CacheManager!
         
-    buffer.seek(0)
-    return buffer
+        if students:
+            file_name = f"{output_dir}/attendance_{plan_id}_{b_label}.pdf"
+            create_attendance_pdf(file_name, students, b_label, metadata, extracted_info)
+            output_files.append(file_name)
+    
+    return output_files
+
+if __name__ == '__main__':
+    import sys
+    process_and_generate_from_cache(sys.argv[1] if len(sys.argv) > 1 else "plan_test")
