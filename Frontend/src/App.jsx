@@ -23,6 +23,7 @@ import AboutusPage from './pages/AboutusPage';
 import TemplateEditor from './pages/TemplateEditor';
 import AttendancePage from './pages/AttendencePage';
 import ClassroomPage from './pages/ClassroomPage';
+import DatabaseManager from './pages/DatabaseManager';
 
 // --------------------------------------------------
 // ROUTE GUARD COMPONENT (Handles Protected Routes)
@@ -60,6 +61,47 @@ const AppContent = () => {
     );
   }
 
+  // --------------------------------------------------
+  // PAGE RENDERER
+  // --------------------------------------------------
+  const renderPage = () => {
+    switch (currentPage) {
+      case 'landing':
+        return <LandingPage setCurrentPage={setCurrentPage} />;
+      case 'login':
+        return <LoginPage setCurrentPage={setCurrentPage} showToast={showToast} />;
+      case 'signup':
+        return <SignupPage setCurrentPage={setCurrentPage} showToast={showToast} />;
+      case 'profile':
+        return <ProfilePage showToast={showToast} setCurrentPage={setCurrentPage} />;
+      case 'dashboard':
+        return <DashboardPage setCurrentPage={setCurrentPage} />;
+      case 'upload':
+        return <UploadPage showToast={showToast} />;
+      case 'create-plan':
+        return <CreatePlan setCurrentPage={setCurrentPage} />;
+      case 'allocation':
+        return <Allocation showToast={showToast} />;
+      case 'classroom':
+        return <ClassroomPage setCurrentPage={setCurrentPage} />;
+      case 'feedback':
+        return <FeedbackPage showToast={showToast} />;
+      case 'aboutus':
+        return <AboutusPage showToast={showToast} />;
+      case 'template-editor':
+        return <TemplateEditor showToast={showToast} />;
+      case 'attendence':
+        return <AttendancePage showToast={showToast} />;
+      case 'database-manager':
+        return <DatabaseManager setCurrentPage={setCurrentPage} showToast={showToast} />;
+      default:
+        return <LandingPage setCurrentPage={setCurrentPage} />;
+    }
+  };
+
+  // --------------------------------------------------
+  // MAIN LAYOUT
+  // --------------------------------------------------
   return (
     <div className="min-h-screen flex flex-col transition-colors duration-300 bg-white dark:bg-phantom-black">
       {/* Navbar stays at the top */}

@@ -8,7 +8,8 @@ import {
   CheckCircle,
   ArrowUpRight,
   Terminal,
-  AlertCircle
+  AlertCircle,
+  Database  // NEW: Added Database icon
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import SplitText from '../components/SplitText';
@@ -93,11 +94,12 @@ const DashboardPage = ({ setCurrentPage }) => {
     { label: 'Reports', value: '156', icon: Download, color: 'text-amber-600 dark:text-amber-500' }
   ];
 
+  // UPDATED: Added Database Manager to quick actions
   const quickActions = [
     { label: 'Create Plan', page: 'create-plan', icon: Upload, color: 'bg-orange-500 dark:bg-orange-600' },
+    { label: 'Database Manager', page: 'database-manager', icon: Database, color: 'bg-purple-500 dark:bg-purple-600' }, // NEW
     { label: 'Template Editor', page: 'template-editor', icon: Layout, color: 'bg-amber-500 dark:bg-amber-600' },
-    { label: 'Classroom Layout', page: 'classroom', icon: MapPin, color: 'bg-orange-600 dark:bg-orange-700' },
-    { label: 'Download Report', page: 'download-report', icon: Download, color: 'bg-amber-600 dark:bg-amber-700' }
+    { label: 'Classroom Layout', page: 'classroom', icon: MapPin, color: 'bg-orange-600 dark:bg-orange-700' }
   ];
 
   const activityLog = [

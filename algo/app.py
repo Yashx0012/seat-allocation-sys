@@ -1156,6 +1156,487 @@ def reset_data():
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
+# ============================================================================
+# DATABASE MANAGEMENT API ROUTES
+# Add these routes to app.py after the existing routes
+# ============================================================================
+
+# --------------------------------------------------
+# Database Overview & Statistics
+# --------------------------------------------------
+@app.route("/api/database/overview", methods=["GET"])
+@token_required
+def get_database_overview():
+    """Get comprehensive database statistics and overview"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        
+        # Get counts for all tables
+        cur.execute("SELECT COUNT(*) as count FROM students")
+        students_count = cur.fetchone()['count']
+        
+        cur.execute("SELECT COUNT(*) as count FROM classrooms")
+        classrooms_count = cur.fetchone()['count']
+        
+        cur.execute("SELECT COUNT(*) as count FROM uploads")
+        uploads_count = cur.fetchone()['count']
+        
+        cur.execute("SELECT COUNT(*) as count FROM allocations")
+        allocations_count = cur.fetchone()['count']
+        
+        cur.execute("SELECT COUNT(*) as count FROM feedback")
+        feedback_count = cur.fetchone()['count']
+        
+        # Get batch statistics
+        cur.execute("""
+            SELECT batch_name, COUNT(*) as count 
+            FROM students 
+            GROUP BY batch_name 
+            ORDER BY count DESC
+        """)
+        batch_stats = [dict(row) for row in cur.fetchall()]
+        
+        # Get recent uploads
+        cur.execute("""
+            SELECT batch_id, batch_name, created_at 
+            FROM uploads 
+            ORDER BY created_at DESC 
+            LIMIT 5
+        """)
+        recent_uploads = [dict(row) for row in cur.fetchall()]
+        
+        # Database file size
+        db_size = DB_PATH.stat().st_size / (1024 * 1024)  # MB
+        
+        conn.close()
+        
+        return jsonify({
+            "success": True,
+            "overview": {
+                "tables": {
+                    "students": students_count,
+                    "classrooms": classrooms_count,
+                    "uploads": uploads_count,
+                    "allocations": allocations_count,
+                    "feedback": feedback_count
+                },
+                "batch_statistics": batch_stats,
+                "recent_uploads": recent_uploads,
+                "database_size_mb": round(db_size, 2),
+                "database_path": str(DB_PATH)
+            }
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# --------------------------------------------------
+# Generic Table Data Management
+# --------------------------------------------------
+@app.route("/api/database/table/<table_name>", methods=["GET"])
+@token_required
+def get_table_data(table_name):
+    """Get paginated data from any table"""
+    try:
+        # Whitelist allowed tables for security
+        allowed_tables = ['students', 'classrooms', 'uploads', 'allocations', 'feedback']
+        if table_name not in allowed_tables:
+            return jsonify({"error": "Invalid table name"}), 400
+        
+        # Pagination parameters
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 50))
+        search = request.args.get('search', '')
+        sort_by = request.args.get('sort_by', 'id')
+        sort_order = request.args.get('sort_order', 'DESC')
+        
+        offset = (page - 1) * per_page
+        
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        
+        # Get total count
+        if search:
+            # Build search condition (search across all text columns)
+            cur.execute(f"PRAGMA table_info({table_name})")
+            columns = [col['name'] for col in cur.fetchall()]
+            search_conditions = ' OR '.join([f"{col} LIKE ?" for col in columns if col != 'id'])
+            search_params = [f"%{search}%"] * len([c for c in columns if c != 'id'])
+            
+            cur.execute(f"SELECT COUNT(*) as count FROM {table_name} WHERE {search_conditions}", search_params)
+        else:
+            cur.execute(f"SELECT COUNT(*) as count FROM {table_name}")
+        
+        total_count = cur.fetchone()['count']
+        
+        # Get paginated data
+        if search:
+            cur.execute(
+                f"SELECT * FROM {table_name} WHERE {search_conditions} ORDER BY {sort_by} {sort_order} LIMIT ? OFFSET ?",
+                search_params + [per_page, offset]
+            )
+        else:
+            cur.execute(
+                f"SELECT * FROM {table_name} ORDER BY {sort_by} {sort_order} LIMIT ? OFFSET ?",
+                [per_page, offset]
+            )
+        
+        rows = [dict(row) for row in cur.fetchall()]
+        
+        # Get column info
+        cur.execute(f"PRAGMA table_info({table_name})")
+        columns = [
+            {
+                'name': col['name'],
+                'type': col['type'],
+                'not_null': bool(col['notnull']),
+                'primary_key': bool(col['pk'])
+            }
+            for col in cur.fetchall()
+        ]
+        
+        conn.close()
+        
+        return jsonify({
+            "success": True,
+            "table": table_name,
+            "columns": columns,
+            "data": rows,
+            "pagination": {
+                "page": page,
+                "per_page": per_page,
+                "total": total_count,
+                "pages": (total_count + per_page - 1) // per_page
+            }
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# --------------------------------------------------
+# Create/Insert Record
+# --------------------------------------------------
+@app.route("/api/database/table/<table_name>", methods=["POST"])
+@token_required
+def create_record(table_name):
+    """Create a new record in specified table"""
+    try:
+        allowed_tables = ['students', 'classrooms', 'uploads', 'allocations']
+        if table_name not in allowed_tables:
+            return jsonify({"error": "Invalid table name"}), 400
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+        
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        
+        # Build INSERT query
+        columns = ', '.join(data.keys())
+        placeholders = ', '.join(['?' for _ in data])
+        values = list(data.values())
+        
+        cur.execute(
+            f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders})",
+            values
+        )
+        
+        record_id = cur.lastrowid
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            "success": True,
+            "message": f"Record created in {table_name}",
+            "id": record_id
+        }), 201
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 400
+
+
+# --------------------------------------------------
+# Update Record
+# --------------------------------------------------
+@app.route("/api/database/table/<table_name>/<int:record_id>", methods=["PUT"])
+@token_required
+def update_record(table_name, record_id):
+    """Update a record in specified table"""
+    try:
+        allowed_tables = ['students', 'classrooms', 'uploads', 'allocations']
+        if table_name not in allowed_tables:
+            return jsonify({"error": "Invalid table name"}), 400
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+        
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        
+        # Build UPDATE query
+        set_clause = ', '.join([f"{k} = ?" for k in data.keys()])
+        values = list(data.values()) + [record_id]
+        
+        cur.execute(
+            f"UPDATE {table_name} SET {set_clause} WHERE id = ?",
+            values
+        )
+        
+        if cur.rowcount == 0:
+            conn.close()
+            return jsonify({"error": "Record not found"}), 404
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            "success": True,
+            "message": f"Record updated in {table_name}"
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 400
+
+
+# --------------------------------------------------
+# Delete Record
+# --------------------------------------------------
+@app.route("/api/database/table/<table_name>/<int:record_id>", methods=["DELETE"])
+@token_required
+def delete_record(table_name, record_id):
+    """Delete a record from specified table"""
+    try:
+        allowed_tables = ['students', 'classrooms', 'uploads', 'allocations', 'feedback']
+        if table_name not in allowed_tables:
+            return jsonify({"error": "Invalid table name"}), 400
+        
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        
+        cur.execute(f"DELETE FROM {table_name} WHERE id = ?", [record_id])
+        
+        if cur.rowcount == 0:
+            conn.close()
+            return jsonify({"error": "Record not found"}), 404
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            "success": True,
+            "message": f"Record deleted from {table_name}"
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 400
+
+
+# --------------------------------------------------
+# Bulk Delete
+# --------------------------------------------------
+@app.route("/api/database/table/<table_name>/bulk-delete", methods=["POST"])
+@token_required
+def bulk_delete_records(table_name):
+    """Delete multiple records from specified table"""
+    try:
+        allowed_tables = ['students', 'classrooms', 'uploads', 'allocations', 'feedback']
+        if table_name not in allowed_tables:
+            return jsonify({"error": "Invalid table name"}), 400
+        
+        data = request.get_json()
+        record_ids = data.get('ids', [])
+        
+        if not record_ids:
+            return jsonify({"error": "No IDs provided"}), 400
+        
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        
+        placeholders = ','.join(['?' for _ in record_ids])
+        cur.execute(f"DELETE FROM {table_name} WHERE id IN ({placeholders})", record_ids)
+        
+        deleted_count = cur.rowcount
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            "success": True,
+            "message": f"Deleted {deleted_count} records from {table_name}",
+            "deleted_count": deleted_count
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 400
+
+
+# --------------------------------------------------
+# Export Table to CSV
+# --------------------------------------------------
+@app.route("/api/database/table/<table_name>/export", methods=["GET"])
+@token_required
+def export_table_csv(table_name):
+    """Export table data as CSV"""
+    try:
+        allowed_tables = ['students', 'classrooms', 'uploads', 'allocations', 'feedback']
+        if table_name not in allowed_tables:
+            return jsonify({"error": "Invalid table name"}), 400
+        
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        
+        cur.execute(f"SELECT * FROM {table_name}")
+        rows = cur.fetchall()
+        
+        if not rows:
+            conn.close()
+            return jsonify({"error": "No data to export"}), 404
+        
+        # Create CSV
+        import csv
+        output = io.StringIO()
+        writer = csv.DictWriter(output, fieldnames=rows[0].keys())
+        writer.writeheader()
+        
+        for row in rows:
+            writer.writerow(dict(row))
+        
+        conn.close()
+        
+        # Create response
+        csv_data = output.getvalue()
+        response = app.response_class(
+            response=csv_data,
+            status=200,
+            mimetype='text/csv'
+        )
+        response.headers['Content-Disposition'] = f'attachment; filename={table_name}_export.csv'
+        
+        return response
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# --------------------------------------------------
+# Database Backup
+# --------------------------------------------------
+@app.route("/api/database/backup", methods=["POST"])
+@token_required
+def backup_database():
+    """Create a backup of the database"""
+    try:
+        backup_dir = BASE_DIR / "backups"
+        backup_dir.mkdir(exist_ok=True)
+        
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        backup_path = backup_dir / f"backup_{timestamp}.db"
+        
+        # Copy database file
+        import shutil
+        shutil.copy2(DB_PATH, backup_path)
+        
+        return jsonify({
+            "success": True,
+            "message": "Database backed up successfully",
+            "backup_file": backup_path.name,
+            "backup_size_mb": round(backup_path.stat().st_size / (1024 * 1024), 2)
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# --------------------------------------------------
+# Get Database Schema
+# --------------------------------------------------
+@app.route("/api/database/schema", methods=["GET"])
+@token_required
+def get_database_schema():
+    """Get complete database schema"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        
+        # Get all tables
+        cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
+        tables = [row['name'] for row in cur.fetchall()]
+        
+        schema = {}
+        for table in tables:
+            cur.execute(f"PRAGMA table_info({table})")
+            columns = [dict(row) for row in cur.fetchall()]
+            
+            cur.execute(f"SELECT COUNT(*) as count FROM {table}")
+            row_count = cur.fetchone()['count']
+            
+            schema[table] = {
+                'columns': columns,
+                'row_count': row_count
+            }
+        
+        conn.close()
+        
+        return jsonify({
+            "success": True,
+            "schema": schema
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# --------------------------------------------------
+# Search Across All Tables
+# --------------------------------------------------
+@app.route("/api/database/search", methods=["GET"])
+@token_required
+def global_search():
+    """Search across all tables"""
+    try:
+        query = request.args.get('q', '')
+        if not query or len(query) < 2:
+            return jsonify({"error": "Query too short (minimum 2 characters)"}), 400
+        
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        
+        results = {}
+        search_pattern = f"%{query}%"
+        
+        # Search students
+        cur.execute("""
+            SELECT * FROM students 
+            WHERE enrollment LIKE ? OR name LIKE ? OR batch_name LIKE ?
+            LIMIT 20
+        """, [search_pattern, search_pattern, search_pattern])
+        results['students'] = [dict(row) for row in cur.fetchall()]
+        
+        # Search classrooms
+        cur.execute("SELECT * FROM classrooms WHERE name LIKE ? LIMIT 20", [search_pattern])
+        results['classrooms'] = [dict(row) for row in cur.fetchall()]
+        
+        # Search uploads
+        cur.execute("""
+            SELECT * FROM uploads 
+            WHERE batch_name LIKE ? OR batch_id LIKE ?
+            LIMIT 20
+        """, [search_pattern, search_pattern])
+        results['uploads'] = [dict(row) for row in cur.fetchall()]
+        
+        conn.close()
+        
+        total_results = sum(len(v) for v in results.values())
+        
+        return jsonify({
+            "success": True,
+            "query": query,
+            "total_results": total_results,
+            "results": results
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
 # --------------------------------------------------
 # Health Check
 # --------------------------------------------------
