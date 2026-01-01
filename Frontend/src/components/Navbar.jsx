@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   Layout,
@@ -19,30 +20,32 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import PillNav from './PillNav';
 
-const Navbar = ({ currentPage, setCurrentPage }) => {
+const Navbar = () => {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleLogout = async () => {
     await logout();
-    setCurrentPage('landing');
+    navigate('/landing');
     setMobileMenuOpen(false);
   };
 
   const navItems = useMemo(() => {
     if (!user) return [];
     return [
-      { name: 'Dashboard', page: 'dashboard', icon: LayoutDashboard },
-      { name: 'Create', page: 'create-plan', icon: Plus },
-      { name: 'Template Editor', page: 'template-editor', icon: FileEdit },
-      { name: 'Attendance', page: 'attendence', icon: ClipboardList },
-      { name: 'Feedback', page: 'feedback', icon: MessageSquare },
-      { name: 'About us', page: 'aboutus', icon: Info }
+      { name: 'Dashboard', page: '/dashboard', icon: LayoutDashboard },
+      { name: 'Create', page: '/create-plan', icon: Plus },
+      { name: 'Template Editor', page: '/template-editor', icon: FileEdit },
+      { name: 'Attendance', page: '/attendence', icon: ClipboardList },
+      { name: 'Feedback', page: '/feedback', icon: MessageSquare },
+      { name: 'About us', page: '/aboutus', icon: Info }
     ];
   }, [user]);
 
-  const isActive = (page) => currentPage === page;
+  const isActive = (page) => location.pathname === page;
 
   const pillItems = useMemo(
     () =>
@@ -69,7 +72,7 @@ const Navbar = ({ currentPage, setCurrentPage }) => {
           {/* Logo */}
           <div
             className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={() => setCurrentPage('landing')}
+            onClick={() => navigate('/')}
           >
             <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shadow-lg shadow-orange-500/20">
               <Layout className="text-white w-6 h-6" />
@@ -88,8 +91,8 @@ const Navbar = ({ currentPage, setCurrentPage }) => {
               initialLoadAnimation
               className="ml-2"
               items={pillItems}
-              activeValue={currentPage}
-              onSelect={(page) => setCurrentPage(page)}
+              activeValue={location.pathname}
+              onSelect={(page) => navigate(page)}
               baseColor="rgb(var(--pillnav-base) / 0.35)"
               pillColor={
                 theme === 'light'
@@ -132,7 +135,7 @@ const Navbar = ({ currentPage, setCurrentPage }) => {
             {user ? (
               <div className="flex items-center gap-2">
                 <motion.button
-                  onClick={() => setCurrentPage('profile')}
+                  onClick={() => navigate('/profile')}
                   className="w-10 h-10 rounded-full border border-gray-200/60 dark:border-gray-600/60 hover:bg-gray-200/40 dark:hover:bg-gray-700/40 flex items-center justify-center transition-colors"
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
@@ -153,7 +156,7 @@ const Navbar = ({ currentPage, setCurrentPage }) => {
             ) : (
               <div className="flex gap-2">
                 <motion.button
-                  onClick={() => setCurrentPage('login')}
+                  onClick={() => navigate('/login')}
                   className="text-orange-600 dark:text-orange-400 px-4 py-2 rounded-lg border border-orange-600/60 dark:border-orange-400/60 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition font-bold text-sm uppercase tracking-wide"
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
@@ -161,7 +164,7 @@ const Navbar = ({ currentPage, setCurrentPage }) => {
                   Login
                 </motion.button>
                 <motion.button
-                  onClick={() => setCurrentPage('signup')}
+                  onClick={() => navigate('/signup')}
                   className="bg-gradient-to-r from-orange-500 to-amber-500 text-white px-4 py-2 rounded-lg border border-orange-500/60 hover:from-orange-600 hover:to-amber-600 transition font-bold text-sm uppercase tracking-wide shadow-md hover:shadow-lg"
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
@@ -184,7 +187,7 @@ const Navbar = ({ currentPage, setCurrentPage }) => {
       >
         <div className="px-4 h-16 flex items-center justify-between">
           {/* Logo */}
-          <div className="flex items-center gap-2 cursor-pointer" onClick={() => setCurrentPage('landing')}>
+          <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
             <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shadow-lg">
               <Layout className="text-white w-5 h-5" />
             </div>
@@ -212,7 +215,7 @@ const Navbar = ({ currentPage, setCurrentPage }) => {
             {user && (
               <motion.button
                 onClick={() => {
-                  setCurrentPage('profile');
+                  navigate('/profile');
                   setMobileMenuOpen(false);
                 }}
                 whileHover={{ scale: 1.05 }}
@@ -252,7 +255,7 @@ const Navbar = ({ currentPage, setCurrentPage }) => {
                     <motion.button
                       key={item.page}
                       onClick={() => {
-                        setCurrentPage(item.page);
+                        navigate(item.page);
                         setMobileMenuOpen(false);
                       }}
                       className={`w-full text-left px-4 py-3 rounded-lg transition-all duration-200 flex items-center gap-3 font-bold text-sm uppercase tracking-wide ${
@@ -281,7 +284,7 @@ const Navbar = ({ currentPage, setCurrentPage }) => {
               <>
                 <motion.button
                   onClick={() => {
-                    setCurrentPage('login');
+                    navigate('/login');
                     setMobileMenuOpen(false);
                   }}
                   className="w-full text-left px-4 py-3 text-gray-700 dark:text-gray-300 border border-gray-200/60 dark:border-gray-700/60 hover:bg-gray-100/40 dark:hover:bg-gray-700/40 rounded-lg font-bold text-sm uppercase tracking-wide transition-all"
@@ -291,7 +294,7 @@ const Navbar = ({ currentPage, setCurrentPage }) => {
                 </motion.button>
                 <motion.button
                   onClick={() => {
-                    setCurrentPage('signup');
+                    navigate('/signup');
                     setMobileMenuOpen(false);
                   }}
                   className="w-full text-left px-4 py-3 text-gray-700 dark:text-gray-300 border border-gray-200/60 dark:border-gray-700/60 hover:bg-gray-100/40 dark:hover:bg-gray-700/40 rounded-lg font-bold text-sm uppercase tracking-wide transition-all"

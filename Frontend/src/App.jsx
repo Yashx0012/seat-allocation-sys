@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'; // Added Router components
-import { ThemeProvider, useTheme } from './context/ThemeContext';
+import React, { useState } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { FaSun, FaMoon } from 'react-icons/fa';
 
 // --- Components ---
 import Navbar from './components/Navbar';
@@ -25,127 +24,146 @@ import AttendancePage from './pages/AttendencePage';
 import ClassroomPage from './pages/ClassroomPage';
 import DatabaseManager from './pages/DatabaseManager';
 
-// --------------------------------------------------
-// ROUTE GUARD COMPONENT (Handles Protected Routes)
-// --------------------------------------------------
-const ProtectedRoute = ({ children, user, loading }) => {
-  if (loading) return null; 
-  if (!user) return <Navigate to="/login" replace />;
-  return children;
+// -------------------------------------------------------------------
+// PROTECTED ROUTE COMPONENT
+// -------------------------------------------------------------------
+const ProtectedRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-900 dark:to-slate-800 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mx-auto mb-4" />
+          <p className="text-gray-600 dark:text-gray-400 font-medium">Loading your session…</p>
+        </div>
+      </div>
+    );
+  }
+
+  return user ? children : <Navigate to="/login" replace />;
 };
 
+// -------------------------------------------------------------------
+// APP CONTENT (inside providers)
+// -------------------------------------------------------------------
 const AppContent = () => {
-  const { user, loading } = useAuth();
+  const { loading } = useAuth();
   const [toast, setToast] = useState(null);
-  const location = useLocation();
-  const navigate = useNavigate();
-
-  // Helper to maintain your original setCurrentPage logic if needed elsewhere
-  const setCurrentPage = (page) => {
-    navigate(`/${page}`);
-  };
-
-  // Extract "currentPage" from URL for your Navbar/Logic
-  const currentPage = location.pathname.split('/')[1] || 'landing';
 
   const showToast = (message, type = 'info') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
   };
 
+  const closeToast = () => setToast(null);
+
+  // --------------------------------------------------
+  // LOADING SCREEN
+  // --------------------------------------------------
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-slate-900 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent" />
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-900 dark:to-slate-800 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mx-auto mb-4" />
+          <p className="text-gray-600 dark:text-gray-400 font-medium">Loading your session…</p>
+        </div>
       </div>
     );
   }
 
   // --------------------------------------------------
-  // PAGE RENDERER
-  // --------------------------------------------------
-  const renderPage = () => {
-    switch (currentPage) {
-      case 'landing':
-        return <LandingPage setCurrentPage={setCurrentPage} />;
-      case 'login':
-        return <LoginPage setCurrentPage={setCurrentPage} showToast={showToast} />;
-      case 'signup':
-        return <SignupPage setCurrentPage={setCurrentPage} showToast={showToast} />;
-      case 'profile':
-        return <ProfilePage showToast={showToast} setCurrentPage={setCurrentPage} />;
-      case 'dashboard':
-        return <DashboardPage setCurrentPage={setCurrentPage} />;
-      case 'upload':
-        return <UploadPage showToast={showToast} />;
-      case 'create-plan':
-        return <CreatePlan setCurrentPage={setCurrentPage} />;
-      case 'allocation':
-        return <Allocation showToast={showToast} />;
-      case 'classroom':
-        return <ClassroomPage setCurrentPage={setCurrentPage} />;
-      case 'feedback':
-        return <FeedbackPage showToast={showToast} />;
-      case 'aboutus':
-        return <AboutusPage showToast={showToast} />;
-      case 'template-editor':
-        return <TemplateEditor showToast={showToast} />;
-      case 'attendence':
-        return <AttendancePage showToast={showToast} />;
-      case 'database-manager':
-        return <DatabaseManager setCurrentPage={setCurrentPage} showToast={showToast} />;
-      default:
-        return <LandingPage setCurrentPage={setCurrentPage} />;
-    }
-  };
-
-  // --------------------------------------------------
-  // MAIN LAYOUT
+  // MAIN LAYOUT WITH ROUTES
   // --------------------------------------------------
   return (
     <div className="min-h-screen flex flex-col transition-colors duration-300 bg-white dark:bg-phantom-black">
-      {/* Navbar stays at the top */}
-      <Navbar currentPage={currentPage} setCurrentPage={setCurrentPage} />
+      <Navbar />
 
       <main className="flex-1">
         <Routes>
           {/* Public Routes */}
-          <Route path="/" element={<LandingPage setCurrentPage={setCurrentPage} />} />
-          <Route path="/landing" element={<LandingPage setCurrentPage={setCurrentPage} />} />
-          <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <LoginPage setCurrentPage={setCurrentPage} showToast={showToast} />} />
-          <Route path="/signup" element={user ? <Navigate to="/dashboard" /> : <SignupPage setCurrentPage={setCurrentPage} showToast={showToast} />} />
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/landing" element={<LandingPage />} />
           <Route path="/aboutus" element={<AboutusPage showToast={showToast} />} />
-          <Route path="/feedback" element={<FeedbackPage showToast={showToast} />} />
+          
+          {/* Auth Routes - Redirect to dashboard if already logged in */}
+          <Route 
+            path="/login" 
+            element={<LoginPage showToast={showToast} />} 
+          />
+          <Route 
+            path="/signup" 
+            element={<SignupPage showToast={showToast} />} 
+          />
 
           {/* Protected Routes */}
-          <Route path="/dashboard" element={<ProtectedRoute user={user} loading={loading}><DashboardPage setCurrentPage={setCurrentPage} /></ProtectedRoute>} />
-          <Route path="/profile" element={<ProtectedRoute user={user} loading={loading}><ProfilePage showToast={showToast} setCurrentPage={setCurrentPage} /></ProtectedRoute>} />
-          <Route path="/upload" element={<ProtectedRoute user={user} loading={loading}><UploadPage showToast={showToast} /></ProtectedRoute>} />
-          <Route path="/allocation" element={<ProtectedRoute user={user} loading={loading}><Allocation showToast={showToast} /></ProtectedRoute>} />
-          <Route path="/create-plan" element={<ProtectedRoute user={user} loading={loading}><CreatePlan setCurrentPage={setCurrentPage} /></ProtectedRoute>} />
-          <Route path="/classroom" element={<ProtectedRoute user={user} loading={loading}><ClassroomPage setCurrentPage={setCurrentPage} /></ProtectedRoute>} />
-          <Route path="/template-editor" element={<ProtectedRoute user={user} loading={loading}><TemplateEditor showToast={showToast} /></ProtectedRoute>} />
-          
-          {/* UPDATED: Attendance Route with planId parameter */}
-          <Route path="/attendance/:planId" element={<ProtectedRoute user={user} loading={loading}><AttendancePage showToast={showToast} /></ProtectedRoute>} />
+          <Route 
+            path="/dashboard" 
+            element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} 
+          />
+          <Route 
+            path="/profile" 
+            element={<ProtectedRoute><ProfilePage showToast={showToast} /></ProtectedRoute>} 
+          />
+          <Route 
+            path="/upload" 
+            element={<ProtectedRoute><UploadPage showToast={showToast} /></ProtectedRoute>} 
+          />
+          <Route 
+            path="/allocation" 
+            element={<ProtectedRoute><Allocation showToast={showToast} /></ProtectedRoute>} 
+          />
+          <Route 
+            path="/create-plan" 
+            element={<ProtectedRoute><CreatePlan /></ProtectedRoute>} 
+          />
+          <Route 
+            path="/classroom" 
+            element={<ProtectedRoute><ClassroomPage /></ProtectedRoute>} 
+          />
+          <Route 
+            path="/feedback" 
+            element={<ProtectedRoute><FeedbackPage showToast={showToast} /></ProtectedRoute>} 
+          />
+          <Route 
+            path="/template-editor" 
+            element={<ProtectedRoute><TemplateEditor showToast={showToast} /></ProtectedRoute>} 
+          />
+          <Route 
+            path="/attendance/:planId" 
+            element={<ProtectedRoute><AttendancePage showToast={showToast} /></ProtectedRoute>} 
+          />
+          <Route 
+            path="/database-manager" 
+            element={<ProtectedRoute><DatabaseManager showToast={showToast} /></ProtectedRoute>} 
+          />
 
           {/* Fallback */}
-          <Route path="*" element={<Navigate to="/" />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
 
       <Footer />
 
-      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={closeToast}
+        />
+      )}
     </div>
   );
 };
 
+// -------------------------------------------------------------------
+// ROOT APP
+// -------------------------------------------------------------------
 const App = () => {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <Router> {/* This provides the context for useNavigate() */}
+        <Router>
           <AppContent />
         </Router>
       </AuthProvider>

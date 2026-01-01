@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import SplitText from '../components/SplitText';
 import { User, LogOut, Mail, Edit2, Check, X, Loader2, Shield, Calendar, ArrowUpRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
-const ProfilePage = ({ showToast, setCurrentPage }) => {
+const ProfilePage = ({ showToast }) => {
+  const navigate = useNavigate();
   const { user, logout, updateProfile } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -52,7 +54,7 @@ const ProfilePage = ({ showToast, setCurrentPage }) => {
   const handleLogout = async () => {
     await logout();
     showToast('Logged out successfully', 'success');
-    setCurrentPage('landing');
+    navigate('/landing');
   };
 
   if (!user) {

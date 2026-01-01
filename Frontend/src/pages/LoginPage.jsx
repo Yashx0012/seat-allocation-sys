@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, Loader2, ArrowRight, Shield, Sparkles } from 'lucide-react';
 import SplitText from '../components/SplitText';
 import { useAuth } from '../context/AuthContext';
 import GoogleLoginComponent from '../components/GoogleLoginComponent';
 
-const LoginPage = ({ setCurrentPage, showToast }) => {
+const LoginPage = ({ showToast }) => {
+  const navigate = useNavigate();
   const { login } = useAuth();
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
@@ -18,7 +20,7 @@ const LoginPage = ({ setCurrentPage, showToast }) => {
     
     if (result.success) {
       showToast('Login successful!', 'success');
-      setTimeout(() => setCurrentPage('dashboard'), 1000);
+      setTimeout(() => navigate('/dashboard'), 1000);
     } else {
       showToast(result.error || 'Login failed', 'error');
     }
@@ -61,7 +63,6 @@ const LoginPage = ({ setCurrentPage, showToast }) => {
           {/* ========== GOOGLE LOGIN COMPONENT ========== */}
           <GoogleLoginComponent
             showToast={showToast}
-            setCurrentPage={setCurrentPage}
           />
           {/* ========== END GOOGLE LOGIN ========== */}
 
@@ -130,7 +131,7 @@ const LoginPage = ({ setCurrentPage, showToast }) => {
             <p className="text-gray-600 dark:text-gray-400">
               Don't have an account?{' '}
               <button
-                onClick={() => setCurrentPage('signup')}
+                onClick={() => navigate('/signup')}
                 className="text-orange-600 dark:text-orange-400 font-bold hover:underline transition-colors duration-200"
               >
                 Sign up here

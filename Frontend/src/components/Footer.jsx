@@ -1,11 +1,12 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Info, MessageSquare, BookOpen } from 'lucide-react';
 
-const Footer = ({ setCurrentPage }) => {
+const Footer = () => {
+  const navigate = useNavigate();
+  
   const handleNavigation = (page) => {
-    if (setCurrentPage) {
-      setCurrentPage(page);
-    }
+    navigate(page);
   };
 
   return (

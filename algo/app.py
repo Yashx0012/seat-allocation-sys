@@ -21,16 +21,7 @@ from attendence_gen.attend_gen import create_attendance_pdf
 cache_manager = CacheManager()
 import uuid
 
-# Attendence generation module import 
-try:
-    from attendence_gen.attend_gen import generate_attendance_pdf
-    print("✅ Attendance PDF module loaded")
-except ImportError:
-    generate_attendance_pdf = None
 
-# --------------------------------------------------
-# FIXED: Auth Module Import
-# --------------------------------------------------
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 BACKEND_DIR = os.path.join(CURRENT_DIR, "Backend")
 
@@ -72,9 +63,6 @@ except ImportError as e:
         print(f"Error: {e2}")
         print("!" * 70 + "\n")
 
-# --------------------------------------------------
-# Optional PDF Module
-# --------------------------------------------------
 try:
     from pdf_gen import create_seating_pdf
     print("✅ PDF generation module loaded")
@@ -82,9 +70,6 @@ except ImportError:
     print("⚠️  PDF generation module not found")
     create_seating_pdf = None
 
-# --------------------------------------------------
-# Local Modules
-# --------------------------------------------------
 try:
     from student_parser import StudentDataParser
     from algo import SeatingAlgorithm
@@ -94,9 +79,6 @@ except ImportError as e:
     StudentDataParser = None
     SeatingAlgorithm = None
 
-# --------------------------------------------------
-# App setup
-# --------------------------------------------------
 BASE_DIR = Path(__file__).parent
 DB_PATH = BASE_DIR / "demo.db"
 
@@ -105,8 +87,81 @@ app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'dev-secret-key-change-
 app.config['FEEDBACK_FOLDER'] = BASE_DIR / "feedback_files"
 CORS(app, supports_credentials=True, resources={r"/api/*": {"origins": "*"}})
 
+# Attendence generation module import 
+try:
+    from attendence_gen.attend_gen import generate_attendance_pdf
+    print("✅ Attendance PDF module loaded")
+except ImportError:
+    generate_attendance_pdf = None
+
 # --------------------------------------------------
-# DB bootstrap
+# CACHE LAYER: Pending Students Management
+# --------------------------------------------------
+class SessionCacheManager:
+    """Manages session-specific data in cache (pending students, allocations)"""
+    
+    @staticmethod
+    def save_pending_students(session_id, pending_students):
+        """Save pending students list to cache"""
+        cache_key = f"session_{session_id}_pending"
+        file_path = cache_manager.get_file_path(cache_key)
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        with open(file_path, 'w') as f:
+            json.dump({
+                "session_id": session_id,
+                "pending_students": pending_students,
+                "updated_at": datetime.now().isoformat()
+            }, f, indent=2)
+        print(f"✅ Cached {len(pending_students)} pending students for session {session_id}")
+        return cache_key
+
+    @staticmethod
+    def get_pending_students_from_cache(session_id):
+        """Get pending students from cache (fast path)"""
+        cache_key = f"session_{session_id}_pending"
+        file_path = cache_manager.get_file_path(cache_key)
+        
+        if os.path.exists(file_path):
+            try:
+                with open(file_path, 'r') as f:
+                    data = json.load(f)
+                    print(f"📦 Retrieved {len(data['pending_students'])} pending students from cache (session {session_id})")
+                    return data['pending_students']
+            except Exception as e:
+                print(f"⚠️  Cache read error: {e}")
+        
+        print(f"⚠️  No cache found for session {session_id}, will query DB")
+        return None
+
+    @staticmethod
+    def clear_session_cache(session_id):
+        """Clear session cache after finalization"""
+        cache_key = f"session_{session_id}_pending"
+        file_path = cache_manager.get_file_path(cache_key)
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            print(f"🗑️  Cleared cache for session {session_id}")
+
+    @staticmethod
+    def save_room_allocation_cache(session_id, classroom_id, allocated_enrollments):
+        """Save list of students allocated to a room"""
+        cache_key = f"session_{session_id}_room_{classroom_id}_allocated"
+        file_path = cache_manager.get_file_path(cache_key)
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        with open(file_path, 'w') as f:
+            json.dump({
+                "session_id": session_id,
+                "classroom_id": classroom_id,
+                "allocated_enrollments": allocated_enrollments,
+                "count": len(allocated_enrollments),
+                "allocated_at": datetime.now().isoformat()
+            }, f, indent=2)
+        print(f"✅ Cached {len(allocated_enrollments)} allocations for room {classroom_id} in session {session_id}")
+
+session_cache = SessionCacheManager()
+
+# --------------------------------------------------
+# Enhanced DB Bootstrap with Session Tables
 # --------------------------------------------------
 def ensure_demo_db():
     conn = sqlite3.connect(DB_PATH)
@@ -147,6 +202,49 @@ def ensure_demo_db():
         );
     """)
 
+    # 2. NEW: Allocation Sessions
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS allocation_sessions (
+            session_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            plan_id TEXT UNIQUE NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            completed_at DATETIME,
+            status TEXT CHECK(status IN ('active', 'completed', 'archived')) DEFAULT 'active',
+            total_students INTEGER,
+            total_allocated INTEGER DEFAULT 0
+        );
+    """)
+
+    # 3. NEW: Session-File Mapping
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS session_files (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id INTEGER NOT NULL,
+            upload_id INTEGER NOT NULL,
+            FOREIGN KEY (session_id) REFERENCES allocation_sessions(session_id),
+            FOREIGN KEY (upload_id) REFERENCES uploads(id),
+            UNIQUE(session_id, upload_id)
+        );
+    """)
+
+    # 4. NEW: Classroom-Level Allocations
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS classroom_allocations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id INTEGER NOT NULL,
+            classroom_id INTEGER NOT NULL,
+            student_id INTEGER NOT NULL,
+            enrollment TEXT NOT NULL,
+            seat_position TEXT,
+            allocation_status TEXT CHECK(allocation_status IN ('allocated', 'pending', 'overflow')) DEFAULT 'pending',
+            allocated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (session_id) REFERENCES allocation_sessions(session_id),
+            FOREIGN KEY (classroom_id) REFERENCES classrooms(id),
+            FOREIGN KEY (student_id) REFERENCES students(id),
+            UNIQUE(session_id, student_id, classroom_id)
+        );
+    """)
+
     cur.execute("""
         CREATE TABLE IF NOT EXISTS allocations (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -158,6 +256,7 @@ def ensure_demo_db():
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     """)
+
     cur.execute("""
         CREATE TABLE IF NOT EXISTS feedback (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -179,6 +278,326 @@ def ensure_demo_db():
     conn.commit()
     conn.close()
     print(f"✅ Database initialized at: {DB_PATH}")
+
+# --------------------------------------------------
+# Session Management with Cache Integration
+# --------------------------------------------------
+
+def create_allocation_session(plan_id, upload_ids, total_students):
+    """Create new allocation session and CACHE initial pending students"""
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            "INSERT INTO allocation_sessions (plan_id, total_students, status) VALUES (?, ?, 'active')",
+            (plan_id, total_students)
+        )
+        session_id = cur.lastrowid
+        
+        # Link uploaded files
+        for upload_id in upload_ids:
+            cur.execute(
+                "INSERT INTO session_files (session_id, upload_id) VALUES (?, ?)",
+                (session_id, upload_id)
+            )
+        
+        conn.commit()
+        
+        # IMMEDIATELY fetch and CACHE all pending students from DB
+       # IMMEDIATELY fetch and CACHE all pending students from DB
+        cur.execute("""
+            SELECT DISTINCT s.id, s.enrollment, s.name, s.batch_name, s.batch_id
+            FROM students s
+            JOIN session_files sf ON s.upload_id = sf.upload_id
+            WHERE sf.session_id = ?
+            ORDER BY s.enrollment
+        """, (session_id,))
+        
+        pending = [dict((cur.description[i][0], row[i]) for i in range(len(cur.description))) for row in cur.fetchall()]
+        
+        # CACHE pending students aggressively
+        session_cache.save_pending_students(session_id, pending)
+        
+        print(f"✅ Created session {session_id} with {len(pending)} pending students (cached)")
+        return session_id
+    except Exception as e:
+        print(f"❌ Error creating session: {e}")
+        conn.rollback()
+        return None
+    finally:
+        conn.close()
+
+def get_pending_students(session_id, use_cache=True):
+    """
+    AGGRESSIVE CACHE STRATEGY:
+    1. Try cache FIRST (fast)
+    2. Fall back to DB only if cache miss
+    3. Update cache on every change
+    """
+    if use_cache:
+        # FAST PATH: Check cache first
+        cached = session_cache.get_pending_students_from_cache(session_id)
+        if cached is not None:
+            return cached
+    
+    # SLOW PATH: Query DB only if cache miss
+    print(f"⚠️  Cache miss for session {session_id}, querying DB...")
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            SELECT DISTINCT s.id, s.enrollment, s.name, s.batch_name, s.batch_id
+            FROM students s
+            WHERE s.id NOT IN (
+                SELECT student_id FROM classroom_allocations 
+                WHERE session_id = ? AND allocation_status = 'allocated'
+            )
+            AND s.id IN (
+                SELECT DISTINCT st.id
+                FROM students st
+                JOIN session_files sf ON st.id IN (
+                    SELECT st2.id FROM students st2 
+                    WHERE st2.upload_id IN (SELECT upload_id FROM session_files WHERE session_id = ?)
+                )
+            )
+            ORDER BY s.enrollment
+        """, (session_id, session_id))
+        
+        pending = [dict(row) for row in cur.fetchall()]
+        
+        # UPDATE cache after DB query
+        session_cache.save_pending_students(session_id, pending)
+        
+        return pending
+    except Exception as e:
+        print(f"❌ Error fetching pending students: {e}")
+        return []
+    finally:
+        conn.close()
+
+def save_room_allocation(session_id, classroom_id, seating_data):
+    """
+    Save room allocation, update cache with remaining pending students
+    """
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    allocated_enrollments = []
+    
+    try:
+        # Extract allocated students from seating
+        for row in seating_data.get('seating', []):
+            for seat in row:
+                if seat and not seat.get('is_broken') and not seat.get('is_unallocated'):
+                    enrollment = seat.get('roll_number')
+                    allocated_enrollments.append(enrollment)
+                    
+                    # Find and update student in DB
+                    cur.execute("SELECT id FROM students WHERE enrollment = ?", (enrollment,))
+                    student_row = cur.fetchone()
+                    if student_row:
+                        student_id = student_row[0]
+                        seat_pos = f"{seat.get('row', '')}-{seat.get('col', '')}"
+                        
+                        cur.execute("""
+                            INSERT OR REPLACE INTO classroom_allocations 
+                            (session_id, classroom_id, student_id, enrollment, seat_position, allocation_status)
+                            VALUES (?, ?, ?, ?, ?, 'allocated')
+                        """, (session_id, classroom_id, student_id, enrollment, seat_pos))
+        
+        # Update session total
+        cur.execute("""
+            UPDATE allocation_sessions 
+            SET total_allocated = total_allocated + ?
+            WHERE session_id = ?
+        """, (len(allocated_enrollments), session_id))
+        
+        conn.commit()
+        
+        # CACHE the room allocation
+        session_cache.save_room_allocation_cache(session_id, classroom_id, allocated_enrollments)
+        
+        # GET UPDATED pending from DB and CACHE it
+        pending = get_pending_students(session_id, use_cache=False)
+        
+        print(f"✅ Saved {len(allocated_enrollments)} allocations for room {classroom_id}")
+        print(f"📦 Updated cache with {len(pending)} remaining pending students")
+        
+        return len(allocated_enrollments), pending
+    except Exception as e:
+        print(f"❌ Error saving room allocation: {e}")
+        conn.rollback()
+        return 0, []
+    finally:
+        conn.close()
+
+def finalize_session(session_id, plan_id):
+    """Mark session complete and CLEAR cache"""
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            UPDATE allocation_sessions 
+            SET status = 'completed', completed_at = ?
+            WHERE session_id = ?
+        """, (datetime.now().isoformat(), session_id))
+        
+        conn.commit()
+        
+        # CLEAR all session caches
+        session_cache.clear_session_cache(session_id)
+        
+        print(f"✅ Finalized session {session_id} and cleared cache")
+        return True
+    except Exception as e:
+        print(f"❌ Error finalizing session: {e}")
+        return False
+    finally:
+        conn.close()
+
+# --------------------------------------------------
+# API ENDPOINTS: Session Management
+# --------------------------------------------------
+
+@app.route("/api/create-session", methods=["POST"])
+def create_session_endpoint():
+    """Create new allocation session with cache initialization"""
+    try:
+        data = request.get_json()
+        plan_id = data.get('plan_id')
+        upload_ids = data.get('upload_ids', [])
+        total_students = data.get('total_students', 0)
+        
+        if not plan_id or not upload_ids:
+            return jsonify({"error": "Missing plan_id or upload_ids"}), 400
+        
+        session_id = create_allocation_session(plan_id, upload_ids, total_students)
+        
+        if not session_id:
+            return jsonify({"error": "Failed to create session"}), 500
+        
+        return jsonify({
+            "success": True,
+            "session_id": session_id,
+            "plan_id": plan_id,
+            "total_students": total_students,
+            "cache_status": "initialized"
+        }), 201
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/pending-students/<int:session_id>", methods=["GET"])
+def get_pending_students_endpoint(session_id):
+    """Get pending students (uses CACHE first)"""
+    try:
+        use_cache = request.args.get('cache', 'true').lower() == 'true'
+        pending = get_pending_students(session_id, use_cache=use_cache)
+        
+        return jsonify({
+            "success": True,
+            "session_id": session_id,
+            "pending_count": len(pending),
+            "pending_students": pending
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/save-room-allocation", methods=["POST"])
+def save_room_allocation_endpoint():
+    """Save room allocation and UPDATE cache with pending students"""
+    try:
+        data = request.get_json()
+        session_id = data.get('session_id')
+        classroom_id = data.get('classroom_id')
+        seating_data = data.get('seating_data')
+        
+        if not all([session_id, classroom_id, seating_data]):
+            return jsonify({"error": "Missing required fields"}), 400
+        
+        allocated, pending = save_room_allocation(session_id, classroom_id, seating_data)
+        
+        return jsonify({
+            "success": True,
+            "allocated_count": allocated,
+            "pending_count": len(pending),
+            "pending_students": pending,
+            "cache_updated": True
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/finalize-session", methods=["POST"])
+def finalize_session_endpoint():
+    """Finalize session and CLEAR cache"""
+    try:
+        data = request.get_json()
+        session_id = data.get('session_id')
+        plan_id = data.get('plan_id')
+        
+        if not session_id or not plan_id:
+            return jsonify({"error": "Missing session_id or plan_id"}), 400
+        
+        # Verify no pending
+        pending = get_pending_students(session_id)
+        if pending:
+            return jsonify({
+                "error": f"Cannot finalize: {len(pending)} students still pending"
+            }), 400
+        
+        success = finalize_session(session_id, plan_id)
+        
+        if success:
+            return jsonify({
+                "success": True,
+                "message": "Session finalized and cache cleared",
+                "session_id": session_id,
+                "plan_id": plan_id
+            })
+        else:
+            return jsonify({"error": "Failed to finalize session"}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/session-status/<int:session_id>", methods=["GET"])
+def get_session_status(session_id):
+    """Get session status with cache stats"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        
+        cur.execute("""
+            SELECT session_id, plan_id, status, total_students, total_allocated, created_at
+            FROM allocation_sessions
+            WHERE session_id = ?
+        """, (session_id,))
+        
+        session_row = cur.fetchone()
+        if not session_row:
+            conn.close()
+            return jsonify({"error": "Session not found"}), 404
+        
+        session_data = dict(session_row)
+        pending = get_pending_students(session_id, use_cache=True)
+        
+        conn.close()
+        
+        return jsonify({
+            "success": True,
+            "session": session_data,
+            "total_allocated": session_data['total_allocated'],
+            "total_students": session_data['total_students'],
+            "pending_count": len(pending),
+            "cache_hit": True
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# --------------------------------------------------
+# Keep all existing endpoints from original app.py
+# --------------------------------------------------
+
+
 
 ensure_demo_db()
 

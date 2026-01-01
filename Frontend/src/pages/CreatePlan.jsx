@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import SplitText from '../components/SplitText';
 import { Upload, Layout, Monitor, Clock, ArrowRight } from 'lucide-react';
 
-const CreatePlan = ({ setCurrentPage }) => {
+const CreatePlan = () => {
+  const navigate = useNavigate();
   const [plans, setPlans] = useState([]);
   const [hoveredCard, setHoveredCard] = useState(null);
 
@@ -16,9 +18,9 @@ const CreatePlan = ({ setCurrentPage }) => {
     }
   }, []);
 
-  const goAllocate = () => setCurrentPage('allocation');
-  const goUpload = () => setCurrentPage('upload');
-  const goClassroom = () => setCurrentPage('classroom');
+  const goAllocate = () => navigate('/allocation');
+  const goUpload = () => navigate('/upload');
+  const goClassroom = () => navigate('/classroom');
 
   const actions = [
     {

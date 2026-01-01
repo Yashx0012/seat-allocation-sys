@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Users, Loader2, ArrowRight, Sparkles, Mail, Lock, User, Shield } from 'lucide-react';
 import SplitText from '../components/SplitText';
 import { useAuth } from '../context/AuthContext';
 
-const SignupPage = ({ setCurrentPage, showToast }) => {
+const SignupPage = ({ showToast }) => {
+  const navigate = useNavigate();
   const { signup } = useAuth();
   const [formData, setFormData] = useState({
     username: '',
@@ -50,7 +52,7 @@ const SignupPage = ({ setCurrentPage, showToast }) => {
     
     if (result.success) {
       showToast('Account created successfully!', 'success');
-      setTimeout(() => setCurrentPage('login'), 1500);
+      setTimeout(() => navigate('/login'), 1500);
     } else {
       showToast(result.error || 'Signup failed', 'error');
     }
@@ -215,7 +217,7 @@ const SignupPage = ({ setCurrentPage, showToast }) => {
             <p className="text-gray-600 dark:text-gray-400">
               Already have an account?{' '}
               <button
-                onClick={() => setCurrentPage('login')}
+                onClick={() => navigate('/login')}
                 className="text-orange-600 dark:text-orange-400 font-bold hover:underline transition-colors duration-200"
               >
                 Login here

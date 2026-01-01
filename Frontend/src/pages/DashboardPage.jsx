@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Users, 
   Layout, 
@@ -9,7 +10,7 @@ import {
   ArrowUpRight,
   Terminal,
   AlertCircle,
-  Database  // NEW: Added Database icon
+  Database
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import SplitText from '../components/SplitText';
@@ -84,8 +85,9 @@ const StatCard = ({ stat, index }) => {
   );
 };
 
-const DashboardPage = ({ setCurrentPage }) => {
+const DashboardPage = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   const stats = [
     { label: 'Total Students', value: '1,245', icon: Users, color: 'text-orange-500 dark:text-orange-400' },
@@ -190,7 +192,7 @@ const DashboardPage = ({ setCurrentPage }) => {
             {quickActions.map((action, index) => (
               <button
                 key={index}
-                onClick={() => action.page === 'download-report' ? handleDownload() : setCurrentPage(action.page)}
+                onClick={() => action.page === 'download-report' ? handleDownload() : navigate(`/${action.page}`)}
                 className="flex flex-col items-center gap-3 p-6 border-2 border-[#c0c0c0] dark:border-[#8a8a8a] rounded-lg shadow-[0_0_18px_rgba(192,192,192,0.18)] dark:shadow-[0_0_18px_rgba(138,138,138,0.22)] hover:border-orange-500 dark:hover:border-orange-400 hover:shadow-md transition-all duration-300 bg-white dark:bg-gray-800 group"
               >
                 <div className={`${action.color} p-3 rounded-lg group-hover:scale-110 transition-transform duration-300`}>

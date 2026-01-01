@@ -1,8 +1,10 @@
 import React, { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
-const GoogleLoginComponent = ({ showToast, setCurrentPage }) => {
+const GoogleLoginComponent = ({ showToast }) => {
+  const navigate = useNavigate();
   const { googleLogin } = useAuth();
   const [loading, setLoading] = React.useState(false);
 
@@ -63,7 +65,7 @@ const GoogleLoginComponent = ({ showToast, setCurrentPage }) => {
         showToast('Welcome! Logged in with Google', 'success');
         // Navigate to dashboard after a short delay
         setTimeout(() => {
-          setCurrentPage('dashboard');
+          navigate('/dashboard');
         }, 500);
       } else {
         console.error('❌ Google login failed:', result.error);

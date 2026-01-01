@@ -1,8 +1,10 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import SplitText from '../components/SplitText';
 import { Upload, Layout, MapPin, Download, Zap, ArrowRight, CheckCircle, Sparkles } from 'lucide-react';
 
-const LandingPage = ({ setCurrentPage }) => {
+const LandingPage = () => {
+  const navigate = useNavigate();
   const features = [
     {
       icon: Upload,
@@ -77,7 +79,7 @@ const LandingPage = ({ setCurrentPage }) => {
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16 animate-fadeInUp" style={{ animationDelay: '0.2s' }}>
             <button
-              onClick={() => setCurrentPage('signup')}
+              onClick={() => navigate('/signup')}
               className="group relative px-8 py-4 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl text-lg font-bold hover:from-orange-600 hover:to-amber-600 transition-all shadow-lg hover:shadow-xl hover:scale-105 overflow-hidden"
             >
               <span className="relative z-10 flex items-center justify-center gap-2">
@@ -87,7 +89,7 @@ const LandingPage = ({ setCurrentPage }) => {
               <div className="absolute inset-0 bg-gradient-to-r from-orange-600 to-amber-600 opacity-0 group-hover:opacity-100 transition-opacity"></div>
             </button>
             <button
-              onClick={() => setCurrentPage('login')}
+              onClick={() => navigate('/login')}
               className="px-8 py-4 bg-white dark:bg-gray-800 text-orange-600 dark:text-orange-400 rounded-xl text-lg font-bold border border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_0_20px_rgba(192,192,192,0.16)] dark:shadow-[0_0_20px_rgba(138,138,138,0.2)] hover:border-orange-500 dark:hover:border-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-all"
             >
               Login
@@ -197,7 +199,7 @@ const LandingPage = ({ setCurrentPage }) => {
               Join hundreds of institutions already using our platform to save time and eliminate errors.
             </p>
             <button
-              onClick={() => setCurrentPage('signup')}
+              onClick={() => navigate('/signup')}
               className="group inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl text-lg font-bold hover:from-orange-600 hover:to-amber-600 transition-all shadow-lg hover:shadow-xl hover:scale-105"
             >
               Get Started Now

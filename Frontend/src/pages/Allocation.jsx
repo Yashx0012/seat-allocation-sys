@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom'; // ADDED: For navigation
+import { useNavigate } from 'react-router-dom';
 import SplitText from '../components/SplitText';
 import { motion, AnimatePresence } from "framer-motion";
 import { 
