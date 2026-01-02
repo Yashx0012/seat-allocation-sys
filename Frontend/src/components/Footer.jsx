@@ -23,7 +23,7 @@ const Footer = () => {
             <h3 className="text-lg font-semibold mb-3 text-orange-600 dark:text-orange-400">Quick Links</h3>
             <div className="flex gap-4">
               <a 
-                href="#docs" 
+                href="http://localhost:3001/" 
                 className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-100 dark:hover:bg-orange-900/20 transition"
                 title="Documentation"
               >
