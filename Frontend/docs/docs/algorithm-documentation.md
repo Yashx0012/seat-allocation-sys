@@ -101,7 +101,7 @@ class PaperSet(Enum):
 | `start_rolls` | str | "1:BTCS24O1001,2:BTCD24O2001" | Starting roll numbers per batch |
 | `batch_prefixes` | str | "BTCS,BTCD,BTCE" | Prefixes for each batch |
 | `year` | int | 2024 | Academic year |
-| `roll_template` | str | "{prefix}{year}O{serial}" | Roll number format |
+| `roll_template` | str | "&#123;prefix&#125;&#123;year&#125;O&#123;serial&#125;" | Roll number format |
 | `serial_width` | int | 4 | Zero-padding width for serial |
 | `batch_by_column` | bool | true | Column-based assignment? |
 | `enforce_no_adjacent_batches` | bool | false | Enforce no adjacent batches? |
@@ -224,7 +224,7 @@ Content-Type: application/json
   "start_rolls": "1:BTCS24O1001,2:BTCD24O2001",
   "batch_prefixes": "BTCS,BTCD,BTCE",
   "year": 2024,
-  "roll_template": "{`prefix`}{`year`}O{`serial`}",
+  "roll_template": "{prefix}{year}O{serial}",
   "serial_width": 4
 }
 ```
@@ -311,7 +311,7 @@ Customizable via configuration or theme settings.
   "batch_prefixes": "BTCS,BTCD",
   "year": 2024,
   "start_rolls": "1:BTCS24O1001,2:BTCD24O2001",
-  "roll_template": "{`prefix`}{`year`}O{`serial`}",
+  "roll_template": "{prefix}{year}O{serial}",
   "serial_width": 4
 }
 ```

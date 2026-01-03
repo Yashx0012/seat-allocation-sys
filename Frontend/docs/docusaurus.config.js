@@ -40,6 +40,14 @@ const config = {
     locales: ['en'],
   },
 
+  // REQUIRED FOR MERMAID: Enable mermaid markdown parsing
+  markdown: {
+    mermaid: true,
+  },
+
+  // REQUIRED FOR MERMAID: Add the theme to the themes array
+  themes: ['@docusaurus/theme-mermaid'],
+
   presets: [
     [
       'classic',
@@ -81,6 +89,10 @@ const config = {
         defaultMode: 'dark',
         disableSwitch: false,
         respectPrefersColorScheme: true,
+      },
+      // OPTIONAL: Mermaid specific configuration
+      mermaid: {
+        theme: { light: 'neutral', dark: 'forest' },
       },
       navbar: {
         hideOnScroll: false,
