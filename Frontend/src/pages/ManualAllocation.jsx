@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Settings, Download, Layout, AlertTriangle, CheckCircle, 
-  User, RefreshCw, ChevronLeft, Grid, Box, Maximize2, XCircle
+  User, RefreshCw, ChevronLeft, Grid, Box, Maximize2
 } from 'lucide-react';
 
 const initialFormState = {
@@ -12,7 +12,7 @@ const initialFormState = {
     numBatches: 3,
     brokenSeatsStr: '',
     batchStudentCountsStr: '1:30, 2:30, 3:30',
-    startRollsStr: '', 
+    startRollsStr: '', // If empty, defaults are used in the backend/logic
     startSerials: { 1: 1, 2: 101, 3: 201 },
     blockWidth: 3,
     fillByColumn: true,
@@ -37,7 +37,9 @@ const ManualAllocation = ({ showToast }) => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
     const [isPdfGenerating, setIsPdfGenerating] = useState(false);
+    const [isFullscreenPreview, setIsFullscreenPreview] = useState(false);
 
+    // --- Dynamic Start Serial Logic ---
     useEffect(() => {
         const serials = {};
         for (let i = 1; i <= form.numBatches; i++) {
@@ -68,6 +70,10 @@ const ManualAllocation = ({ showToast }) => {
         const startSerialsApiStr = Object.entries(form.startSerials)
             .map(([idx, serial]) => `${idx}:${serial}`).join(',');
 
+        // LOGIC: If startRollsStr is empty, use empty string to let backend generate sequentially
+        // The backend will use start_serials to generate roll numbers for each batch
+        const finalStartRolls = form.startRollsStr.trim();
+
         const payload = {
             rows: form.rows,
             cols: form.cols,
@@ -77,14 +83,14 @@ const ManualAllocation = ({ showToast }) => {
             enforce_no_adjacent_batches: form.enforceAdj,
             broken_seats: form.brokenSeatsStr,
             batch_student_counts: form.batchStudentCountsStr,
-            start_rolls: form.startRollsStr, // Removed default prefix string here
+            start_rolls: finalStartRolls,
             start_serials: startSerialsApiStr,
             batch_names: form.batchNamesStr,
             room_no: form.roomNo,
         };
         
         try {
-            const response = await fetch('/api/generate-manual-seating', {
+            const response = await fetch('http://localhost:5000/api/manual-generate-seating', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -104,7 +110,7 @@ const ManualAllocation = ({ showToast }) => {
     const handleDownloadPdf = async () => {
         setIsPdfGenerating(true);
         try {
-            const response = await fetch('/api/generate-pdf', {
+            const response = await fetch('api/generate-pdf', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(seatingData)
@@ -113,7 +119,7 @@ const ManualAllocation = ({ showToast }) => {
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `manual_plan_Room_${form.roomNo}_${Date.now()}.pdf`;
+            a.download = `manual_plan_${Date.now()}.pdf`;
             a.click();
         } catch (err) {
             if(showToast) showToast("PDF Generation Failed", "error");
@@ -122,14 +128,16 @@ const ManualAllocation = ({ showToast }) => {
         }
     };
 
-    const inputStyle = "w-full h-12 px-4 rounded-xl border-2 border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50 dark:text-white focus:border-orange-500 outline-none transition-all font-bold text-sm";
+    // --- STYLING CONSTANTS ---
+    const inputStyle = "w-full h-12 px-4 rounded-xl border-2 border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50 text-gray-900 dark:text-white focus:border-orange-500 outline-none transition-all font-bold text-sm placeholder:text-gray-500 dark:placeholder:text-gray-400";
     const labelStyle = "text-[11px] font-black uppercase tracking-widest text-gray-900 dark:text-white mb-2 block ml-1";
-    const sectionHeading = "text-xs font-black text-orange-500 uppercase tracking-[0.3em] mb-8 flex items-center gap-2";
+    const sectionHeading = "text-sm font-black text-orange-500 uppercase tracking-[0.3em] mb-8 flex items-center gap-2";
 
     return (
         <div className="min-h-screen bg-white dark:bg-[#050505] text-gray-900 dark:text-white pb-20">
             <div className="max-w-[1800px] mx-auto px-6 pt-12">
                 
+                {/* Header */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
                     <div>
                         <Link to="/create-plan" className="flex items-center gap-2 text-gray-400 hover:text-orange-500 transition-colors mb-4 group">
@@ -180,6 +188,7 @@ const ManualAllocation = ({ showToast }) => {
                         </div>
                     </div>
 
+                    {/* MAIN CONTENT */}
                     <div className="xl:col-span-9 space-y-8">
                         <div className="p-8 rounded-3xl bg-gray-50 dark:bg-white/5 border-2 border-gray-100 dark:border-gray-800 shadow-sm">
                             <h2 className={sectionHeading}><User size={16} /> Batch Enrollment Details</h2>
@@ -196,7 +205,7 @@ const ManualAllocation = ({ showToast }) => {
                                     <label className={labelStyle}>Batch Start Roll Numbers (Overrides)</label>
                                     <input 
                                         type="text" id="startRollsStr" value={form.startRollsStr} onChange={handleInputChange} className={inputStyle} 
-                                        placeholder="Optional (e.g. 1:101, 2:501). Leave blank for simple serials." 
+                                        placeholder="Optional (e.g. 1:BTCS001, 2:BTCS500). Leave blank for auto-generation." 
                                     />
                                 </div>
                                 <div className="md:col-span-2">
@@ -206,14 +215,22 @@ const ManualAllocation = ({ showToast }) => {
                             </div>
                         </div>
 
+                        {/* FULL SCREEN PREVIEW */}
                         <div className="p-8 rounded-3xl bg-white dark:bg-white/5 border-2 border-gray-100 dark:border-gray-800 shadow-2xl min-h-[600px]">
                             <div className="flex justify-between items-center mb-8">
-                                <h2 className={sectionHeading}><Maximize2 size={16} /> Visual Arrangement (Room {form.roomNo})</h2>
-                                {seatingData && (
-                                    <button onClick={handleDownloadPdf} className="flex items-center gap-2 text-xs font-black uppercase text-orange-500 hover:scale-105 transition-all">
-                                        <Download size={16} /> Export PDF
-                                    </button>
-                                )}
+                                <h2 className={sectionHeading}><Maximize2 size={16} /> Visual Arrangement</h2>
+                                <div className="flex items-center gap-4">
+                                    {seatingData && (
+                                        <>
+                                            <button onClick={() => setIsFullscreenPreview(true)} className="flex items-center gap-2 text-xs font-black uppercase text-orange-500 hover:scale-105 transition-all">
+                                                <Maximize2 size={16} /> Fullscreen
+                                            </button>
+                                            <button onClick={handleDownloadPdf} className="flex items-center gap-2 text-xs font-black uppercase text-orange-500 hover:scale-105 transition-all">
+                                                <Download size={16} /> Export PDF
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
                             </div>
 
                             <AnimatePresence mode="wait">
@@ -225,29 +242,15 @@ const ManualAllocation = ({ showToast }) => {
                                         >
                                             {seatingData.seating.map((row, rIdx) => (
                                                 row.map((seat, cIdx) => {
-                                                    const isBroken = seat.is_broken;
-                                                    const isEmpty = !seat.batch && !isBroken;
-                                                    const batchColor = isBroken ? '#ef4444' : (isEmpty ? 'transparent' : (seat.color || '#374151'));
-                                                    const borderStyle = isEmpty ? 'border-2 border-dashed border-gray-200 dark:border-gray-800' : 'border border-black/10';
-                                                    
+                                                    const batchColor = seat.is_broken ? '#ef4444' : (seat.color || '#374151');
                                                     return (
-                                                        <div 
-                                                            key={`${rIdx}-${cIdx}`} 
-                                                            style={{ backgroundColor: batchColor }} 
-                                                            className={`h-24 rounded-xl flex flex-col items-center justify-center p-2 text-center shadow-sm transition-all hover:scale-[1.02] ${borderStyle} ${getContrastTextColor(batchColor)}`}
-                                                        >
-                                                            {isBroken ? (
-                                                                <div className="flex flex-col items-center opacity-60">
-                                                                    <XCircle size={16} className="mb-1" />
-                                                                    <span className="text-[10px] font-black italic">BROKEN</span>
-                                                                </div>
-                                                            ) : isEmpty ? (
-                                                                <span className="text-[10px] font-black opacity-20 tracking-tighter">R{rIdx+1}-C{cIdx+1}</span>
-                                                            ) : (
+                                                        <div key={`${rIdx}-${cIdx}`} style={{ backgroundColor: batchColor }} className={`h-24 rounded-xl flex flex-col items-center justify-center p-2 text-center shadow-md border border-black/10 ${getContrastTextColor(batchColor)}`}>
+                                                            {seat.is_broken ? <span className="text-[10px] font-black italic opacity-60">BROKEN</span> : (
                                                                 <>
                                                                     <span className="text-[9px] font-black opacity-60 uppercase">Batch {seat.batch}</span>
-                                                                    <span className="text-[12px] font-black leading-tight truncate w-full">{seat.roll_number || 'NA'}</span>
-                                                                    <span className="text-[8px] font-bold opacity-40 mt-1 uppercase tracking-tighter">{seat.position}</span>
+                                                                    <span className="text-[13px] font-black leading-tight truncate w-full">{seat.roll_number || 'EMPTY'}</span>
+                                                                    <span className="text-[10px] font-bold text-inherit opacity-100 mt-1">Set: {seat.paper_set || '-'}</span>
+                                                                    <span className="text-[8px] font-bold opacity-40 mt-1">{seat.position}</span>
                                                                 </>
                                                             )}
                                                         </div>
@@ -264,31 +267,89 @@ const ManualAllocation = ({ showToast }) => {
                                 )}
                             </AnimatePresence>
 
+                            {/* VALIDATION & SUMMARY BOX */}
                             {seatingData && (
-                                <div className="mt-8 p-6 bg-orange-500/5 border-2 border-orange-500/20 rounded-2xl">
+                                <div className="mt-8 p-6 bg-green-500/10 border-2 border-green-500/20 rounded-2xl">
                                     <h3 className={`font-black text-xs uppercase mb-4 flex items-center gap-2 ${seatingData.validation.is_valid ? 'text-green-500' : 'text-red-500'}`}>
-                                        {seatingData.validation.is_valid ? <CheckCircle size={16} /> : <AlertTriangle size={16} />} Allocation Intelligence
+                                        {seatingData.validation.is_valid ? <CheckCircle size={16} /> : <AlertTriangle size={16} />} Validation & Summary
                                     </h3>
                                     
-                                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                        <div className="p-4 rounded-xl bg-white dark:bg-white/5 border border-gray-100 dark:border-gray-800">
-                                            <p className="text-[10px] font-black text-gray-400 uppercase mb-1">Room Capacity</p>
-                                            <p className="text-lg font-black">{seatingData.metadata.rows * seatingData.metadata.cols - (seatingData.summary.broken_seats || 0)} usable</p>
+                                    {/* Summary */}
+                                    <div className="mb-6">
+                                        <h4 className="text-sm font-bold uppercase mb-3">Seating Summary</h4>
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                            {Object.entries(seatingData.summary.total_per_batch || {}).map(([batch, count]) => (
+                                                <div key={batch} className="flex justify-between p-3 bg-white dark:bg-black/20 rounded-xl border border-green-500/30">
+                                                    <span className="text-xs font-bold">Batch {batch}</span>
+                                                    <span className="text-xs font-black text-green-500">{count} Seated</span>
+                                                </div>
+                                            ))}
                                         </div>
-                                        {Object.entries(seatingData.summary.total_per_batch || {}).map(([batch, count]) => (
-                                            <div key={batch} className="p-4 rounded-xl bg-white dark:bg-white/5 border border-orange-500/20">
-                                                <p className="text-[10px] font-black text-orange-500 uppercase mb-1">Batch {batch} Seated</p>
-                                                <p className="text-lg font-black">{count} Students</p>
-                                            </div>
-                                        ))}
+                                        <p className="text-sm mt-4 text-gray-600 dark:text-gray-400">
+                                            Total Seats: {seatingData.metadata.rows * seatingData.metadata.cols} | 
+                                            Broken Seats: {seatingData.summary.broken_seats || 0}
+                                        </p>
                                     </div>
                                     
-                                    {!seatingData.validation.is_valid && (
-                                        <div className="mt-6 p-4 bg-red-500/10 rounded-xl border border-red-500/20">
-                                            <h4 className="text-xs font-black text-red-500 uppercase mb-2">Conflicts Detected</h4>
-                                            <ul className="text-sm font-medium text-red-600 space-y-1">
-                                                {seatingData.validation.errors.map((err, i) => <li key={i}>• {err}</li>)}
+                                    {/* Constraints Applied */}
+                                    <div className="mb-6">
+                                        <h4 className="text-sm font-bold uppercase mb-3 text-blue-500">Constraints Applied</h4>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                                            <div className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-900/30 rounded border border-blue-200 dark:border-blue-700">
+                                                <CheckCircle size={14} className="text-blue-500" />
+                                                <span>Grid: {seatingData.metadata.rows} × {seatingData.metadata.cols}</span>
+                                            </div>
+                                            <div className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-900/30 rounded border border-blue-200 dark:border-blue-700">
+                                                <CheckCircle size={14} className="text-blue-500" />
+                                                <span>Block Width: {seatingData.metadata.block_width || form.blockWidth}</span>
+                                            </div>
+                                            {form.fillByColumn && (
+                                                <div className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-900/30 rounded border border-blue-200 dark:border-blue-700">
+                                                    <CheckCircle size={14} className="text-blue-500" />
+                                                    <span>Fill by Column</span>
+                                                </div>
+                                            )}
+                                            {form.enforceAdj && (
+                                                <div className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-900/30 rounded border border-blue-200 dark:border-blue-700">
+                                                    <CheckCircle size={14} className="text-blue-500" />
+                                                    <span>No Adjacent Same Batch</span>
+                                                </div>
+                                            )}
+                                            {form.brokenSeatsStr && (
+                                                <div className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-900/30 rounded border border-blue-200 dark:border-blue-700">
+                                                    <CheckCircle size={14} className="text-blue-500" />
+                                                    <span>Broken Seats: {form.brokenSeatsStr}</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                    
+                                    {/* Validation Errors */}
+                                    {!seatingData.validation.is_valid && seatingData.validation.errors && seatingData.validation.errors.length > 0 && (
+                                        <div className="mb-6">
+                                            <h4 className="text-sm font-bold uppercase mb-3 text-red-500">Validation Violations</h4>
+                                            <ul className="list-disc list-inside text-sm text-red-600 space-y-1">
+                                                {seatingData.validation.errors.map((error, idx) => (
+                                                    <li key={idx}>{error}</li>
+                                                ))}
                                             </ul>
+                                        </div>
+                                    )}
+                                    
+                                    {/* Unallocated Students */}
+                                    {Object.values(seatingData.summary.unallocated_per_batch || {}).some(count => count > 0) && (
+                                        <div>
+                                            <h4 className="text-sm font-bold uppercase mb-3 text-orange-500">Unallocated Students</h4>
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                {Object.entries(seatingData.summary.unallocated_per_batch).map(([batch, count]) => (
+                                                    count > 0 && (
+                                                        <div key={batch} className="flex justify-between p-3 bg-white dark:bg-black/20 rounded-xl border border-orange-500/30">
+                                                            <span className="text-xs font-bold">Batch {batch}</span>
+                                                            <span className="text-xs font-black text-orange-500">{count} Left Unseated</span>
+                                                        </div>
+                                                    )
+                                                ))}
+                                            </div>
                                         </div>
                                     )}
                                 </div>
@@ -297,11 +358,61 @@ const ManualAllocation = ({ showToast }) => {
                     </div>
                 </div>
             </div>
-            <style>{`
-                .custom-scrollbar::-webkit-scrollbar { height: 8px; }
-                .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-                .custom-scrollbar::-webkit-scrollbar-thumb { background: #f97316; border-radius: 20px; border: 2px solid transparent; background-clip: content-box; }
-            `}</style>
+
+            {/* FULLSCREEN PREVIEW MODAL */}
+            <AnimatePresence>
+                {isFullscreenPreview && (
+                    <motion.div 
+                        initial={{opacity: 0}} 
+                        animate={{opacity: 1}} 
+                        exit={{opacity: 0}}
+                        className="fixed inset-0 bg-black/80 z-50 flex flex-col items-center justify-center p-4"
+                    >
+                        <div className="bg-white dark:bg-gray-900 rounded-2xl w-full h-full max-w-7xl max-h-[95vh] overflow-auto custom-scrollbar flex flex-col">
+                            {/* Header */}
+                            <div className="sticky top-0 flex justify-between items-center p-6 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 z-10">
+                                <h3 className="text-lg font-black text-orange-500 uppercase tracking-widest">Seating Plan - Full View</h3>
+                                <button 
+                                    onClick={() => setIsFullscreenPreview(false)} 
+                                    className="text-2xl text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+
+                            {/* Content */}
+                            <div className="flex-1 overflow-auto p-8 flex items-center justify-center">
+                                {seatingData ? (
+                                    <div className="overflow-auto">
+                                        <div 
+                                            className="grid gap-3 p-4 bg-gray-50 dark:bg-black/30 rounded-xl"
+                                            style={{ gridTemplateColumns: `repeat(${seatingData.metadata.cols}, 140px)` }}
+                                        >
+                                            {seatingData.seating.map((row, rIdx) => (
+                                                row.map((seat, cIdx) => {
+                                                    const batchColor = seat.is_broken ? '#ef4444' : (seat.color || '#374151');
+                                                    return (
+                                                        <div key={`fs-${rIdx}-${cIdx}`} style={{ backgroundColor: batchColor }} className={`h-28 rounded-xl flex flex-col items-center justify-center p-3 text-center shadow-lg border-2 border-black/10 ${getContrastTextColor(batchColor)}`}>
+                                                            {seat.is_broken ? <span className="text-[11px] font-black italic opacity-60">BROKEN</span> : (
+                                                                <>
+                                                                    <span className="text-[10px] font-black opacity-60 uppercase">Batch {seat.batch}</span>
+                                                                    <span className="text-[16px] font-black leading-tight truncate w-full">{seat.roll_number || 'EMPTY'}</span>
+                                                                    <span className="text-[11px] font-bold text-inherit opacity-100 mt-2">Set: {seat.paper_set || '-'}</span>
+                                                                    <span className="text-[9px] font-bold opacity-40 mt-1">{seat.position}</span>
+                                                                </>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })
+                                            ))}
+                                        </div>
+                                    </div>
+                                ) : null}
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };

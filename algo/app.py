@@ -1322,6 +1322,136 @@ def constraints_status():
     )
     algo.generate_seating()
     return jsonify(algo.get_constraints_status())
+
+# ============================================================================
+# MANUAL SEATING GENERATION 
+# ============================================================================
+@app.route("/api/manual-generate-seating", methods=["POST"])
+def manual_generate_seating():
+    """API endpoint to generate manual seating arrangement (no database dependency, user input only)"""
+    if SeatingAlgorithm is None:
+        return jsonify({"error": "SeatingAlgorithm module not available"}), 500
+    
+    data = request.get_json(force=True)
+    
+    # Extract settings for the Algorithm - NO DATABASE USAGE
+    # All values come directly from frontend/user input
+    num_batches = int(data.get("num_batches", 3))
+    
+    # Parse batch student counts (format: "1:30, 2:30, 3:30")
+    batch_student_counts_str = data.get("batch_student_counts", "")
+    counts = {}
+    if batch_student_counts_str:
+        parts = [p.strip() for p in batch_student_counts_str.split(',') if p.strip()]
+        for part in parts:
+            if ':' in part:
+                try:
+                    k, v = part.split(':', 1)
+                    counts[int(k.strip())] = int(v.strip())
+                except Exception:
+                    pass
+    
+    # Parse batch names (format: "1:CS, 2:IT, 3:ME")
+    batch_names_str = data.get("batch_names", "")
+    labels = {}
+    if batch_names_str:
+        parts = [p.strip() for p in batch_names_str.split(',') if p.strip()]
+        for part in parts:
+            if ':' in part:
+                try:
+                    k, v = part.split(':', 1)
+                    labels[int(k.strip())] = v.strip()
+                except Exception:
+                    pass
+    
+    # Parse start_serials (format: "1:1, 2:101, 3:201")
+    start_serials_str = data.get("start_serials", "")
+    start_serials = {}
+    if start_serials_str:
+        parts = [p.strip() for p in start_serials_str.split(',') if p.strip()]
+        for part in parts:
+            if ':' in part:
+                try:
+                    k, v = part.split(':', 1)
+                    start_serials[int(k.strip())] = int(v.strip())
+                except Exception:
+                    pass
+    
+    # Parse start_rolls (custom roll format override - format: "1:BTCS001, 2:BTIT001")
+    start_rolls_str = data.get("start_rolls", "")
+    start_rolls = {}
+    if start_rolls_str:
+        parts = [p.strip() for p in start_rolls_str.split(',') if p.strip()]
+        for part in parts:
+            if ':' in part:
+                try:
+                    k, v = part.split(':', 1)
+                    start_rolls[int(k.strip())] = v.strip()
+                except Exception:
+                    pass
+    
+    # If no start_rolls provided, generate default sequential rolls using start_serials
+    if not start_rolls:
+        for i in range(1, num_batches + 1):
+            batch_name = labels.get(i, f"BATCH{i}")
+            serial_start = start_serials.get(i, (i - 1) * 100 + 1)
+            # Generate simple numeric roll numbers starting from the serial
+            start_rolls[i] = f"{batch_name}_{serial_start:04d}"
+
+    # Parse broken seats
+    broken_str = data.get("broken_seats", "")
+    broken_seats = []
+    if isinstance(broken_str, str) and "-" in broken_str:
+        parts = [p.strip() for p in broken_str.split(',') if p.strip()]
+        for part in parts:
+            if '-' in part:
+                try:
+                    row_col = part.split('-')
+                    row = int(row_col[0].strip()) - 1
+                    col = int(row_col[1].strip()) - 1
+                    broken_seats.append((row, col))
+                except (ValueError, IndexError):
+                    pass
+    elif isinstance(broken_str, list):
+        broken_seats = broken_str
+
+    # Run the Algorithm with user-provided data only
+    algo = SeatingAlgorithm(
+        rows=int(data.get("rows", 10)),
+        cols=int(data.get("cols", 10)),
+        num_batches=num_batches,
+        block_width=int(data.get("block_width", 3)),
+        batch_by_column=bool(data.get("batch_by_column", True)),
+        enforce_no_adjacent_batches=bool(data.get("enforce_no_adjacent_batches", False)),
+        broken_seats=broken_seats,
+        batch_student_counts=counts,
+        batch_roll_numbers={},  # Empty dict, let algorithm generate
+        batch_labels=labels,
+        start_rolls=start_rolls,
+        batch_colors=parse_str_dict(data.get("batch_colors")),
+        serial_mode=data.get("serial_mode", "per_batch"),
+        serial_width=int(data.get("serial_width", 0))
+    )
+
+    algo.generate_seating()
+    web = algo.to_web_format()
+    
+    # Prepare response object
+    web.setdefault("metadata", {})
+    
+    # Validate constraints
+    ok, errors = algo.validate_constraints()
+    web["validation"] = {"is_valid": ok, "errors": errors}
+    
+    # Save to single static cache file for manual seating (always override)
+    MANUAL_CACHE_FILE = "manual_seating_current"
+    cache_manager.save_or_update(MANUAL_CACHE_FILE, data, web)
+    
+    print(f"✅ Manual seating generated (no database used) - Batches: {num_batches}, Start Serials: {start_serials}")
+    print(f"💾 Saved to static cache: {MANUAL_CACHE_FILE}")
+
+    return jsonify(web)
+
 # ============================================================================
 # PDF GENERATION
 # ============================================================================
