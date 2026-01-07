@@ -34,7 +34,7 @@ const AttendancePage = ({ showToast }) => {
   const fetchBatchData = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`http://localhost:5000/api/plan-batches/${planId}`);
+      const response = await fetch(`/api/plan-batches/${planId}`);
       if (!response.ok) throw new Error("Could not load plan data. Ensure you generated a plan first.");
       
       const data = await response.json();
@@ -59,7 +59,7 @@ const AttendancePage = ({ showToast }) => {
 
     setActionLoading(batchLabel);
     try {
-      const response = await fetch('http://localhost:5000/api/export-attendance', {
+      const response = await fetch('/api/export-attendance', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

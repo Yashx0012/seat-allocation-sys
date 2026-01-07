@@ -33,7 +33,7 @@ export default function Classrooms({ showToast }) {
   const fetchClassrooms = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:5000/api/classrooms');
+      const res = await fetch('/api/classrooms');
       const data = await res.json();
       setClassrooms(data);
       if (selectedRoomId && selectedRoomId !== 'new') {
@@ -79,7 +79,7 @@ export default function Classrooms({ showToast }) {
   const handleSave = async () => {
     if (!roomData.name) return showToast("Room name required", "error");
     try {
-      const res = await fetch('http://localhost:5000/api/classrooms', {
+      const res = await fetch('/api/classrooms', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(roomData)
@@ -99,7 +99,7 @@ export default function Classrooms({ showToast }) {
   const handleDelete = async () => {
     if (!roomData.id || !window.confirm("Delete this classroom?")) return;
     try {
-      await fetch(`http://localhost:5000/api/classrooms/${roomData.id}`, { method: 'DELETE' });
+      await fetch(`/api/classrooms/${roomData.id}`, { method: 'DELETE' });
       if (showToast) showToast("Classroom deleted", "success");
       fetchClassrooms();
       setSelectedRoomId(null);

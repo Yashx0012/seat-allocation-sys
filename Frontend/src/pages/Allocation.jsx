@@ -49,7 +49,7 @@ const AllocationPage = ({ showToast }) => {
   const chartRef = useRef();
 
   useEffect(() => {
-    fetch('http://localhost:5000/api/classrooms')
+    fetch('/api/classrooms')
       .then(res => res.json())
       .then(data => setClassrooms(data))
       .catch(err => console.error(err));
@@ -97,7 +97,7 @@ const AllocationPage = ({ showToast }) => {
   const generate = async () => {
     setLoading(true); setError(null);
     try {
-      const res = await fetch("http://localhost:5000/api/generate-seating", { 
+      const res = await fetch("/api/generate-seating", { 
         method: "POST", headers: { "Content-Type": "application/json" }, 
         body: JSON.stringify(preparePayload()) 
       });
@@ -113,7 +113,7 @@ const AllocationPage = ({ showToast }) => {
 
   const showConstraints = async () => {
     try {
-        const res = await fetch("http://localhost:5000/api/constraints-status", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(preparePayload()) });
+        const res = await fetch("/api/constraints-status", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(preparePayload()) });
         const data = await res.json();
         const body = data.constraints ? data.constraints.map(c => `${c.satisfied ? '✅' : '❌'} ${c.name}`).join("\n") : "No constraints data";
         alert(`Constraints:\n\n${body}`);
@@ -125,7 +125,7 @@ const AllocationPage = ({ showToast }) => {
     setResetting(true);
     try {
         const token = localStorage.getItem('token');
-        const res = await fetch("http://localhost:5000/api/reset-data", { method: "POST", headers: token ? { 'Authorization': `Bearer ${token}` } : {} });
+        const res = await fetch("/api/reset-data", { method: "POST", headers: token ? { 'Authorization': `Bearer ${token}` } : {} });
         if (res.ok) { if (showToast) showToast("Database cleared", "success"); setWebData(null); setPlanId(null); }
     } catch (e) { alert(e.message); } finally { setResetting(false); }
   };
@@ -163,7 +163,7 @@ const AllocationPage = ({ showToast }) => {
     } else {
        try {
          const payload = { ...preparePayload() }; // Uses STATIC_PLAN_ID via preparePayload
-         const res = await fetch('http://localhost:5000/api/generate-pdf', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+         const res = await fetch('/api/generate-pdf', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
          if (!res.ok) throw new Error('Server failed');
          const blob = await res.blob();
          const url = window.URL.createObjectURL(blob);

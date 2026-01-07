@@ -55,7 +55,7 @@ const FeedbackPage = ({ showToast }) => {
         setLoadingHistory(true);
         try {
             const token = getAuthToken();
-            const response = await fetch('http://localhost:5000/api/feedback', {
+            const response = await fetch('/api/feedback', {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
@@ -104,7 +104,7 @@ const FeedbackPage = ({ showToast }) => {
                 formData.append('file', imageFile);
             }
 
-            const response = await fetch('http://localhost:5000/api/feedback', {
+            const response = await fetch('/api/feedback', {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`
