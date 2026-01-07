@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import SplitText from '../components/SplitText';
-import { Upload, Layout, Monitor, Clock, ArrowRight } from 'lucide-react';
+// Added Wrench icon for the Custom Build box
+import { Upload, Layout, Monitor, Clock, ArrowRight, Wrench } from 'lucide-react';
 
 const CreatePlan = () => {
   const navigate = useNavigate();
@@ -21,6 +22,8 @@ const CreatePlan = () => {
   const goAllocate = () => navigate('/allocation');
   const goUpload = () => navigate('/upload');
   const goClassroom = () => navigate('/classroom');
+  // New Navigation function
+  const goManual = () => navigate('/manual-allocation');
 
   const actions = [
     {
@@ -31,6 +34,15 @@ const CreatePlan = () => {
       bgColor: 'bg-orange-500 dark:bg-orange-600',
       hoverBorder: 'hover:border-orange-500 dark:hover:border-orange-400',
       onClick: goAllocate
+    },
+    {
+      title: 'Custom Build', // New Box added here
+      description: 'Build grid from scratch',
+      icon: Wrench,
+      color: 'blue',
+      bgColor: 'bg-blue-600 dark:bg-blue-700',
+      hoverBorder: 'hover:border-blue-600 dark:hover:border-blue-500',
+      onClick: goManual
     },
     {
       title: 'Upload Data',
@@ -85,51 +97,46 @@ const CreatePlan = () => {
           </div>
         </div>
 
-        {/* Action Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Action Cards Grid - Updated to md:grid-cols-4 */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
           {actions.map((action, index) => (
             <button
               key={index}
               onClick={action.onClick}
               onMouseEnter={() => setHoveredCard(index)}
               onMouseLeave={() => setHoveredCard(null)}
-              className={`glass-card relative overflow-hidden p-8 border border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_0_24px_rgba(192,192,192,0.22)] dark:shadow-[0_0_24px_rgba(138,138,138,0.24)] ${action.hoverBorder} hover:shadow-2xl hover:shadow-${action.color}-500/10 transition-all duration-300 group`}
+              className={`glass-card relative overflow-hidden p-6 border border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_0_24px_rgba(192,192,192,0.22)] dark:shadow-[0_0_24px_rgba(138,138,138,0.24)] ${action.hoverBorder} hover:shadow-2xl hover:shadow-${action.color}-500/10 transition-all duration-300 group`}
               style={{
                 opacity: 0,
                 animation: `fadeInUp 0.5s ease-out ${index * 0.1}s forwards`
               }}
             >
-              {/* Background Gradient Effect */}
               <div className={`absolute inset-0 ${action.bgColor} opacity-0 group-hover:opacity-5 transition-opacity duration-300`}></div>
               
-              {/* Background Icon */}
               <div className="absolute top-0 right-0 p-4 opacity-5 transform rotate-12 group-hover:scale-110 transition-transform duration-500">
-                <action.icon className="w-32 h-32 text-gray-900 dark:text-gray-100" />
+                <action.icon className="w-24 h-24 text-gray-900 dark:text-gray-100" />
               </div>
 
-              <div className="relative z-10 flex flex-col items-start gap-4">
-                {/* Icon */}
-                <div className={`${action.bgColor} p-4 rounded-xl shadow-lg group-hover:scale-110 group-hover:rotate-3 transition-all duration-300`}>
-                  <action.icon className="text-white" size={28} />
+              <div className="relative z-10 flex flex-col items-start gap-4 h-full">
+                <div className={`${action.bgColor} p-3 rounded-xl shadow-lg group-hover:scale-110 group-hover:rotate-3 transition-all duration-300`}>
+                  <action.icon className="text-white" size={24} />
                 </div>
 
-                {/* Content */}
                 <div className="flex-1 text-left">
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors">
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-1 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors">
                     {action.title}
                   </h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <p className="text-xs text-gray-600 dark:text-gray-400">
                     {action.description}
                   </p>
                 </div>
 
-                {/* Arrow Indicator */}
-                <div className="self-end">
+                <div className="self-end mt-auto">
                   <ArrowRight 
                     className={`text-gray-400 group-hover:text-orange-500 group-hover:translate-x-1 transition-all duration-300 ${
                       hoveredCard === index ? 'opacity-100' : 'opacity-0'
                     }`} 
-                    size={20} 
+                    size={18} 
                   />
                 </div>
               </div>
@@ -170,12 +177,9 @@ const CreatePlan = () => {
                   }}
                 >
                   <div className="flex items-center gap-4 flex-1">
-                    {/* Plan Number Badge */}
                     <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-gradient-to-br from-orange-500 to-amber-500 text-white font-bold text-lg shadow-md">
                       {plans.length - idx}
                     </div>
-
-                    {/* Plan Details */}
                     <div className="flex-1">
                       <div className="font-bold text-gray-900 dark:text-white text-lg group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors">
                         {p.name || `Plan ${plans.length - idx}`}
@@ -188,8 +192,6 @@ const CreatePlan = () => {
                       </div>
                     </div>
                   </div>
-
-                  {/* Plan Type Badge */}
                   <div className="flex items-center gap-3">
                     <span className="text-xs font-bold uppercase tracking-wider text-orange-600 dark:text-orange-400 bg-orange-500/10 px-4 py-2 rounded-lg border border-orange-500/20">
                       {p.type || 'Manual'}
@@ -214,7 +216,6 @@ const CreatePlan = () => {
             transform: translateY(0);
           }
         }
-
         @keyframes fadeIn {
           from {
             opacity: 0;
