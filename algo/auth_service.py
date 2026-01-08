@@ -217,13 +217,18 @@ def get_user_by_token(token: str) -> Optional[Dict]:
 # AUTH FUNCTIONS
 # ============================================================================
 
-def signup(username: str, email: str, password: str, role: str) -> Tuple[bool, str]:
-    """Sign up a new user with email/password"""
+def signup(username: str, email: str, password: str, role: str = "STUDENT") -> Tuple[bool, Dict, str]:
+    """
+    Sign up a new user with email/password
+    
+    Returns:
+        (success: bool, user_data: dict or error_msg: str, token: str or empty_string)
+    """
     if not username or not email or not password:
-        return False, "All fields are required."
+        return False, "All fields are required.", ""
     
     if get_user_by_email(email):
-        return False, "User with this email already exists."
+        return False, "User with this email already exists.", ""
     
     password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
     
@@ -231,14 +236,33 @@ def signup(username: str, email: str, password: str, role: str) -> Tuple[bool, s
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         cursor.execute(
-            "INSERT INTO users (username, email, password_hash, role, auth_provider) VALUES (?, ?, ?, ?, ?)",
+            """INSERT INTO users 
+               (username, email, password_hash, role, auth_provider) 
+               VALUES (?, ?, ?, ?, ?)""",
             (username, email, password_hash, role.upper(), 'local')
         )
         conn.commit()
+        user_id = cursor.lastrowid
         conn.close()
-        return True, "User registered successfully."
+        
+        # Create auth token immediately
+        token = create_auth_token(user_id, role.upper())
+        
+        user_data = {
+            "id": user_id,
+            "username": username,
+            "email": email,
+            "role": role.upper(),
+            "fullName": "",
+        }
+        
+        print(f"✅ User registered: {email}")
+        return True, user_data, token  # ✅ Consistent format
+        
     except sqlite3.Error as e:
-        return False, f"Database error: {str(e)}"
+        error_msg = f"Database error: {str(e)}"
+        print(f"❌ Signup error: {error_msg}")
+        return False, error_msg, ""  # ✅ Return error message in 2nd position
 
 def login(email: str, password: str) -> Tuple[bool, Optional[Dict], str]:
     """Login user with email/password"""

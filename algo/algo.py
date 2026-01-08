@@ -317,41 +317,41 @@ class SeatingAlgorithm:
                     # FIND THIS AROUND LINE 243
                     elif batch_queues[b]:
                         data_item = batch_queues[b].popleft()
-                    
-                        # Robust extraction
-                        if isinstance(data_item, dict):
-                            rn = data_item.get('roll', '')
-                            st_name = data_item.get('name', '')
-                        elif isinstance(data_item, str) and data_item.startswith('{'):
-                            # Fallback in case a stringified dict somehow sneaks in
-                            try:
-                                import ast
-                                d = ast.literal_eval(data_item)
-                                rn = d.get('roll', '')
-                                st_name = d.get('name', '')
-                            except:
-                                rn = data_item
-                                st_name = ""
-                        else:
+    
+                    # ✅ ROBUST EXTRACTION - handles both dict and string
+                    if isinstance(data_item, dict):
+                        rn = data_item.get('roll', '')
+                        st_name = data_item.get('name', '')
+                    elif isinstance(data_item, str) and data_item.startswith('{'):
+                        # Fallback in case a stringified dict somehow sneaks in
+                        try:
+                            import ast
+                            d = ast.literal_eval(data_item)
+                            rn = d.get('roll', '')
+                            st_name = d.get('name', '')
+                        except:
                             rn = data_item
                             st_name = ""
+                    else:
+                        rn = data_item
+                        st_name = ""
                     
-                        paper_set = self._calculate_paper_set(row, col)
-                        block = col // self.block_width
-                    
-                        if rn:
-                            seat = Seat(
-                                row=row,
-                                col=col,
-                                batch=b,
-                                paper_set=paper_set,
-                                block=block,
-                                roll_number=str(rn),   # Clean Roll
-                                student_name=st_name, # Clean Name
-                                color=self.batch_colors.get(b, "#E5E7EB"),
-                            )
-                            self.seating_plan[row][col] = seat
-                            batch_allocated[b] += 1
+                    paper_set = self._calculate_paper_set(row, col)
+                    block = col // self.block_width
+
+                    if rn:
+                        seat = Seat(
+                            row=row,
+                            col=col,
+                            batch=b,
+                            paper_set=paper_set,
+                            block=block,
+                            roll_number=str(rn),      # ✅ Clean Roll
+                            student_name=st_name,     # ✅ Clean Name (NEW)
+                            color=self.batch_colors.get(b, "#E5E7EB"),
+                        )
+                        self.seating_plan[row][col] = seat
+                        batch_allocated[b] += 1
                     else:
                         # No more rolls available for this batch, mark as unallocated
                         seat = Seat(

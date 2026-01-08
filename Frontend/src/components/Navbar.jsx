@@ -16,8 +16,8 @@ import {
   ClipboardList,
   Plus
 } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
-import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import PillNav from './PillNav';
 
 const Navbar = () => {

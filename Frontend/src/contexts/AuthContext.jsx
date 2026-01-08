@@ -134,30 +134,53 @@ export const AuthProvider = ({ children }) => {
   };
 
   // ============================================================================
-  // Signup
-  // ============================================================================
-  const signup = async (userData) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/signup`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(userData),
-      });
+// Signup
+// ============================================================================
+const signup = async (userData) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/auth/signup`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(userData),
+    });
 
-      const data = await response.json();
+    const data = await response.json();
 
-      if (!response.ok) {
-        return { success: false, error: data.error || 'Signup failed' };
-      }
-
-      return { success: true, message: data.message };
-    } catch (error) {
-      return { success: false, error: error.message || 'Signup failed' };
+    if (!response.ok) {
+      return { 
+        success: false, 
+        error: data.error || data.message || 'Signup failed' 
+      };
     }
-  };
 
+    // ✅ NEW: Auto-login on successful signup
+    if (data.success && data.data && data.data.token) {
+      // Store token and user data
+      localStorage.setItem('token', data.data.token);
+      localStorage.setItem('user', JSON.stringify(data.data.user));
+      setUser(data.data.user);
+
+      console.log('✅ Signup successful - User auto-logged in');
+      return { 
+        success: true, 
+        message: data.message || 'Signup successful. You are now logged in!',
+        user: data.data.user 
+      };
+    }
+
+    return { 
+      success: false, 
+      error: 'Signup response incomplete' 
+    };
+  } catch (error) {
+    return { 
+      success: false, 
+      error: error.message || 'Signup failed' 
+    };
+  }
+};
   // ============================================================================
   // Logout (Clear everything)
   // ============================================================================

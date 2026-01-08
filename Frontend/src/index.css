@@ -2,6 +2,53 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Glass Morphism Cards - Universal Styling */
+.glass-card {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(192, 192, 192, 0.3);
+  box-shadow: 0 0 24px rgba(192, 192, 192, 0.22);
+}
+
+.dark .glass-card {
+  background: rgba(17, 24, 39, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(138, 138, 138, 0.3);
+  box-shadow: 0 0 24px rgba(138, 138, 138, 0.24);
+}
+
+/* Hover states */
+.glass-card:hover {
+  box-shadow: 0 0 32px rgba(192, 192, 192, 0.3);
+}
+
+.dark .glass-card:hover {
+  box-shadow: 0 0 32px rgba(138, 138, 138, 0.35);
+}
+
+/* For cards with custom border colors */
+.glass-card.border-orange-500,
+.glass-card.border-orange-400 {
+  box-shadow: 0 0 28px rgba(249, 115, 22, 0.2);
+}
+
+.dark .glass-card.border-orange-500,
+.dark .glass-card.border-orange-400 {
+  box-shadow: 0 0 28px rgba(251, 146, 60, 0.25);
+}
+
+.glass-card.border-emerald-500,
+.glass-card.border-emerald-400 {
+  box-shadow: 0 0 28px rgba(16, 185, 129, 0.2);
+}
+
+.dark .glass-card.border-emerald-500,
+.dark .glass-card.border-emerald-400 {
+  box-shadow: 0 0 28px rgba(52, 211, 153, 0.25);
+}
+
 html {
   transition: background-color 0.3s ease, color 0.3s ease;
 }

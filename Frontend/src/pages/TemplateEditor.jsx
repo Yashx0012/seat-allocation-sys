@@ -1,27 +1,25 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import SplitText from '../components/SplitText';
-
-// --- Component Imports ---
 import StyledButton from '../components/Template/StyledButton.jsx'; 
 import StyledInput from '../components/Template/StyledInput.jsx'; 
-import { useTheme } from '../context/ThemeContext';
+import { useTheme } from '../contexts/ThemeContext.jsx';
+import { useSession } from '../contexts/SessionContext.jsx';
 
 import { 
     Save, 
     RefreshCw, 
-    Settings, 
     Download, 
     CheckCircle, 
     XCircle, 
     User,
     FileText,
-    Image as ImageIcon,
+    Image,
     Building,
     Upload,
-    Eye
+    Eye,
+    AlertCircle
 } from 'lucide-react';
 
-// Initial state for the template fields
 const initialTemplateState = {
     dept_name: '',
     seating_plan_title: '',
@@ -35,6 +33,7 @@ const initialTemplateState = {
 
 function TemplateEditor({ showToast }) {
     const { theme } = useTheme();
+    const { session, loading: sessionLoading } = useSession();
 
     const [template, setTemplate] = useState(initialTemplateState);
     const [loading, setLoading] = useState(true);
@@ -51,88 +50,149 @@ function TemplateEditor({ showToast }) {
         return () => clearTimeout(timer);
     }, []);
 
-    // Backend logic
-    const loadTemplate = useCallback(async () => {
-        setError('');
-        setMessage('');
-        try {
-            setLoading(true);
-            const response = await fetch('/api/template-config');
-            const data = await response.json();
-            
-            if (data.success) {
-                setTemplate(data.template || initialTemplateState);
-                setMessage('Template loaded successfully.');
-            } else {
-                setError(data.error || 'Failed to load template configuration.');
-            }
-        } catch (err) {
-            setError('Failed to connect to server: ' + err.message);
-        } finally {
-            setLoading(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        loadTemplate();
-    }, [loadTemplate]);
-    
-    useEffect(() => {
-        return clearMessages();
-    }, [message, error, clearMessages]);
+    const getAuthHeaders = useCallback(() => {
+        const token = session?.token || localStorage.getItem('token') || sessionStorage.getItem('token');
+        return {
+            'Authorization': token ? `Bearer ${token}` : '',
+            'Content-Type': 'application/json'
+        };
+    }, [session]);
 
     const handleInputChange = (field, value) => {
         setTemplate(prev => ({ ...prev, [field]: value }));
     };
+    useEffect(() => {
+        // 1. Wait for session to finish loading
+        if (sessionLoading) return;
+
+        // 2. Check for token (Context or LocalStorage)
+        const token = session?.token || localStorage.getItem('token');
+
+        // 3. If no token, just stop loading and return (User sees Auth Required screen)
+        if (!token) {
+            setLoading(false);
+            return;
+        }
+
+        // 4. Define fetch logic INSIDE effect to prevent dependency loops
+        const fetchTemplate = async () => {
+            try {
+                // Don't set loading=true here if we want background updates, 
+                // but for initial load it's fine.
+                // setLoading(true); 
+                
+                const response = await fetch('/api/template/config', { 
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.status === 401) {
+                    setError('Session expired. Please log in again.');
+                    return;
+                }
+                
+                if (data.success) {
+                    setTemplate(data.template || initialTemplateState);
+                    // Optional: showToast('Configuration loaded', 'success');
+                } else {
+                    console.error("Template load error:", data.error);
+                    // Don't set global error here to avoid blocking UI on minor fetch errors
+                }
+            } catch (err) {
+                console.error("Connection error:", err);
+                setError('Could not load template configuration.');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchTemplate();
+
+    }, [sessionLoading, session?.token]); // ✅ Depends ONLY on primitive values (Stable)
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        const token = session?.token || localStorage.getItem('token');
+        if (!token) return setError('Please log in to save');
+
         setSaving(true);
         setError('');
         setMessage('');
 
         const formData = new FormData();
-        
         Object.keys(template).forEach(key => {
+            // Append all fields to FormData
             if (key !== 'banner_image_path' && template[key]) {
                 formData.append(key, template[key]);
             }
         });
 
+        // Append file if selected
         const fileInput = document.getElementById('bannerImage');
         if (fileInput?.files[0]) {
             formData.append('bannerImage', fileInput.files[0]);
         }
 
+        // Add template name explicitly
+        formData.append('template_name', 'default');
+
         try {
-            const response = await fetch('/api/template-config', {
+            const response = await fetch('/api/template/config', {
                 method: 'POST',
+                headers: { 
+                    'Authorization': `Bearer ${token}` 
+                    // NO Content-Type header here! Browser adds it automatically.
+                },
                 body: formData
             });
-            
             const data = await response.json();
             
-            if (data.success) {
-                setMessage(data.message || 'Template saved successfully!');
+            if (response.ok && data.success) {
+                setMessage('Template saved successfully!');
                 setTemplate(data.template); 
                 if (fileInput) fileInput.value = '';
+                if(showToast) showToast('Saved successfully!', 'success');
+                
+                // OPTIONAL: Auto-generate PDF after successful save
+                // generateTestPDF(); 
             } else {
-                setError(data.error || 'Failed to save template.');
+                setError(data.error || 'Failed to save.');
             }
         } catch (err) {
-            setError('Failed to save template: ' + err.message);
+            setError('Save failed: ' + err.message);
         } finally {
             setSaving(false);
         }
     };
 
     const generateTestPDF = async () => {
+        const token = session?.token || localStorage.getItem('token');
+        if (!token) {
+            setError('Please log in to generate PDFs');
+            return;
+        }
+
         setGenerating(true);
         setError('');
         setMessage('');
 
         try {
-            const response = await fetch('/api/test-pdf', { method: 'GET' });
+            const response = await fetch('/api/test-pdf', { 
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (response.status === 401) {
+                setError('Session expired. Please log in again.');
+                setGenerating(false);
+                return;
+            }
 
             if (response.ok) {
                 const blob = await response.blob();
@@ -146,6 +206,7 @@ function TemplateEditor({ showToast }) {
                 window.URL.revokeObjectURL(url);
                 
                 setMessage('Test PDF generated and downloaded successfully!');
+                if(showToast) showToast('Test PDF generated!', 'success');
             } else {
                 const errorData = await response.json().catch(() => ({ error: 'Unknown server error.' }));
                 setError(errorData.error || `Failed to generate test PDF (Status: ${response.status})`);
@@ -157,12 +218,37 @@ function TemplateEditor({ showToast }) {
         }
     };
 
-    if (loading) {
+    // Show loading spinner while session is being checked
+    if (sessionLoading || loading) {
         return (
             <div className="min-h-screen bg-gray-50 dark:bg-[#050505] flex items-center justify-center">
                 <div className="text-center">
                     <RefreshCw className="animate-spin mx-auto mb-4 text-orange-600" size={40} />
-                    <p className="text-gray-600 dark:text-gray-400 font-medium">Loading template configuration...</p>
+                    <p className="text-gray-600 dark:text-gray-400 font-medium">Loading configuration...</p>
+                </div>
+            </div>
+        );
+    }
+
+    // Show Auth Required ONLY if session loading is done AND no token exists
+    const token = session?.token || localStorage.getItem('token');
+    if (!token) {
+        return (
+            <div className="min-h-screen bg-gray-50 dark:bg-[#050505] flex items-center justify-center p-4">
+                <div className="glass-card p-8 border border-[#c0c0c0] dark:border-[#8a8a8a] max-w-md text-center">
+                    <div className="w-16 h-16 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center mx-auto mb-4">
+                        <AlertCircle className="text-orange-600 dark:text-orange-400" size={32} />
+                    </div>
+                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Authentication Required</h2>
+                    <p className="text-gray-600 dark:text-gray-400 mb-6">
+                        Please log in to access the template editor.
+                    </p>
+                    <button
+                        onClick={() => window.location.href = '/login'}
+                        className="px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl hover:from-orange-600 hover:to-amber-600 transition-all duration-200 font-semibold"
+                    >
+                        Go to Login
+                    </button>
                 </div>
             </div>
         );
@@ -172,8 +258,7 @@ function TemplateEditor({ showToast }) {
         <div className="min-h-screen bg-gray-50 dark:bg-[#050505] py-8 px-4 transition-colors duration-300">
             <div className="max-w-6xl mx-auto space-y-8">
                 
-                {/* Hero Section */}
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-t-0 border-r-0 border-l-0 border-[#c0c0c0] dark:border-[#8a8a8a] bg-transparent shadow-none dark:shadow-none">
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-[#c0c0c0] dark:border-[#8a8a8a]">
                     <div>
                         <div className="flex items-center gap-2 mb-2">
                             <div className="relative w-3 h-3">
@@ -182,7 +267,7 @@ function TemplateEditor({ showToast }) {
                             </div>
                             <span className="text-xs font-mono text-orange-500 tracking-wider uppercase">Template Configuration</span>
                         </div>
-                        <SplitText text={`PDF Template Editor`} className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-gray-900 via-gray-700 to-gray-500 dark:from-gray-100 dark:via-gray-300 dark:to-gray-500 bg-clip-text text-transparent" splitType="chars" delay={30} />
+                        <SplitText text="PDF Template Editor" className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-gray-900 via-gray-700 to-gray-500 dark:from-gray-100 dark:via-gray-300 dark:to-gray-500 bg-clip-text text-transparent" splitType="chars" delay={30} />
                         <p className="text-gray-600 dark:text-gray-400 mt-2">
                             Customize your PDF templates for seating plans
                         </p>
@@ -192,14 +277,15 @@ function TemplateEditor({ showToast }) {
                         <User className="text-orange-600 dark:text-orange-400" size={20} />
                         <div>
                             <p className="text-xs text-gray-600 dark:text-gray-400">Editing as</p>
-                            <p className="text-sm font-bold text-orange-600 dark:text-orange-400">test_user</p>
+                            <p className="text-sm font-bold text-orange-600 dark:text-orange-400">
+                                {session?.username || 'Admin'}
+                            </p>
                         </div>
                     </div>
                 </div>
 
-                {/* Message and Error Alerts */}
                 {message && (
-                    <div className="glass-card border border-[#c0c0c0] dark:border-[#8a8a8a] border-l-4 border-emerald-500 p-6 animate-fadeIn shadow-[0_0_24px_rgba(192,192,192,0.22)] dark:shadow-[0_0_24px_rgba(138,138,138,0.24)]">
+                    <div className="glass-card border border-[#c0c0c0] dark:border-[#8a8a8a] border-l-4 border-emerald-500 p-6">
                         <div className="flex items-center gap-4">
                             <div className="flex-shrink-0">
                                 <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
@@ -215,7 +301,7 @@ function TemplateEditor({ showToast }) {
                 )}
 
                 {error && (
-                    <div className="glass-card border border-[#c0c0c0] dark:border-[#8a8a8a] border-l-4 border-red-500 p-6 animate-fadeIn shadow-[0_0_24px_rgba(192,192,192,0.22)] dark:shadow-[0_0_24px_rgba(138,138,138,0.24)]">
+                    <div className="glass-card border border-[#c0c0c0] dark:border-[#8a8a8a] border-l-4 border-red-500 p-6">
                         <div className="flex items-center gap-4">
                             <div className="flex-shrink-0">
                                 <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
@@ -230,11 +316,9 @@ function TemplateEditor({ showToast }) {
                     </div>
                 )}
 
-                {/* Main Form */}
-                <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="space-y-6">
                     
-                    {/* Header Information */}
-                    <div className="glass-card p-8 border border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_0_26px_rgba(192,192,192,0.24)] dark:shadow-[0_0_26px_rgba(138,138,138,0.26)]">
+                    <div className="glass-card p-8 border border-[#c0c0c0] dark:border-[#8a8a8a]">
                         <div className="flex items-center gap-3 mb-6 pb-4 border-b border-[#c0c0c0] dark:border-[#8a8a8a]">
                             <div className="p-2 rounded-lg bg-orange-100 dark:bg-orange-900/30">
                                 <FileText className="text-orange-600 dark:text-orange-400" size={24} />
@@ -284,8 +368,7 @@ function TemplateEditor({ showToast }) {
                         </div>
                     </div>
 
-                    {/* Branch and Room Information */}
-                    <div className="glass-card p-8 border border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_0_26px_rgba(192,192,192,0.24)] dark:shadow-[0_0_26px_rgba(138,138,138,0.26)]">
+                    <div className="glass-card p-8 border border-[#c0c0c0] dark:border-[#8a8a8a]">
                         <div className="flex items-center gap-3 mb-6 pb-4 border-b border-[#c0c0c0] dark:border-[#8a8a8a]">
                             <div className="p-2 rounded-lg bg-orange-100 dark:bg-orange-900/30">
                                 <Building className="text-orange-600 dark:text-orange-400" size={24} />
@@ -321,8 +404,7 @@ function TemplateEditor({ showToast }) {
                         </div>
                     </div>
 
-                    {/* Coordinator Information */}
-                    <div className="glass-card p-8 border border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_0_26px_rgba(192,192,192,0.24)] dark:shadow-[0_0_26px_rgba(138,138,138,0.26)]">
+                    <div className="glass-card p-8 border border-[#c0c0c0] dark:border-[#8a8a8a]">
                         <div className="flex items-center gap-3 mb-6 pb-4 border-b border-[#c0c0c0] dark:border-[#8a8a8a]">
                             <div className="p-2 rounded-lg bg-orange-100 dark:bg-orange-900/30">
                                 <User className="text-orange-600 dark:text-orange-400" size={24} />
@@ -358,11 +440,10 @@ function TemplateEditor({ showToast }) {
                         </div>
                     </div>
 
-                    {/* Banner Image */}
-                    <div className="glass-card p-8 border border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_0_26px_rgba(192,192,192,0.24)] dark:shadow-[0_0_26px_rgba(138,138,138,0.26)]">
+                    <div className="glass-card p-8 border border-[#c0c0c0] dark:border-[#8a8a8a]">
                         <div className="flex items-center gap-3 mb-6 pb-4 border-b border-[#c0c0c0] dark:border-[#8a8a8a]">
                             <div className="p-2 rounded-lg bg-orange-100 dark:bg-orange-900/30">
-                                <ImageIcon className="text-orange-600 dark:text-orange-400" size={24} />
+                                <Image className="text-orange-600 dark:text-orange-400" size={24} />
                             </div>
                             <h3 className="text-2xl font-bold text-gray-900 dark:text-white uppercase tracking-wide">Banner / Logo Image</h3>
                         </div>
@@ -400,16 +481,15 @@ function TemplateEditor({ showToast }) {
                                         cursor-pointer"
                                 />
                                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                                    Supported formats: PNG, JPG, JPEG. The file will be sent via FormData.
+                                    Supported formats: PNG, JPG, JPEG, GIF. Max size: 5MB.
                                 </p>
                             </div>
                         </div>
                     </div>
 
-                    {/* Action Buttons */}
                     <div className="flex flex-wrap gap-4 justify-center pt-6 border-t border-[#c0c0c0] dark:border-[#8a8a8a]">
                         <button
-                            type="submit"
+                            onClick={handleSubmit}
                             disabled={saving}
                             className="inline-flex items-center gap-2 px-6 py-3.5 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl hover:from-emerald-600 hover:to-emerald-700 transition-all duration-200 font-semibold disabled:opacity-60 disabled:cursor-not-allowed shadow-lg hover:shadow-xl hover:scale-[1.02] group"
                         >
@@ -427,7 +507,6 @@ function TemplateEditor({ showToast }) {
                         </button>
 
                         <button
-                            type="button"
                             onClick={generateTestPDF}
                             disabled={generating}
                             className="inline-flex items-center gap-2 px-6 py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl hover:from-orange-600 hover:to-amber-600 transition-all duration-200 font-semibold disabled:opacity-60 disabled:cursor-not-allowed shadow-lg hover:shadow-xl hover:scale-[1.02] group"
@@ -446,18 +525,16 @@ function TemplateEditor({ showToast }) {
                         </button>
 
                         <button
-                            type="button"
-                            onClick={loadTemplate}
+                            onClick={() => window.location.reload()}
                             className="inline-flex items-center gap-2 px-6 py-3.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-300 dark:hover:bg-gray-600 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl hover:scale-[1.02] group"
                         >
                             <RefreshCw size={18} className="group-hover:rotate-180 transition-transform duration-500" />
                             Reload Template
                         </button>
                     </div>
-                </form>
+                </div>
 
-                {/* Preview Section */}
-                <div className="glass-card p-8 border border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_0_26px_rgba(192,192,192,0.24)] dark:shadow-[0_0_26px_rgba(138,138,138,0.26)]">
+                <div className="glass-card p-8 border border-[#c0c0c0] dark:border-[#8a8a8a]">
                     <div className="flex items-center gap-3 mb-6 pb-4 border-b border-[#c0c0c0] dark:border-[#8a8a8a]">
                         <div className="p-2 rounded-lg bg-orange-100 dark:bg-orange-900/30">
                             <Eye className="text-orange-600 dark:text-orange-400" size={24} />
@@ -465,7 +542,7 @@ function TemplateEditor({ showToast }) {
                         <h3 className="text-2xl font-bold text-gray-900 dark:text-white uppercase tracking-wide">Current Configuration Preview</h3>
                     </div>
                     
-                    <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-xl border-2 border-dashed border-[#c0c0c0] dark:border-[#8a8a8a] space-y-3 text-sm shadow-[0_0_20px_rgba(192,192,192,0.2)] dark:shadow-[0_0_20px_rgba(138,138,138,0.22)]">
+                    <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-xl border-2 border-dashed border-[#c0c0c0] dark:border-[#8a8a8a] space-y-3 text-sm">
                         {[
                             { label: 'Department', value: template.dept_name },
                             { label: 'Title', value: template.seating_plan_title },
@@ -483,13 +560,6 @@ function TemplateEditor({ showToast }) {
                     </div>
                 </div>
             </div>
-
-            <style jsx>{`
-                @keyframes fadeIn {
-                    from { opacity: 0; }
-                    to { opacity: 1; }
-                }
-            `}</style>
         </div>
     );
 }

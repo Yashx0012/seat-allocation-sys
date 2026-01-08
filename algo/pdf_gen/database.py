@@ -1,12 +1,13 @@
 import sqlite3
 import os
-from datetime import datetime
 
-DATABASE_PATH = "pdf_gen/pdf_templates.db"
+# Update this path to match your project structure
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATABASE_PATH = os.path.join(BASE_DIR, "data", "pdf_templates.db")
 
 def init_database():
-    """Initialize SQLite database with user templates"""
-    # Ensure the directory exists
+    """Initialize the database with required tables"""
+    # Ensure directory exists
     os.makedirs(os.path.dirname(DATABASE_PATH), exist_ok=True)
     
     conn = sqlite3.connect(DATABASE_PATH)
@@ -17,37 +18,46 @@ def init_database():
         CREATE TABLE IF NOT EXISTS user_templates (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id TEXT NOT NULL,
-            template_name TEXT DEFAULT 'default',
-            dept_name TEXT DEFAULT 'Department of Computer Science & Engineering',
-            exam_details TEXT DEFAULT 'Minor-II Examination (2025 Admitted), November 2025',
-            seating_plan_title TEXT DEFAULT 'Seating Plan',
-            branch_text TEXT DEFAULT 'Branch: B.Tech(CSE & CSD Ist year)',
-            room_number TEXT DEFAULT 'Room no. 103A',
-            coordinator_name TEXT DEFAULT 'Dr. Dheeraj K. Dixit',
-            coordinator_title TEXT DEFAULT 'Dept. Exam Coordinator',
-            banner_image_path TEXT DEFAULT 'pdf_gen/data/banner.png',
+            template_name TEXT NOT NULL DEFAULT 'default',
+            dept_name TEXT,
+            exam_details TEXT,
+            seating_plan_title TEXT,
+            branch_text TEXT,
+            room_number TEXT,
+            coordinator_name TEXT,
+            coordinator_title TEXT,
+            banner_image_path TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(user_id, template_name)
         )
     ''')
     
-    # Insert system default template
+    # Insert system default template if not exists
     cursor.execute('''
-        INSERT OR IGNORE INTO user_templates (user_id, template_name) 
-        VALUES ('system', 'default')
-    ''')
+        INSERT OR IGNORE INTO user_templates (
+            user_id, template_name, dept_name, exam_details,
+            seating_plan_title, branch_text, room_number,
+            coordinator_name, coordinator_title, banner_image_path
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (
+        'system', 'default',
+        'Department of Computer Science & Engineering',
+        'Minor-II Examination (2025 Admitted), November 2025',
+        'Seating Plan',
+        'Branch: B.Tech(CSE & CSD Ist year)',
+        'Room no. 103A',
+        'Dr. Dheeraj K. Dixit',
+        'Dept. Exam Coordinator',
+        'pdf_gen/data/banner.png'
+    ))
     
     conn.commit()
     conn.close()
-    print(f"✅ PDF Template Database initialized at: {DATABASE_PATH}")
+    print("✅ Database initialized successfully")
 
-def get_db_connection():
-    """Get database connection with Row factory"""
-    conn = sqlite3.connect(DATABASE_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
-
-# Initialize on first run
-if __name__ == "__main__":
+# Initialize on import
+try:
     init_database()
+except Exception as e:
+    print(f"⚠️ Database initialization warning: {e}")

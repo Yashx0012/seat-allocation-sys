@@ -12,7 +12,7 @@ import {
   AlertCircle,
   Database
 } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 import SplitText from '../components/SplitText';
 
 // StatCard Component with counter animation

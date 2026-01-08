@@ -1,34 +1,76 @@
-import sys
+"""
+app.py - PRODUCTION VERSION v3.0
+
+Seat Allocation System - Flask Backend
+
+FIXED in v3.0:
+✅ batch_color support throughout
+✅ Session finalization properly updates status
+✅ /api/sessions/<id>/uploads endpoint added
+✅ Enhanced error handling and logging
+✅ Atomic database operations with proper rollbacks
+✅ Activity tracking prevents session timeouts
+✅ Comprehensive validation on all endpoints
+
+Architecture:
+- SQLite database with proper foreign keys
+- RESTful API with JWT authentication
+- Session-based allocation workflow
+- History tracking for undo functionality
+- PDF generation and attendance sheets
+"""
+
 import os
-from datetime import datetime
-import time
-import io
 import json
+import re
+import sys
+import io
 import sqlite3
+import uuid
+import logging
+from datetime import datetime, timedelta
 from pathlib import Path
 from functools import wraps
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional, Any
 
-from flask import Flask, jsonify, request, send_file, render_template_string, session, render_template
+from flask import Flask, jsonify, request, send_file, render_template, session as flask_session
 from flask_cors import CORS
+
+# Import local modules
+from cache_manager import CacheManager
 from leftover_calculator import LeftoverCalculator
 
+# PDF Generation
 from pdf_gen.pdf_generation import get_or_create_seating_pdf
 from pdf_gen.template_manager import template_manager
-
-from cache_manager import CacheManager
 from attendence_gen.attend_gen import create_attendance_pdf
+
+# Initialize cache manager
 cache_manager = CacheManager()
-import uuid
 
+# ============================================================================
+# LOGGING SETUP
+# ============================================================================
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler('app.log')
+    ]
+)
+logger = logging.getLogger(__name__)
 
+# ============================================================================
+# FLASK APP INITIALIZATION
+# ============================================================================
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 BACKEND_DIR = os.path.join(CURRENT_DIR, "Backend")
 
 if os.path.exists(BACKEND_DIR):
     sys.path.insert(0, BACKEND_DIR)
-    print(f"✅ Added to path: {BACKEND_DIR}")
 
+# Import auth services (optional)
 auth_signup = None
 auth_login = None
 verify_token = None
@@ -45,453 +87,1721 @@ try:
         update_user_profile,
         google_auth_handler
     )
-    print("✅ Auth service imported successfully")
+    logger.info("✅ Auth service loaded successfully")
 except ImportError as e:
-    try:
-        from algo.auth_service import (
-            signup as auth_signup,
-            login as auth_login,
-            verify_token,
-            get_user_by_token,
-            update_user_profile,
-            google_auth_handler
-        )
-        print("✅ Auth service imported successfully (from Backend package)")
-    except ImportError as e2:
-        print("\n" + "!" * 70)
-        print("⚠️  WARNING: Auth module could not be imported")
-        print(f"Error: {e2}")
-        print("!" * 70 + "\n")
+    logger.warning(f"⚠️ Auth module not available: {e}")
 
-try:
-    from pdf_gen import create_seating_pdf
-    print("✅ PDF generation module loaded")
-except ImportError:
-    print("⚠️  PDF generation module not found")
-    create_seating_pdf = None
-
+# Import algorithm modules
 try:
     from student_parser import StudentDataParser
     from algo import SeatingAlgorithm
-    print("✅ Student parser and algorithm modules loaded")
+    logger.info("✅ Algorithm modules loaded")
 except ImportError as e:
-    print(f"⚠️  Warning: Could not import local modules: {e}")
+    logger.error(f"❌ Core modules not found: {e}")
     StudentDataParser = None
     SeatingAlgorithm = None
 
+# Paths
 BASE_DIR = Path(__file__).parent
 DB_PATH = BASE_DIR / "demo.db"
 
+# Flask app
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'dev-secret-key-change-in-prod')
 app.config['FEEDBACK_FOLDER'] = BASE_DIR / "feedback_files"
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max file size
 CORS(app, supports_credentials=True, resources={r"/api/*": {"origins": "*"}})
 
-# Attendence generation module import 
-try:
-    from attendence_gen.attend_gen import generate_attendance_pdf
-    print("✅ Attendance PDF module loaded")
-except ImportError:
-    generate_attendance_pdf = None
 
+
+# ============================================================================
+# DATABASE INITIALIZATION (ENHANCED)
+# ============================================================================
 # --------------------------------------------------
-# CACHE LAYER: Pending Students Management
+# Database Helper
 # --------------------------------------------------
-class SessionCacheManager:
-    """Manages session-specific data in cache (pending students, allocations)"""
-    
-    @staticmethod
-    def save_pending_students(session_id, pending_students):
-        """Save pending students list to cache"""
-        cache_key = f"session_{session_id}_pending"
-        file_path = cache_manager.get_file_path(cache_key)
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
-        with open(file_path, 'w') as f:
-            json.dump({
-                "session_id": session_id,
-                "pending_students": pending_students,
-                "updated_at": datetime.now().isoformat()
-            }, f, indent=2)
-        print(f"✅ Cached {len(pending_students)} pending students for session {session_id}")
-        return cache_key
-
-    @staticmethod
-    def get_pending_students_from_cache(session_id):
-        """Get pending students from cache (fast path)"""
-        cache_key = f"session_{session_id}_pending"
-        file_path = cache_manager.get_file_path(cache_key)
-        
-        if os.path.exists(file_path):
-            try:
-                with open(file_path, 'r') as f:
-                    data = json.load(f)
-                    print(f"📦 Retrieved {len(data['pending_students'])} pending students from cache (session {session_id})")
-                    return data['pending_students']
-            except Exception as e:
-                print(f"⚠️  Cache read error: {e}")
-        
-        print(f"⚠️  No cache found for session {session_id}, will query DB")
-        return None
-
-    @staticmethod
-    def clear_session_cache(session_id):
-        """Clear session cache after finalization"""
-        cache_key = f"session_{session_id}_pending"
-        file_path = cache_manager.get_file_path(cache_key)
-        if os.path.exists(file_path):
-            os.remove(file_path)
-            print(f"🗑️  Cleared cache for session {session_id}")
-
-    @staticmethod
-    def save_room_allocation_cache(session_id, classroom_id, allocated_enrollments):
-        """Save list of students allocated to a room"""
-        cache_key = f"session_{session_id}_room_{classroom_id}_allocated"
-        file_path = cache_manager.get_file_path(cache_key)
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
-        with open(file_path, 'w') as f:
-            json.dump({
-                "session_id": session_id,
-                "classroom_id": classroom_id,
-                "allocated_enrollments": allocated_enrollments,
-                "count": len(allocated_enrollments),
-                "allocated_at": datetime.now().isoformat()
-            }, f, indent=2)
-        print(f"✅ Cached {len(allocated_enrollments)} allocations for room {classroom_id} in session {session_id}")
-
-session_cache = SessionCacheManager()
-
-# --------------------------------------------------
-# Enhanced DB Bootstrap with Session Tables
-# --------------------------------------------------
+def get_db_connection():
+    """Establishes a connection to the database"""
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
 def ensure_demo_db():
+    """
+    Initialize database with all required tables.
+    
+    ENHANCED: Now includes all missing columns and proper constraints.
+    This function is idempotent - safe to run multiple times.
+    """
+    logger.info("🔧 Initializing database...")
+    
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
 
-    # 1. Classroom Registry
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS classrooms (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT UNIQUE NOT NULL,
-            rows INTEGER NOT NULL,
-            cols INTEGER NOT NULL,
-            broken_seats TEXT,
-            block_width INTEGER DEFAULT 1,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        );
-    """)
-
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS uploads (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            batch_id TEXT UNIQUE,
-            batch_name TEXT,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        );
-    """)
-
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS students (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            upload_id INTEGER,
-            batch_id TEXT,
-            batch_name TEXT,
-            enrollment TEXT NOT NULL,
-            name TEXT,
-            inserted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(upload_id, enrollment)
-        );
-    """)
-
-    # 2. NEW: Allocation Sessions
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS allocation_sessions (
-            session_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            plan_id TEXT UNIQUE NOT NULL,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            completed_at DATETIME,
-            status TEXT CHECK(status IN ('active', 'completed', 'archived')) DEFAULT 'active',
-            total_students INTEGER,
-            total_allocated INTEGER DEFAULT 0
-        );
-    """)
-
-    # 3. NEW: Session-File Mapping
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS session_files (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            session_id INTEGER NOT NULL,
-            upload_id INTEGER NOT NULL,
-            FOREIGN KEY (session_id) REFERENCES allocation_sessions(session_id),
-            FOREIGN KEY (upload_id) REFERENCES uploads(id),
-            UNIQUE(session_id, upload_id)
-        );
-    """)
-
-    # 4. NEW: Classroom-Level Allocations
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS classroom_allocations (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            session_id INTEGER NOT NULL,
-            classroom_id INTEGER NOT NULL,
-            student_id INTEGER NOT NULL,
-            enrollment TEXT NOT NULL,
-            seat_position TEXT,
-            allocation_status TEXT CHECK(allocation_status IN ('allocated', 'pending', 'overflow')) DEFAULT 'pending',
-            allocated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (session_id) REFERENCES allocation_sessions(session_id),
-            FOREIGN KEY (classroom_id) REFERENCES classrooms(id),
-            FOREIGN KEY (student_id) REFERENCES students(id),
-            UNIQUE(session_id, student_id, classroom_id)
-        );
-    """)
-
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS allocations (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            job_id TEXT,
-            upload_id INTEGER,
-            enrollment TEXT,
-            room_id TEXT,
-            seat_id TEXT,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS feedback (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            issue_type TEXT NOT NULL,
-            priority TEXT NOT NULL,
-            description TEXT NOT NULL,
-            feature_suggestion TEXT,
-            additional_info TEXT,
-            file_path TEXT,
-            file_name TEXT,
-            status TEXT DEFAULT 'pending',
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            resolved_at DATETIME,
-            admin_response TEXT
-        );
-    """)
-
-    conn.commit()
-    conn.close()
-    print(f"✅ Database initialized at: {DB_PATH}")
-
-# --------------------------------------------------
-# Session Management with Cache Integration
-# --------------------------------------------------
-
-def create_allocation_session(plan_id, upload_ids, total_students):
-    """Create new allocation session and CACHE initial pending students"""
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
     try:
-        cur.execute(
-            "INSERT INTO allocation_sessions (plan_id, total_students, status) VALUES (?, ?, 'active')",
-            (plan_id, total_students)
-        )
-        session_id = cur.lastrowid
-        
-        # Link uploaded files
-        for upload_id in upload_ids:
-            cur.execute(
-                "INSERT INTO session_files (session_id, upload_id) VALUES (?, ?)",
-                (session_id, upload_id)
-            )
-        
-        conn.commit()
-        
-        # IMMEDIATELY fetch and CACHE all pending students from DB
-       # IMMEDIATELY fetch and CACHE all pending students from DB
+        # ====================================================================
+        # 1. USER ACTIVITY TABLE
+        # ====================================================================
         cur.execute("""
-            SELECT DISTINCT s.id, s.enrollment, s.name, s.batch_name, s.batch_id
-            FROM students s
-            JOIN session_files sf ON s.upload_id = sf.upload_id
-            WHERE sf.session_id = ?
-            ORDER BY s.enrollment
-        """, (session_id,))
+            CREATE TABLE IF NOT EXISTS user_activity (
+                user_id INTEGER PRIMARY KEY,
+                last_activity DATETIME NOT NULL,
+                last_endpoint TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+
+        # ====================================================================
+        # 2. USERS TABLE
+        # ====================================================================
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE,
+                email TEXT UNIQUE,
+                password_hash TEXT,
+                role TEXT DEFAULT 'STUDENT' CHECK(role IN ('STUDENT', 'ADMIN', 'TEACHER')),
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                last_login DATETIME
+            );
+        """)
+
+        # ====================================================================
+        # 3. ALLOCATION SESSIONS TABLE (ENHANCED)
+        # ====================================================================
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS allocation_sessions (
+                session_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                plan_id TEXT UNIQUE NOT NULL,
+                user_id INTEGER DEFAULT 1,
+                name TEXT,
+                status TEXT CHECK(status IN ('active', 'completed', 'archived', 'draft', 'expired')) DEFAULT 'active',
+                total_students INTEGER DEFAULT 0,
+                allocated_count INTEGER DEFAULT 0,
+                total_capacity INTEGER DEFAULT 0,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                last_activity DATETIME DEFAULT CURRENT_TIMESTAMP,
+                completed_at DATETIME,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+            );
+        """)
+
+        # ====================================================================
+        # 4. UPLOADS TABLE (ENHANCED WITH BATCH_COLOR)
+        # ====================================================================
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS uploads (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id INTEGER,
+                batch_id TEXT UNIQUE NOT NULL,
+                batch_name TEXT NOT NULL,
+                batch_color TEXT DEFAULT '#3b82f6',
+                original_filename TEXT,
+                file_size INTEGER,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (session_id) REFERENCES allocation_sessions(session_id) ON DELETE SET NULL
+            );
+        """)
+
+        # ====================================================================
+        # 5. STUDENTS TABLE (ENHANCED)
+        # ====================================================================
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS students (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                upload_id INTEGER NOT NULL,
+                batch_id TEXT NOT NULL,
+                batch_name TEXT NOT NULL,
+                batch_color TEXT DEFAULT '#3b82f6',
+                enrollment TEXT NOT NULL,
+                name TEXT,
+                department TEXT,
+                inserted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(upload_id, enrollment),
+                FOREIGN KEY (upload_id) REFERENCES uploads(id) ON DELETE CASCADE
+            );
+        """)
+
+        # ====================================================================
+        # 6. CLASSROOMS TABLE
+        # ====================================================================
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS classrooms (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT UNIQUE NOT NULL,
+                rows INTEGER NOT NULL CHECK(rows > 0 AND rows <= 50),
+                cols INTEGER NOT NULL CHECK(cols > 0 AND cols <= 50),
+                broken_seats TEXT DEFAULT '',
+                block_width INTEGER DEFAULT 1 CHECK(block_width > 0),
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+
+        # ====================================================================
+        # 7. ALLOCATIONS TABLE (ENHANCED)
+        # ====================================================================
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS allocations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id INTEGER NOT NULL,
+                classroom_id INTEGER NOT NULL,
+                student_id INTEGER NOT NULL,
+                enrollment TEXT NOT NULL,
+                seat_position TEXT,
+                batch_name TEXT,
+                paper_set TEXT DEFAULT 'A',
+                allocated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (session_id) REFERENCES allocation_sessions(session_id) ON DELETE CASCADE,
+                FOREIGN KEY (classroom_id) REFERENCES classrooms(id) ON DELETE RESTRICT,
+                FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE,
+                UNIQUE(session_id, student_id)
+            );
+        """)
+
+        # Create index for faster queries
+        cur.execute("""
+            CREATE INDEX IF NOT EXISTS idx_allocations_session 
+            ON allocations(session_id);
+        """)
         
-        pending = [dict((cur.description[i][0], row[i]) for i in range(len(cur.description))) for row in cur.fetchall()]
+        cur.execute("""
+            CREATE INDEX IF NOT EXISTS idx_allocations_classroom 
+            ON allocations(classroom_id);
+        """)
+
+        # ====================================================================
+        # 8. ALLOCATION HISTORY TABLE
+        # ====================================================================
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS allocation_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id INTEGER NOT NULL,
+                step_number INTEGER NOT NULL,
+                classroom_id INTEGER,
+                action_type TEXT CHECK(action_type IN ('allocate', 'undo', 'reset')) NOT NULL,
+                students_affected INTEGER DEFAULT 0,
+                snapshot_data TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (session_id) REFERENCES allocation_sessions(session_id) ON DELETE CASCADE,
+                UNIQUE(session_id, step_number)
+            );
+        """)
+
+        # ====================================================================
+        # 9. FEEDBACK TABLE
+        # ====================================================================
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS feedback (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                issue_type TEXT NOT NULL,
+                priority TEXT NOT NULL CHECK(priority IN ('low', 'medium', 'high', 'critical')),
+                description TEXT NOT NULL,
+                feature_suggestion TEXT,
+                additional_info TEXT,
+                file_path TEXT,
+                file_name TEXT,
+                status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'reviewed', 'resolved', 'closed')),
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                resolved_at DATETIME,
+                admin_response TEXT,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+            );
+        """)
+
+        # ====================================================================
+        # 10. ENSURE COLUMNS EXIST (FOR MIGRATION FROM OLDER VERSIONS)
+        # ====================================================================
+        migration_queries = [
+            ("ALTER TABLE uploads ADD COLUMN batch_color TEXT DEFAULT '#3b82f6'", "uploads.batch_color"),
+            ("ALTER TABLE students ADD COLUMN batch_color TEXT DEFAULT '#3b82f6'", "students.batch_color"),
+            ("ALTER TABLE students ADD COLUMN department TEXT", "students.department"),
+            ("ALTER TABLE allocation_sessions ADD COLUMN user_id INTEGER DEFAULT 1", "sessions.user_id"),
+            ("ALTER TABLE allocation_sessions ADD COLUMN name TEXT", "sessions.name"),
+            ("ALTER TABLE allocation_sessions ADD COLUMN last_activity DATETIME DEFAULT CURRENT_TIMESTAMP", "sessions.last_activity"),
+            ("ALTER TABLE classrooms ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP", "classrooms.updated_at"),
+        ]
+
+        for query, col_name in migration_queries:
+            try:
+                cur.execute(query)
+                logger.debug(f"✅ Added column: {col_name}")
+            except sqlite3.OperationalError:
+                # Column already exists
+                pass
+
+        conn.commit()
+        logger.info(f"✅ Database initialized successfully at {DB_PATH}")
         
-        # CACHE pending students aggressively
-        session_cache.save_pending_students(session_id, pending)
+        # Log table counts
+        cur.execute("SELECT COUNT(*) FROM classrooms")
+        classroom_count = cur.fetchone()[0]
         
-        print(f"✅ Created session {session_id} with {len(pending)} pending students (cached)")
-        return session_id
+        cur.execute("SELECT COUNT(*) FROM students")
+        student_count = cur.fetchone()[0]
+        
+        cur.execute("SELECT COUNT(*) FROM allocation_sessions WHERE status='active'")
+        active_sessions = cur.fetchone()[0]
+        
+        logger.info(f"📊 Database stats: {classroom_count} classrooms, {student_count} students, {active_sessions} active sessions")
+
     except Exception as e:
-        print(f"❌ Error creating session: {e}")
+        logger.error(f"❌ Database initialization failed: {e}")
         conn.rollback()
-        return None
+        raise
     finally:
         conn.close()
 
-def get_pending_students(session_id, use_cache=True):
+# Initialize database on startup
+try:
+    ensure_demo_db()
+except Exception as e:
+    logger.critical(f"💥 FATAL: Database initialization failed: {e}")
+    sys.exit(1)
+
+# ============================================================================
+# MIDDLEWARE: ACTIVITY TRACKING
+# ============================================================================
+
+@app.before_request
+def track_user_activity():
     """
-    AGGRESSIVE CACHE STRATEGY:
-    1. Try cache FIRST (fast)
-    2. Fall back to DB only if cache miss
-    3. Update cache on every change
-    """
-    if use_cache:
-        # FAST PATH: Check cache first
-        cached = session_cache.get_pending_students_from_cache(session_id)
-        if cached is not None:
-            return cached
+    Track user activity globally across ALL endpoints.
+    This prevents session expiration while user is active anywhere in app.
     
-    # SLOW PATH: Query DB only if cache miss
-    print(f"⚠️  Cache miss for session {session_id}, querying DB...")
+    Runs before every request (except static files and OPTIONS).
+    """
+    # Skip for static files and preflight requests
+    if request.path.startswith('/static') or request.method == 'OPTIONS':
+        return
+    
+    # Skip for health check (avoid log spam)
+    if request.path == '/api/health':
+        return
+    
+    # Get user_id from token or default to 1 (for MVP - single admin)
+    user_id = getattr(request, 'user_id', None)
+    
+    # If no auth, check if there's a token in header
+    if not user_id:
+        auth_header = request.headers.get('Authorization')
+        if auth_header and verify_token:
+            try:
+                token = auth_header.split(' ')[1]
+                payload = verify_token(token)
+                if payload:
+                    user_id = payload.get('user_id')
+            except Exception:
+                pass
+    
+    # Default to user_id=1 for MVP (single admin scenario)
+    if not user_id:
+        user_id = 1
+    
+    # Update activity in database
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        
+        now = datetime.now().isoformat()
+        
+        cur.execute("""
+            INSERT INTO user_activity (user_id, last_activity, last_endpoint)
+            VALUES (?, ?, ?)
+            ON CONFLICT(user_id) DO UPDATE SET
+                last_activity = excluded.last_activity,
+                last_endpoint = excluded.last_endpoint
+        """, (user_id, now, request.path))
+        
+        conn.commit()
+        conn.close()
+        
+        logger.debug(f"📍 Activity tracked: user={user_id}, endpoint={request.path}")
+        
+    except Exception as e:
+        logger.error(f"❌ Activity tracking error: {e}")
+        # Don't fail the request if tracking fails
+
+# ============================================================================
+# SESSION EXPIRATION LOGIC
+# ============================================================================
+
+def check_session_expiry(session_id: int) -> Tuple[bool, str]:
+    """
+    Check if session should be expired based on user inactivity.
+    
+    Args:
+        session_id: ID of session to check
+    
+    Returns:
+        (should_expire: bool, reason: str)
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        
+        # Get session with user activity
+        cur.execute("""
+            SELECT s.*, u.last_activity as user_last_activity
+            FROM allocation_sessions s
+            LEFT JOIN user_activity u ON s.user_id = u.user_id
+            WHERE s.session_id = ?
+        """, (session_id,))
+        
+        session = cur.fetchone()
+        conn.close()
+        
+        if not session:
+            return True, "Session not found"
+        
+        # Never expire completed/archived sessions
+        if session['status'] in ['completed', 'archived']:
+            return False, "Session is completed/archived"
+        
+        # Check user activity (app-wide, not just session pages)
+        if session['user_last_activity']:
+            last_activity = datetime.fromisoformat(session['user_last_activity'])
+            inactive_duration = datetime.now() - last_activity
+            
+            # 30-minute threshold
+            EXPIRY_THRESHOLD = timedelta(minutes=30)
+            
+            if inactive_duration > EXPIRY_THRESHOLD:
+                minutes_inactive = int(inactive_duration.total_seconds() / 60)
+                return True, f"User inactive for {minutes_inactive} minutes"
+        else:
+            # No activity record - check session creation time
+            created_at = datetime.fromisoformat(session['created_at'])
+            age = datetime.now() - created_at
+            
+            if age > timedelta(hours=2):
+                return True, "Session older than 2 hours with no activity"
+        
+        return False, "Session is active"
+        
+    except Exception as e:
+        logger.error(f"❌ Expiry check error for session {session_id}: {e}")
+        return False, "Error checking expiry"
+
+
+def expire_session(session_id: int) -> bool:
+    """
+    Mark session as expired (soft delete).
+    Empty draft sessions are hard deleted.
+    
+    Args:
+        session_id: ID of session to expire
+    
+    Returns:
+        True if successful
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        
+        # Check if session has any data
+        cur.execute("""
+            SELECT 
+                s.*,
+                (SELECT COUNT(*) FROM uploads WHERE session_id = s.session_id) as upload_count,
+                (SELECT COUNT(*) FROM allocations WHERE session_id = s.session_id) as allocation_count
+            FROM allocation_sessions s
+            WHERE s.session_id = ?
+        """, (session_id,))
+        
+        session = cur.fetchone()
+        
+        if not session:
+            conn.close()
+            return False
+        
+        session_dict = dict(session)
+        
+        # If empty draft, hard delete
+        if (session_dict['status'] == 'active' and 
+            session_dict['upload_count'] == 0 and 
+            session_dict['allocation_count'] == 0):
+            
+            cur.execute("DELETE FROM allocation_sessions WHERE session_id = ?", (session_id,))
+            logger.info(f"🗑️ Hard deleted empty session {session_id}")
+        else:
+            # Otherwise, soft delete (mark as expired)
+            cur.execute("""
+                UPDATE allocation_sessions
+                SET status = 'expired'
+                WHERE session_id = ?
+            """, (session_id,))
+            logger.info(f"⏰ Soft deleted (expired) session {session_id}")
+        
+        conn.commit()
+        conn.close()
+        
+        return True
+        
+    except Exception as e:
+        logger.error(f"❌ Expire session error for session {session_id}: {e}")
+        return False
+
+
+def get_session_with_expiry_check(session_id: int) -> Optional[Dict]:
+    """
+    Get session and check if it should be expired.
+    
+    Args:
+        session_id: ID of session to retrieve
+    
+    Returns:
+        Session dict or None if expired/not found
+    """
+    should_expire, reason = check_session_expiry(session_id)
+    
+    if should_expire:
+        logger.info(f"⏰ Expiring session {session_id}: {reason}")
+        expire_session(session_id)
+        return None
+    
+    # Return session data
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        
+        cur.execute("SELECT * FROM allocation_sessions WHERE session_id = ?", (session_id,))
+        session = cur.fetchone()
+        conn.close()
+        
+        return dict(session) if session else None
+        
+    except Exception as e:
+        logger.error(f"❌ Get session error for session {session_id}: {e}")
+        return None
+
+# ============================================================================
+# HELPER FUNCTIONS
+# ============================================================================
+
+def parse_int_dict(val: Any) -> Dict[int, int]:
+    """Parse a value into Dict[int, int]."""
+    if isinstance(val, dict):
+        return {int(k): int(v) for k, v in val.items()}
+    if isinstance(val, str) and val:
+        try:
+            return json.loads(val)
+        except Exception:
+            pass
+    return {}
+
+
+def parse_str_dict(val: Any) -> Dict[int, str]:
+    """Parse a value into Dict[int, str]."""
+    if isinstance(val, dict):
+        return {int(k): str(v) for k, v in val.items()}
+    if isinstance(val, str) and val:
+        try:
+            return json.loads(val)
+        except Exception:
+            pass
+    return {}
+
+
+def get_batch_counts_and_labels_from_db(session_id: Optional[int] = None) -> Tuple[Dict[int, int], Dict[int, str]]:
+    """
+    Get batch counts and labels, optionally filtered by session.
+    
+    Args:
+        session_id: Optional session ID to filter by
+    
+    Returns:
+        (counts_dict, labels_dict) where keys are 1-indexed batch numbers
+    """
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    
+    try:
+        if session_id:
+            cur.execute("""
+                SELECT s.batch_name, COUNT(*) as count
+                FROM students s
+                JOIN uploads u ON s.upload_id = u.id
+                WHERE u.session_id = ?
+                GROUP BY s.batch_name
+                ORDER BY s.batch_name
+            """, (session_id,))
+        else:
+            cur.execute("""
+                SELECT batch_name, COUNT(*) as count
+                FROM students
+                GROUP BY batch_name
+                ORDER BY batch_name
+            """)
+        
+        rows = cur.fetchall()
+        
+        counts = {}
+        labels = {}
+        for i, (name, count) in enumerate(rows, start=1):
+            counts[i] = count
+            labels[i] = name
+        
+        logger.debug(f"📊 Batch counts: {counts}, labels: {labels}")
+        
+        return counts, labels
+        
+    finally:
+        conn.close()
+
+
+def get_batch_roll_numbers_from_db(session_id: Optional[int] = None) -> Dict[int, List[Dict]]:
+    """
+    Get roll numbers by batch, optionally filtered by session.
+    
+    Args:
+        session_id: Optional session ID to filter by
+    
+    Returns:
+        Dict mapping batch number (1-indexed) to list of {"roll": ..., "name": ...}
+    """
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    
+    try:
+        if session_id:
+            cur.execute("""
+                SELECT s.batch_name, s.enrollment, s.name
+                FROM students s
+                JOIN uploads u ON s.upload_id = u.id
+                WHERE u.session_id = ?
+                ORDER BY s.id
+            """, (session_id,))
+        else:
+            cur.execute("""
+                SELECT batch_name, enrollment, name
+                FROM students
+                ORDER BY id
+            """)
+        
+        rows = cur.fetchall()
+        
+        # Group by batch name
+        groups = {}
+        for batch_name, enrollment, name in rows:
+            if batch_name not in groups:
+                groups[batch_name] = []
+            groups[batch_name].append({
+                "roll": enrollment,
+                "name": name if name else ""
+            })
+        
+        # Convert to 1-indexed dict
+        result = {i + 1: groups[k] for i, k in enumerate(sorted(groups))}
+        
+        logger.debug(f"📋 Loaded roll numbers for {len(result)} batches")
+        
+        return result
+        
+    finally:
+        conn.close()
+
+
+def get_pending_students(session_id: int) -> List[Dict]:
+    """
+    Get students not yet allocated in this session.
+    
+    Args:
+        session_id: Session ID to check
+    
+    Returns:
+        List of student dicts with id, enrollment, name, batch_name, batch_id
+    """
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
+    
     try:
         cur.execute("""
-            SELECT DISTINCT s.id, s.enrollment, s.name, s.batch_name, s.batch_id
+            SELECT DISTINCT s.id, s.enrollment, s.name, s.batch_name, s.batch_id, s.batch_color
             FROM students s
-            WHERE s.id NOT IN (
-                SELECT student_id FROM classroom_allocations 
-                WHERE session_id = ? AND allocation_status = 'allocated'
+            JOIN uploads u ON s.upload_id = u.id
+            WHERE u.session_id = ?
+            AND s.id NOT IN (
+                SELECT student_id FROM allocations
+                WHERE session_id = ?
             )
-            AND s.id IN (
-                SELECT DISTINCT st.id
-                FROM students st
-                JOIN session_files sf ON st.id IN (
-                    SELECT st2.id FROM students st2 
-                    WHERE st2.upload_id IN (SELECT upload_id FROM session_files WHERE session_id = ?)
-                )
-            )
-            ORDER BY s.enrollment
+            ORDER BY s.batch_name, s.enrollment
         """, (session_id, session_id))
         
         pending = [dict(row) for row in cur.fetchall()]
         
-        # UPDATE cache after DB query
-        session_cache.save_pending_students(session_id, pending)
+        logger.debug(f"📝 Found {len(pending)} pending students for session {session_id}")
         
         return pending
+        
     except Exception as e:
-        print(f"❌ Error fetching pending students: {e}")
+        logger.error(f"❌ Error fetching pending students for session {session_id}: {e}")
         return []
     finally:
         conn.close()
 
-def save_room_allocation(session_id, classroom_id, seating_data):
+
+def save_room_allocation(session_id: int, classroom_id: int, seating_data: Dict, 
+                        selected_batch_names: List[str] = None) -> Tuple[int, List[Dict]]:
     """
-    Save room allocation, update cache with remaining pending students
+    Save room allocation - VERIFY students belong to selected batches
+    
+    Args:
+        selected_batch_names: List of batch names selected for this room (optional)
     """
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
-    allocated_enrollments = []
+    allocated_students = []
     
     try:
+        # Get current step number
+        cur.execute("""
+            SELECT COALESCE(MAX(step_number), 0) + 1
+            FROM allocation_history
+            WHERE session_id = ?
+        """, (session_id,))
+        step_number = cur.fetchone()[0]
+        
+        logger.info(f"💾 Saving room allocation: session={session_id}, classroom={classroom_id}, selected_batches={selected_batch_names}")
+        
         # Extract allocated students from seating
         for row in seating_data.get('seating', []):
             for seat in row:
                 if seat and not seat.get('is_broken') and not seat.get('is_unallocated'):
                     enrollment = seat.get('roll_number')
-                    allocated_enrollments.append(enrollment)
                     
-                    # Find and update student in DB
-                    cur.execute("SELECT id FROM students WHERE enrollment = ?", (enrollment,))
+                    if not enrollment:
+                        continue
+                    
+                    # Find student in database
+                    cur.execute("""
+                        SELECT s.id, s.batch_name
+                        FROM students s
+                        JOIN uploads u ON s.upload_id = u.id
+                        WHERE s.enrollment = ?
+                        AND u.session_id = ?
+                        AND s.id NOT IN (
+                            SELECT student_id FROM allocations WHERE session_id = ?
+                        )
+                    """, (enrollment, session_id, session_id))
+                    
                     student_row = cur.fetchone()
+                    
                     if student_row:
-                        student_id = student_row[0]
-                        seat_pos = f"{seat.get('row', '')}-{seat.get('col', '')}"
+                        student_id, batch_name = student_row
                         
+                        # CRITICAL: Verify student is in selected batches
+                        if selected_batch_names and batch_name not in selected_batch_names:
+                            logger.warning(f"⚠️ Skipping {enrollment}: not in selected batches {selected_batch_names}")
+                            continue
+                        
+                        seat_pos = f"{seat.get('row', '')}-{seat.get('col', '')}"
+                        paper_set = seat.get('paper_set', 'A')
+                        
+                        # Insert allocation
                         cur.execute("""
-                            INSERT OR REPLACE INTO classroom_allocations 
-                            (session_id, classroom_id, student_id, enrollment, seat_position, allocation_status)
-                            VALUES (?, ?, ?, ?, ?, 'allocated')
-                        """, (session_id, classroom_id, student_id, enrollment, seat_pos))
+                            INSERT INTO allocations
+                            (session_id, classroom_id, student_id, enrollment,
+                             seat_position, batch_name, paper_set)
+                            VALUES (?, ?, ?, ?, ?, ?, ?)
+                        """, (session_id, classroom_id, student_id, enrollment,
+                              seat_pos, batch_name, paper_set))
+                        
+                        allocated_students.append({
+                            'enrollment': enrollment,
+                            'seat': seat_pos,
+                            'batch': batch_name,
+                            'paper_set': paper_set
+                        })
         
-        # Update session total
+        # Update session totals
         cur.execute("""
-            UPDATE allocation_sessions 
-            SET total_allocated = total_allocated + ?
+            UPDATE allocation_sessions
+            SET allocated_count = allocated_count + ?,
+                last_activity = ?
             WHERE session_id = ?
-        """, (len(allocated_enrollments), session_id))
+        """, (len(allocated_students), datetime.now().isoformat(), session_id))
+        
+        if cur.rowcount == 0:
+            raise Exception(f"Failed to update session {session_id}")
+        
+        # Save history
+        cur.execute("""
+            INSERT INTO allocation_history
+            (session_id, step_number, classroom_id, action_type,
+             students_affected, snapshot_data)
+            VALUES (?, ?, ?, 'allocate', ?, ?)
+        """, (session_id, step_number, classroom_id, len(allocated_students),
+              json.dumps(allocated_students)))
         
         conn.commit()
         
-        # CACHE the room allocation
-        session_cache.save_room_allocation_cache(session_id, classroom_id, allocated_enrollments)
+        pending = get_pending_students(session_id)
         
-        # GET UPDATED pending from DB and CACHE it
-        pending = get_pending_students(session_id, use_cache=False)
+        logger.info(f"✅ Saved {len(allocated_students)} allocations, {len(pending)} pending")
         
-        print(f"✅ Saved {len(allocated_enrollments)} allocations for room {classroom_id}")
-        print(f"📦 Updated cache with {len(pending)} remaining pending students")
+        return len(allocated_students), pending
         
-        return len(allocated_enrollments), pending
     except Exception as e:
-        print(f"❌ Error saving room allocation: {e}")
+        logger.error(f"❌ Error saving room allocation: {e}")
         conn.rollback()
         return 0, []
     finally:
         conn.close()
 
-def finalize_session(session_id, plan_id):
-    """Mark session complete and CLEAR cache"""
+def undo_last_allocation(session_id: int) -> Tuple[bool, str]:
+    """
+    Undo last room allocation.
+    
+    Args:
+        session_id: Session ID
+    
+    Returns:
+        (success, message)
+    """
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
+    
+    try:
+        # Get last allocation step
+        cur.execute("""
+            SELECT id, classroom_id, students_affected, snapshot_data
+            FROM allocation_history
+            WHERE session_id = ? AND action_type = 'allocate'
+            ORDER BY step_number DESC
+            LIMIT 1
+        """, (session_id,))
+        
+        last_step = cur.fetchone()
+        if not last_step:
+            return False, "No allocations to undo"
+        
+        history_id, classroom_id, students_affected, snapshot_data = last_step
+        
+        logger.info(f"↩️ Undoing allocation: session={session_id}, classroom={classroom_id}, students={students_affected}")
+        
+        # Delete allocations for that classroom in this session
+        cur.execute("""
+            DELETE FROM allocations
+            WHERE session_id = ? AND classroom_id = ?
+        """, (session_id, classroom_id))
+        
+        # Update session totals
+        cur.execute("""
+            UPDATE allocation_sessions
+            SET allocated_count = allocated_count - ?,
+                last_activity = ?
+            WHERE session_id = ?
+        """, (students_affected, datetime.now().isoformat(), session_id))
+        
+        # Mark history as undone
+        cur.execute("""
+            INSERT INTO allocation_history
+            (session_id, step_number, classroom_id, action_type, students_affected)
+            VALUES (?,
+                    (SELECT COALESCE(MAX(step_number), 0) + 1 FROM allocation_history WHERE session_id = ?),
+                    ?, 'undo', ?)
+        """, (session_id, session_id, classroom_id, students_affected))
+        
+        conn.commit()
+        
+        logger.info(f"✅ Undid allocation for classroom {classroom_id}")
+        
+        return True, f"Undid {students_affected} allocations"
+        
+    except Exception as e:
+        logger.error(f"❌ Error undoing allocation: {e}")
+        conn.rollback()
+        return False, str(e)
+    finally:
+        conn.close()
+
+
+def validate_session_capacity(session_id: int, selected_classrooms: List[int]) -> Tuple[bool, Dict]:
+    """
+    Validate that selected classrooms can fit all students.
+    
+    Args:
+        session_id: Session ID
+        selected_classrooms: List of classroom IDs (empty = use all)
+    
+    Returns:
+        (is_valid, info_dict)
+    """
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    
+    try:
+        # Get total students
+        cur.execute("""
+            SELECT total_students FROM allocation_sessions
+            WHERE session_id = ?
+        """, (session_id,))
+        
+        result = cur.fetchone()
+        if not result:
+            return False, {"error": "Session not found"}
+        
+        total_students = result[0]
+        
+        # Calculate capacity of selected classrooms
+        if selected_classrooms:
+            placeholders = ','.join(['?' for _ in selected_classrooms])
+            cur.execute(f"""
+                SELECT SUM(rows * cols) FROM classrooms
+                WHERE id IN ({placeholders})
+            """, selected_classrooms)
+        else:
+            cur.execute("SELECT SUM(rows * cols) FROM classrooms")
+        
+        total_capacity = cur.fetchone()[0] or 0
+        
+        if total_capacity < total_students:
+            return False, {
+                "error": "insufficient_capacity",
+                "total_students": total_students,
+                "total_capacity": total_capacity,
+                "shortage": total_students - total_capacity
+            }
+        
+        return True, {
+            "total_students": total_students,
+            "total_capacity": total_capacity,
+            "surplus": total_capacity - total_students
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Capacity validation error: {e}")
+        return False, {"error": str(e)}
+    finally:
+        conn.close()
+
+
+def finalize_session(session_id: int, plan_id: str) -> bool:
+    """
+    Mark session as completed.
+    
+    Args:
+        session_id: Session ID
+        plan_id: Plan ID for logging
+    
+    Returns:
+        True if successful
+    """
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    
     try:
         cur.execute("""
-            UPDATE allocation_sessions 
-            SET status = 'completed', completed_at = ?
+            UPDATE allocation_sessions
+            SET status = 'completed',
+                completed_at = ?
             WHERE session_id = ?
         """, (datetime.now().isoformat(), session_id))
         
         conn.commit()
         
-        # CLEAR all session caches
-        session_cache.clear_session_cache(session_id)
+        logger.info(f"🏁 Finalized session {session_id} (plan_id: {plan_id})")
         
-        print(f"✅ Finalized session {session_id} and cleared cache")
         return True
+        
     except Exception as e:
-        print(f"❌ Error finalizing session: {e}")
+        logger.error(f"❌ Error finalizing session {session_id}: {e}")
         return False
     finally:
         conn.close()
 
-# --------------------------------------------------
-# API ENDPOINTS: Session Management
-# --------------------------------------------------
 
-@app.route("/api/create-session", methods=["POST"])
-def create_session_endpoint():
-    """Create new allocation session with cache initialization"""
+def get_session_stats(session_id: int) -> Dict:
+    """
+    Get allocation statistics for a session.
+    
+    Args:
+        session_id: Session ID
+    
+    Returns:
+        Dictionary with session, room, and batch stats
+    """
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+    
     try:
-        data = request.get_json()
-        plan_id = data.get('plan_id')
-        upload_ids = data.get('upload_ids', [])
-        total_students = data.get('total_students', 0)
+        # Overall stats
+        cur.execute("""
+            SELECT total_students, allocated_count, status
+            FROM allocation_sessions
+            WHERE session_id = ?
+        """, (session_id,))
         
-        if not plan_id or not upload_ids:
-            return jsonify({"error": "Missing plan_id or upload_ids"}), 400
+        session_row = cur.fetchone()
+        if not session_row:
+            return {}
         
-        session_id = create_allocation_session(plan_id, upload_ids, total_students)
+        session_data = dict(session_row)
         
-        if not session_id:
-            return jsonify({"error": "Failed to create session"}), 500
+        # Per-room stats
+        cur.execute("""
+            SELECT
+                c.name,
+                c.rows * c.cols as capacity,
+                COUNT(a.id) as allocated,
+                c.rows * c.cols - COUNT(a.id) as empty_seats
+            FROM classrooms c
+            LEFT JOIN allocations a ON c.id = a.classroom_id AND a.session_id = ?
+            WHERE c.id IN (SELECT DISTINCT classroom_id FROM allocations WHERE session_id = ?)
+            GROUP BY c.id
+        """, (session_id, session_id))
+        
+        room_stats = [dict(row) for row in cur.fetchall()]
+        
+        # Per-batch stats
+        cur.execute("""
+            SELECT batch_name, COUNT(*) as count
+            FROM allocations
+            WHERE session_id = ?
+            GROUP BY batch_name
+        """, (session_id,))
+        
+        batch_stats = [dict(row) for row in cur.fetchall()]
+        
+        # Calculate completion rate
+        completion_rate = 0
+        if session_data['total_students'] > 0:
+            completion_rate = round(
+                (session_data['allocated_count'] / session_data['total_students']) * 100, 2
+            )
+        
+        return {
+            "session": session_data,
+            "rooms": room_stats,
+            "batches": batch_stats,
+            "completion_rate": completion_rate
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Error getting session stats: {e}")
+        return {}
+    finally:
+        conn.close()
+
+# ============================================================================
+# AUTH DECORATOR
+# ============================================================================
+
+def token_required(fn):
+    """Decorator to require valid JWT token."""
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        if verify_token is None:
+            return jsonify({"error": "Auth module not available"}), 501
+        
+        auth = request.headers.get("Authorization")
+        if not auth:
+            return jsonify({"error": "Token missing"}), 401
+        
+        try:
+            token = auth.split(" ")[1]
+        except IndexError:
+            return jsonify({"error": "Invalid authorization header"}), 401
+        
+        payload = verify_token(token)
+        if not payload:
+            return jsonify({"error": "Invalid or expired token"}), 401
+        
+        request.user_id = payload.get("user_id")
+        return fn(*args, **kwargs)
+    
+    return wrapper
+# ============================================================================
+# SESSION MANAGEMENT ENDPOINTS
+# ============================================================================
+
+@app.route('/api/sessions/active', methods=['GET'])
+def get_active_session():
+    """
+    Get the active session with all required data.
+    
+    CRITICAL FIX: Select ALL required columns and handle None values.
+    """
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Get active session - SELECT ALL REQUIRED COLUMNS
+        cursor.execute("""
+            SELECT 
+                session_id, 
+                plan_id, 
+                total_students, 
+                allocated_count,
+                status,
+                created_at,
+                last_activity
+            FROM allocation_sessions 
+            WHERE status = 'active' 
+            ORDER BY created_at DESC 
+            LIMIT 1
+        """)
+        
+        session_row = cursor.fetchone()
+        
+        if not session_row:
+            conn.close()
+            return jsonify({
+                'success': False,
+                'message': 'No active session',
+                'session': None
+            }), 200
+        
+        session_id = session_row[0]
+        
+        # Get allocated rooms
+        cursor.execute("""
+            SELECT 
+                a.classroom_id,
+                c.name as classroom_name,
+                COUNT(a.id) as count
+            FROM allocations a
+            LEFT JOIN classrooms c ON a.classroom_id = c.id
+            WHERE a.session_id = ?
+            GROUP BY a.classroom_id, c.name
+            ORDER BY c.name
+        """, (session_id,))
+        
+        allocated_rooms_rows = cursor.fetchall()
+        
+        # Build allocated_rooms list safely
+        allocated_rooms = []
+        if allocated_rooms_rows:
+            for row in allocated_rooms_rows:
+                allocated_rooms.append({
+                    'classroom_id': row[0],
+                    'classroom_name': row[1] or 'Unknown',
+                    'count': row[2] or 0
+                })
+        
+        conn.close()
+        
+        # Calculate pending count safely
+        total_students = session_row[2] or 0
+        allocated_count = session_row[3] or 0
+        pending_count = max(0, total_students - allocated_count)
+        
+        return jsonify({
+            'success': True,
+            'session_data': {
+                'session_id': session_row[0],
+                'plan_id': session_row[1],
+                'total_students': total_students,
+                'allocated_count': allocated_count,
+                'pending_count': pending_count,
+                'status': session_row[4],
+                'created_at': session_row[5],
+                'last_activity': session_row[6],
+                'allocated_rooms': allocated_rooms
+            }
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"❌ ERROR in get_active_session: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'session': None
+        }), 500
+
+@app.route("/api/sessions/<int:session_id>/heartbeat", methods=["POST"])
+def session_heartbeat(session_id):
+    """
+    Update session activity timestamp.
+    Called periodically from frontend to prevent timeout.
+    
+    Note: The activity tracking middleware already handles this,
+    so this endpoint is optional/redundant but kept for explicit updates.
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        
+        cur.execute("""
+            UPDATE allocation_sessions
+            SET last_activity = ?
+            WHERE session_id = ?
+        """, (datetime.now().isoformat(), session_id))
+        
+        if cur.rowcount == 0:
+            conn.close()
+            return jsonify({"error": "Session not found"}), 404
+        
+        conn.commit()
+        conn.close()
+        
+        logger.debug(f"💓 Heartbeat for session {session_id}")
+        
+        return jsonify({"success": True})
+        
+    except Exception as e:
+        logger.error(f"Heartbeat error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/sessions/recoverable", methods=["GET"])
+def get_recoverable_sessions():
+    """
+    Get sessions that can be recovered (expired < 24 hours ago).
+    
+    Returns:
+        JSON list of recoverable sessions
+    """
+    try:
+        user_id = getattr(request, 'user_id', 1)
+        
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        
+        # Get expired sessions from last 24 hours
+        cutoff = (datetime.now() - timedelta(hours=24)).isoformat()
+        
+        cur.execute("""
+            SELECT s.*,
+                   (SELECT COUNT(*) FROM uploads WHERE session_id = s.session_id) as upload_count,
+                   (SELECT COUNT(*) FROM allocations WHERE session_id = s.session_id) as allocation_count
+            FROM allocation_sessions s
+            WHERE s.user_id = ?
+            AND s.status = 'expired'
+            AND s.last_activity > ?
+            ORDER BY s.last_activity DESC
+        """, (user_id, cutoff))
+        
+        sessions = [dict(row) for row in cur.fetchall()]
+        conn.close()
+        
+        logger.info(f"Found {len(sessions)} recoverable sessions for user {user_id}")
         
         return jsonify({
             "success": True,
+            "sessions": sessions
+        })
+        
+    except Exception as e:
+        logger.error(f"Get recoverable sessions error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/sessions/force-new", methods=["POST"])
+def force_new_session():
+    """
+    Force-expire any active sessions and start new one.
+    
+    USE WITH CAUTION: Only for recovering from stuck states.
+    """
+    try:
+        data = request.get_json()
+        upload_ids = data.get('upload_ids', [])
+        
+        if not upload_ids:
+            return jsonify({'error': 'No uploads provided'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Force-expire ALL active sessions
+        cursor.execute("""
+            UPDATE allocation_sessions
+            SET status = 'expired'
+            WHERE status = 'active'
+        """)
+        
+        expired_count = cursor.rowcount
+        logger.warning(f"⚠️ Force-expired {expired_count} active session(s)")
+        
+        # Now create new session (same logic as normal start)
+        import random
+        import string
+        plan_id = f"PLAN-{''.join(random.choices(string.ascii_uppercase + string.digits, k=8))}"
+        
+        # Calculate total students
+        placeholders = ','.join('?' * len(upload_ids))
+        cursor.execute(f"""
+            SELECT COUNT(*) FROM students 
+            WHERE upload_id IN ({placeholders})
+        """, upload_ids)
+        
+        total_students = cursor.fetchone()[0] or 0
+        
+        # Create session
+        cursor.execute("""
+            INSERT INTO allocation_sessions (plan_id, total_students, allocated_count, status)
+            VALUES (?, ?, 0, 'active')
+        """, (plan_id, total_students))
+        
+        session_id = cursor.lastrowid
+        
+        # Link uploads
+        for upload_id in upload_ids:
+            cursor.execute("""
+                UPDATE uploads
+                SET session_id = ?
+                WHERE id = ?
+            """, (session_id, upload_id))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Expired {expired_count} old session(s) and started new session',
+            'session': {
+                'session_id': session_id,
+                'plan_id': plan_id,
+                'total_students': total_students,
+                'allocated_count': 0,
+                'pending_count': total_students,
+                'allocated_rooms': []
+            }
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Force new session error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route("/api/sessions/<int:session_id>/recover", methods=["POST"])
+def recover_session(session_id):
+    """
+    Recover an expired session (restore to 'active' status).
+    
+    Args:
+        session_id: Session ID to recover
+    
+    Returns:
+        Success message or error
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        
+        cur.execute("""
+            UPDATE allocation_sessions
+            SET status = 'active',
+                last_activity = ?
+            WHERE session_id = ?
+            AND status = 'expired'
+        """, (datetime.now().isoformat(), session_id))
+        
+        if cur.rowcount == 0:
+            conn.close()
+            return jsonify({"error": "Session not found or not recoverable"}), 404
+        
+        conn.commit()
+        conn.close()
+        
+        logger.info(f"🔄 Recovered session {session_id}")
+        
+        return jsonify({
+            "success": True,
+            "message": "Session recovered successfully"
+        })
+        
+    except Exception as e:
+        logger.error(f"Recover session error: {e}")
+        return jsonify({"error": str(e)}), 500
+    
+
+
+
+@app.route('/api/sessions/start', methods=['POST'])
+def start_session():
+    try:
+        data = request.get_json()
+        upload_ids = data.get('upload_ids', [])
+        
+        if not upload_ids:
+            return jsonify({
+                'success': False,
+                'error': 'No upload IDs provided'
+            }), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Check for existing active session
+        # Check for existing active session
+        cursor.execute("""
+            SELECT session_id, last_activity, allocated_count, total_students
+            FROM allocation_sessions 
+            WHERE status = 'active'
+            ORDER BY last_activity DESC
+            LIMIT 1
+        """)
+        existing = cursor.fetchone()
+
+        if existing:
+            existing_id, last_activity, allocated, total = existing
+            
+            # Check if session is abandoned (no activity in 30 minutes)
+            if last_activity:
+                last_active = datetime.fromisoformat(last_activity)
+                inactive_duration = datetime.now() - last_active
+                
+                if inactive_duration > timedelta(minutes=30):
+                    # Auto-expire abandoned session
+                    logger.info(f"⏰ Auto-expiring abandoned session {existing_id}")
+                    cursor.execute("""
+                        UPDATE allocation_sessions
+                        SET status = 'expired'
+                        WHERE session_id = ?
+                    """, (existing_id,))
+                    # Continue to create new session
+                else:
+                    # Session is legitimately active
+                    return jsonify({
+                        'success': False,
+                        'error': 'An active session already exists',
+                        'existing_session': {
+                            'session_id': existing_id,
+                            'allocated': allocated,
+                            'total': total,
+                            'last_activity': last_activity
+                        }
+                    }), 400
+        
+        # Generate plan_id
+        import random
+        import string
+        plan_id = f"PLAN-{''.join(random.choices(string.ascii_uppercase + string.digits, k=8))}"
+        
+        # Calculate total students
+        placeholders = ','.join('?' * len(upload_ids))
+        cursor.execute(f"""
+            SELECT COUNT(*) FROM students 
+            WHERE upload_id IN ({placeholders})
+        """, upload_ids)
+        
+        total_students = cursor.fetchone()[0] or 0
+        
+        # Create session
+        cursor.execute("""
+            INSERT INTO allocation_sessions (plan_id, total_students, allocated_count, status)
+            VALUES (?, ?, 0, 'active')
+        """, (plan_id, total_students))
+        
+        session_id = cursor.lastrowid
+        
+        # Link uploads to session
+        # Link uploads to session (use direct foreign key)
+        for upload_id in upload_ids:
+            cursor.execute("""
+                UPDATE uploads
+                SET session_id = ?
+                WHERE id = ?
+            """, (session_id, upload_id))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'session': {
+                'session_id': session_id,
+                'plan_id': plan_id,
+                'total_students': total_students,
+                'allocated_count': 0,
+                'pending_count': total_students,
+                'allocated_rooms': []  # CRITICAL: Return empty list, not null
+            }
+        }), 200
+        
+    except Exception as e:
+        print(f"ERROR in start_session: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route("/api/sessions/<int:session_id>/allocate-room", methods=["POST"])
+def allocate_room_in_session(session_id):
+    """Save allocation for ONE room - with batch filtering"""
+    try:
+        data = request.get_json()
+        classroom_id = data.get('classroom_id')
+        seating_data = data.get('seating_data')
+        selected_batch_names = data.get('selected_batch_names', [])  # NEW: from frontend
+        
+        if classroom_id is None or seating_data is None:
+            return jsonify({"error": "Missing classroom_id or seating_data"}), 400
+        
+        # Validate session
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        
+        cur.execute("""
+            SELECT session_id, plan_id, status, total_students, allocated_count
+            FROM allocation_sessions
+            WHERE session_id = ?
+        """, (session_id,))
+        
+        session_row = cur.fetchone()
+        
+        if not session_row:
+            conn.close()
+            return jsonify({"error": "Session not found"}), 404
+        
+        session_dict = dict(session_row)
+        
+        if session_dict['status'] != 'active':
+            conn.close()
+            return jsonify({"error": f"Session is {session_dict['status']}, cannot allocate"}), 400
+        
+        conn.close()
+        
+        # Save allocation WITH batch filtering
+        allocated_count, pending_students = save_room_allocation(
+            session_id,
+            int(classroom_id),
+            seating_data,
+            selected_batch_names=selected_batch_names  # NEW: pass batches
+        )
+        
+        if allocated_count == 0:
+            logger.warning(f"⚠️ No students allocated")
+            return jsonify({"error": "No students were allocated"}), 400
+        
+        # Refresh session data
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        
+        cur.execute("""
+            SELECT 
+                session_id, plan_id, total_students, allocated_count,
+                status, created_at, last_activity
+            FROM allocation_sessions
+            WHERE session_id = ?
+        """, (session_id,))
+        
+        fresh_session = cur.fetchone()
+        
+        if not fresh_session:
+            conn.close()
+            return jsonify({"error": "Failed to fetch updated session"}), 500
+        
+        # Get allocated rooms
+        cur.execute("""
+            SELECT a.classroom_id, c.name as classroom_name, COUNT(a.id) as count
+            FROM allocations a
+            LEFT JOIN classrooms c ON a.classroom_id = c.id
+            WHERE a.session_id = ?
+            GROUP BY a.classroom_id, c.name
+            ORDER BY c.name
+        """, (session_id,))
+        
+        allocated_rooms = [
+            {
+                'classroom_id': row[0],
+                'classroom_name': row[1] or 'Unknown',
+                'count': row[2] or 0
+            }
+            for row in cur.fetchall()
+        ]
+        
+        conn.close()
+        
+        # Calculate fresh stats
+        fresh_total = fresh_session[2] or 0
+        fresh_allocated = fresh_session[3] or 0
+        fresh_pending = max(0, fresh_total - fresh_allocated)
+        
+        return jsonify({
+            "success": True,
+            "message": f"Allocated {allocated_count} students",
+            "allocated_count": allocated_count,
+            "session": {
+                "session_id": fresh_session[0],
+                "plan_id": fresh_session[1],
+                "total_students": fresh_total,
+                "allocated_count": fresh_allocated,
+                "pending_count": fresh_pending,
+                "status": fresh_session[4],
+                "allocated_rooms": allocated_rooms
+            },
+            "remaining_count": fresh_pending,
+            "pending_count": fresh_pending,
+            "can_finalize": fresh_pending == 0,
+            "pending_students": pending_students[:5]
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"❌ Room allocation error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/sessions/<int:session_id>/undo", methods=["POST"])
+def undo_allocation(session_id):
+    """
+    Undo last room allocation in session.
+    
+    Returns:
+        Success status with updated pending list
+    """
+    try:
+        # Validate session
+        session = get_session_with_expiry_check(session_id)
+        if not session:
+            return jsonify({"error": "Session not found or expired"}), 404
+        
+        success, message = undo_last_allocation(session_id)
+        
+        if success:
+            pending = get_pending_students(session_id)
+            
+            logger.info(f"↩️ Undo successful: {message}")
+            
+            return jsonify({
+                "success": True,
+                "message": message,
+                "pending_count": len(pending),
+                "pending_students": pending
+            })
+        else:
+            return jsonify({"error": message}), 400
+        
+    except Exception as e:
+        logger.error(f"Undo error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/sessions/<int:session_id>/stats", methods=["GET"])
+def get_session_statistics(session_id):
+    """
+    Get allocation statistics for session.
+    
+    Returns:
+        JSON with session, room, and batch stats
+    """
+    try:
+        stats = get_session_stats(session_id)
+        
+        if not stats:
+            return jsonify({"error": "Session not found or no stats available"}), 404
+        
+        return jsonify({
+            "success": True,
+            "stats": stats
+        })
+        
+    except Exception as e:
+        logger.error(f"Stats error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/sessions/<int:session_id>/finalize", methods=["POST"])
+def finalize_allocation_session(session_id):
+    """
+    Finalize session when complete.
+    
+    CRITICAL FIX: Properly marks session as 'completed' so it no longer shows as active.
+    
+    Returns:
+        Success message or error
+    """
+    try:
+        # Check pending students
+        pending = get_pending_students(session_id)
+        
+        if len(pending) > 0:
+            logger.warning(f"⚠️ Cannot finalize session {session_id}: {len(pending)} students still pending")
+            return jsonify({
+                "error": f"Cannot finalize: {len(pending)} students still pending",
+                "pending_count": len(pending),
+                "pending_students": pending[:10]  # Return first 10 for debugging
+            }), 400
+        
+        # Get session details
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        
+        cur.execute("""
+            SELECT plan_id, total_students, allocated_count
+            FROM allocation_sessions
+            WHERE session_id = ?
+        """, (session_id,))
+        
+        row = cur.fetchone()
+        
+        if not row:
+            conn.close()
+            return jsonify({"error": "Session not found"}), 404
+        
+        session_data = dict(row)
+        plan_id = session_data['plan_id']
+        total_students = session_data['total_students']
+        allocated_count = session_data['allocated_count']
+        
+        # Verify all students are allocated
+        if allocated_count < total_students:
+            conn.close()
+            shortage = total_students - allocated_count
+            return jsonify({
+                "error": f"Allocation incomplete: {shortage} students not allocated",
+                "total_students": total_students,
+                "allocated_count": allocated_count
+            }), 400
+        
+        # CRITICAL FIX: Update status to 'completed' AND set completed_at
+        now = datetime.now().isoformat()
+        
+        cur.execute("""
+            UPDATE allocation_sessions
+            SET status = 'completed',
+                completed_at = ?,
+                last_activity = ?
+            WHERE session_id = ?
+        """, (now, now, session_id))
+        
+        conn.commit()
+        conn.close()
+        
+        logger.info(f"🏁 ✅ Session {session_id} finalized successfully (plan_id: {plan_id})")
+        
+        return jsonify({
+            "success": True,
+            "message": "Session completed successfully",
             "session_id": session_id,
             "plan_id": plan_id,
             "total_students": total_students,
-            "cache_status": "initialized"
-        }), 201
+            "allocated_count": allocated_count
+        })
+        
     except Exception as e:
+        logger.error(f"Finalization error for session {session_id}: {e}")
         return jsonify({"error": str(e)}), 500
 
-@app.route("/api/pending-students/<int:session_id>", methods=["GET"])
-def get_pending_students_endpoint(session_id):
-    """Get pending students (uses CACHE first)"""
+
+@app.route("/api/sessions/<int:session_id>/pending", methods=["GET"])
+def get_session_pending(session_id):
+    """
+    Get pending (unallocated) students for session.
+    
+    Returns:
+        JSON list of pending students
+    """
     try:
-        use_cache = request.args.get('cache', 'true').lower() == 'true'
-        pending = get_pending_students(session_id, use_cache=use_cache)
+        pending = get_pending_students(session_id)
         
         return jsonify({
             "success": True,
@@ -499,195 +1809,1747 @@ def get_pending_students_endpoint(session_id):
             "pending_count": len(pending),
             "pending_students": pending
         })
+        
     except Exception as e:
+        logger.error(f"Get pending error: {e}")
         return jsonify({"error": str(e)}), 500
 
-@app.route("/api/save-room-allocation", methods=["POST"])
-def save_room_allocation_endpoint():
-    """Save room allocation and UPDATE cache with pending students"""
+
+@app.route("/api/sessions/<int:session_id>/uploads", methods=["GET"])
+def get_session_uploads(session_id):
+    """
+    Get all uploads for a specific session.
+    
+    CRITICAL: Required by Upload page to show existing batches.
+    
+    Returns:
+        JSON list of uploads with student counts
+    """
     try:
-        data = request.get_json()
-        session_id = data.get('session_id')
-        classroom_id = data.get('classroom_id')
-        seating_data = data.get('seating_data')
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
         
-        if not all([session_id, classroom_id, seating_data]):
-            return jsonify({"error": "Missing required fields"}), 400
+        # Get uploads with student counts
+        cur.execute("""
+            SELECT
+                u.id as upload_id,
+                u.batch_id,
+                u.batch_name,
+                u.batch_color,
+                u.original_filename,
+                u.created_at as uploaded_at,
+                COUNT(s.id) as student_count
+            FROM uploads u
+            LEFT JOIN students s ON u.id = s.upload_id
+            WHERE u.session_id = ?
+            GROUP BY u.id
+            ORDER BY u.created_at DESC
+        """, (session_id,))
         
-        allocated, pending = save_room_allocation(session_id, classroom_id, seating_data)
+        uploads = [dict(row) for row in cur.fetchall()]
+        conn.close()
+        
+        logger.debug(f"📤 Found {len(uploads)} uploads for session {session_id}")
         
         return jsonify({
             "success": True,
-            "allocated_count": allocated,
-            "pending_count": len(pending),
-            "pending_students": pending,
-            "cache_updated": True
+            "session_id": session_id,
+            "uploads": uploads
         })
+        
     except Exception as e:
+        logger.error(f"Get session uploads error: {e}")
         return jsonify({"error": str(e)}), 500
 
-@app.route("/api/finalize-session", methods=["POST"])
-def finalize_session_endpoint():
-    """Finalize session and CLEAR cache"""
-    try:
-        data = request.get_json()
-        session_id = data.get('session_id')
-        plan_id = data.get('plan_id')
-        
-        if not session_id or not plan_id:
-            return jsonify({"error": "Missing session_id or plan_id"}), 400
-        
-        # Verify no pending
-        pending = get_pending_students(session_id)
-        if pending:
-            return jsonify({
-                "error": f"Cannot finalize: {len(pending)} students still pending"
-            }), 400
-        
-        success = finalize_session(session_id, plan_id)
-        
-        if success:
-            return jsonify({
-                "success": True,
-                "message": "Session finalized and cache cleared",
-                "session_id": session_id,
-                "plan_id": plan_id
-            })
-        else:
-            return jsonify({"error": "Failed to finalize session"}), 500
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
-@app.route("/api/session-status/<int:session_id>", methods=["GET"])
-def get_session_status(session_id):
-    """Get session status with cache stats"""
+# ============================================================================
+# CLASSROOM ROUTES
+# ============================================================================
+
+@app.route("/api/classrooms", methods=["GET"])
+def get_classrooms():
+    """
+    Get all classrooms.
+    
+    Returns:
+        JSON list of classrooms
+    """
     try:
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
         
         cur.execute("""
-            SELECT session_id, plan_id, status, total_students, total_allocated, created_at
-            FROM allocation_sessions
-            WHERE session_id = ?
-        """, (session_id,))
+            SELECT * FROM classrooms
+            ORDER BY name ASC
+        """)
         
-        session_row = cur.fetchone()
-        if not session_row:
-            conn.close()
-            return jsonify({"error": "Session not found"}), 404
-        
-        session_data = dict(session_row)
-        pending = get_pending_students(session_id, use_cache=True)
-        
+        rooms = [dict(r) for r in cur.fetchall()]
         conn.close()
+        
+        logger.debug(f"📋 Retrieved {len(rooms)} classrooms")
+        
+        return jsonify(rooms)
+        
+    except Exception as e:
+        logger.error(f"Get classrooms error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/classrooms", methods=["POST"])
+def save_classroom():
+    """
+    Create or update a classroom.
+    
+    Request JSON:
+        {
+            "id": 1 (optional, for update),
+            "name": "Room 101",
+            "rows": 10,
+            "cols": 8,
+            "broken_seats": "1-1,2-3",
+            "block_width": 2
+        }
+    
+    Returns:
+        Success message
+    """
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        if not data.get('name'):
+            return jsonify({"error": "Classroom name is required"}), 400
+        
+        rows = int(data.get('rows', 8))
+        cols = int(data.get('cols', 10))
+        
+        if rows <= 0 or rows > 50:
+            return jsonify({"error": "Rows must be between 1 and 50"}), 400
+        
+        if cols <= 0 or cols > 50:
+            return jsonify({"error": "Columns must be between 1 and 50"}), 400
+        
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        
+        try:
+            if data.get('id'):
+                # Update existing
+                cur.execute("""
+                    UPDATE classrooms
+                    SET name = ?, rows = ?, cols = ?, broken_seats = ?, block_width = ?, updated_at = ?
+                    WHERE id = ?
+                """, (
+                    data['name'],
+                    rows,
+                    cols,
+                    data.get('broken_seats', ''),
+                    int(data.get('block_width', 1)),
+                    datetime.now().isoformat(),
+                    data['id']
+                ))
+                
+                if cur.rowcount == 0:
+                    conn.close()
+                    return jsonify({"error": "Classroom not found"}), 404
+                
+                logger.info(f"✏️ Updated classroom {data['id']}: {data['name']}")
+                message = f"Classroom '{data['name']}' updated successfully"
+            else:
+                # Create new
+                cur.execute("""
+                    INSERT INTO classrooms (name, rows, cols, broken_seats, block_width)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (
+                    data['name'],
+                    rows,
+                    cols,
+                    data.get('broken_seats', ''),
+                    int(data.get('block_width', 1))
+                ))
+                
+                logger.info(f"➕ Created classroom: {data['name']} ({rows}x{cols})")
+                message = f"Classroom '{data['name']}' created successfully"
+            
+            conn.commit()
+            conn.close()
+            
+            return jsonify({
+                "success": True,
+                "message": message
+            }), 201
+            
+        except sqlite3.IntegrityError:
+            conn.close()
+            return jsonify({"error": f"Classroom '{data['name']}' already exists"}), 400
+        
+    except Exception as e:
+        logger.error(f"Save classroom error: {e}")
+        return jsonify({"error": str(e)}), 400
+
+
+@app.route("/api/classrooms/<int:room_id>", methods=["DELETE"])
+def delete_classroom(room_id):
+    """
+    Delete a classroom.
+    
+    Returns:
+        Success message or error
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        
+        # Check if classroom is used in any allocations
+        cur.execute("""
+            SELECT COUNT(*) FROM allocations
+            WHERE classroom_id = ?
+        """, (room_id,))
+        
+        usage_count = cur.fetchone()[0]
+        
+        if usage_count > 0:
+            conn.close()
+            return jsonify({
+                "error": f"Cannot delete: Classroom is used in {usage_count} allocation(s)"
+            }), 400
+        
+        # Delete classroom
+        cur.execute("DELETE FROM classrooms WHERE id = ?", (room_id,))
+        
+        if cur.rowcount == 0:
+            conn.close()
+            return jsonify({"error": "Classroom not found"}), 404
+        
+        conn.commit()
+        conn.close()
+        
+        logger.info(f"🗑️ Deleted classroom {room_id}")
         
         return jsonify({
             "success": True,
-            "session": session_data,
-            "total_allocated": session_data['total_allocated'],
-            "total_students": session_data['total_students'],
-            "pending_count": len(pending),
-            "cache_hit": True
+            "message": "Classroom deleted successfully"
         })
+        
     except Exception as e:
+        logger.error(f"Delete classroom error: {e}")
         return jsonify({"error": str(e)}), 500
 
-# --------------------------------------------------
-# Keep all existing endpoints from original app.py
-# --------------------------------------------------
 
+# ============================================================================
+# UPLOAD ROUTES (FIXED WITH BATCH_COLOR SUPPORT)
+# ============================================================================
 
-
-ensure_demo_db()
-
-# --------------------------------------------------
-# Helpers
-# --------------------------------------------------
-def parse_int_dict(val):
-    if isinstance(val, dict): 
-        return {int(k): int(v) for k, v in val.items()}
-    if isinstance(val, str) and val:
-        try: 
-            return json.loads(val)
-        except: 
-            pass
-    return {}
-
-def parse_str_dict(val):
-    if isinstance(val, dict): 
-        return {int(k): str(v) for k, v in val.items()}
-    if isinstance(val, str) and val:
-        try: 
-            return json.loads(val)
-        except: 
-            pass
-    return {}
-
-def get_batch_counts_and_labels_from_db():
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    cur.execute("SELECT batch_name, COUNT(*) FROM students GROUP BY batch_name ORDER BY batch_name")
-    rows = cur.fetchall()
-    conn.close()
-    counts, labels = {}, {}
-    for i, (name, count) in enumerate(rows, start=1):
-        counts[i] = count
-        labels[i] = name
-    return counts, labels
-
-def get_batch_roll_numbers_from_db():
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    # 1. Fetch all three necessary columns
-    cur.execute("SELECT batch_name, enrollment, name FROM students ORDER BY id")
-    rows = cur.fetchall()
-    conn.close()
+@app.route("/api/upload-preview", methods=["POST"])
+def api_upload_preview():
+    """
+    Preview file before uploading (show columns and sample data).
     
-    groups = {}
-    # 2. Correctly unpack all three values from the row
-    for batch_name, enr, name in rows:
-        # 3. Store as a dictionary so algo.py can access both roll and name
-        groups.setdefault(batch_name, []).append({
-            "roll": enr,
-            "name": name if name else ""  # Handle empty names safely
-        })
+    Returns:
+        JSON with columns, detected columns, and sample rows
+    """
+    try:
+        if "file" not in request.files:
+            return jsonify({"error": "No file provided"}), 400
         
+        file = request.files["file"]
+        if file.filename == '':
+            return jsonify({"error": "No file selected"}), 400
         
-    # 4. Return the integer-mapped dictionary required by the Algorithm
-    return {i + 1: groups[k] for i, k in enumerate(sorted(groups))}
-# --------------------------------------------------
-# Auth Decorator
-# --------------------------------------------------
-def token_required(fn):
-    @wraps(fn)
-    def wrapper(*args, **kwargs):
-        if verify_token is None: 
-            return jsonify({"error": "Auth module not available"}), 501
+        if StudentDataParser is None:
+            return jsonify({"error": "Parser module not available"}), 500
         
-        auth = request.headers.get("Authorization")
-        if not auth: 
-            return jsonify({"error": "Token missing"}), 401
+        file_content = file.read()
+        parser = StudentDataParser()
+        preview_data = parser.preview(io.BytesIO(file_content), max_rows=10)
+        
+        logger.info(f"📄 Preview generated for {file.filename}: {preview_data.get('totalRows', 0)} rows")
+        
+        return jsonify({"success": True, **preview_data}), 200
+        
+    except Exception as e:
+        logger.error(f"Upload preview error: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/upload", methods=["POST"])
+def api_upload():
+    """
+    Parse and cache uploaded file.
+    
+    Form Data:
+        - file: File to upload
+        - mode: 1 or 2 (enrollment only vs name+enrollment)
+        - batch_name: Label for this batch
+        - nameColumn: (optional) Override name column
+        - enrollmentColumn: (optional) Override enrollment column
+    
+    Returns:
+        JSON with batch_id, preview, and sample data
+    """
+    try:
+        if "file" not in request.files:
+            return jsonify({"error": "No file provided"}), 400
+        
+        if StudentDataParser is None:
+            return jsonify({"error": "Parser module not available"}), 500
+        
+        file = request.files["file"]
+        mode = int(request.form.get("mode", 2))
+        batch_name = request.form.get("batch_name", "BATCH1").strip()
+        name_col = request.form.get("nameColumn", None)
+        enrollment_col = request.form.get("enrollmentColumn", None)
+        
+        if not batch_name:
+            return jsonify({"error": "Batch name is required"}), 400
+        
+        # Read file content
+        file_content = file.read()
+        
+        logger.info(f"📤 Parsing upload: {file.filename} (mode={mode}, batch={batch_name})")
+        
+        # Parse file
+        parser = StudentDataParser()
+        pr = parser.parse_file(
+            io.BytesIO(file_content),
+            mode=mode,
+            batch_name=batch_name,
+            name_col=name_col if name_col else None,
+            enrollment_col=enrollment_col if enrollment_col else None
+        )
+        
+        # Cache result for commit step
+        if not hasattr(app, 'config'):
+            app.config = {}
+        if 'UPLOAD_CACHE' not in app.config:
+            app.config['UPLOAD_CACHE'] = {}
+        
+        app.config['UPLOAD_CACHE'][pr.batch_id] = {
+            'data': pr,
+            'filename': file.filename,
+            'filesize': len(file_content)
+        }
+        
+        # Prepare response
+        sample_data = pr.data.get(pr.batch_name, [])[:10]
+        
+        preview_columns = []
+        if pr.mode == 2 and sample_data:
+            if isinstance(sample_data[0], dict):
+                preview_columns = list(sample_data[0].keys())
+        
+        logger.info(f"✅ Upload parsed: {pr.rows_extracted} students, batch_id={pr.batch_id}, color={pr.batch_color}")
+        
+        return jsonify({
+            "success": True,
+            "batch_id": pr.batch_id,
+            "batch_name": pr.batch_name,
+            "batch_color": pr.batch_color,
+            "rows_extracted": pr.rows_extracted,
+            "rows_total": pr.rows_total,
+            "sample": sample_data,
+            "warnings": pr.warnings,
+            "preview": {
+                "columns": preview_columns,
+                "totalRows": pr.rows_total,
+                "extractedRows": pr.rows_extracted
+            }
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Upload error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/commit-upload", methods=["POST"])
+def commit_upload():
+    """
+    Commit uploaded data to database.
+    
+    CRITICAL FIX: Now handles batch_color properly from ParseResult.
+    
+    Request JSON:
+        {
+            "batch_id": "uuid-from-upload",
+            "session_id": 123 (optional)
+        }
+    
+    Returns:
+        JSON with upload_id, inserted count, skipped count
+    """
+    try:
+        body = request.get_json(force=True)
+        batch_id = body.get("batch_id")
+        
+        if not batch_id:
+            return jsonify({"error": "batch_id is required"}), 400
+        
+        # Get cached data
+        cache = app.config.get("UPLOAD_CACHE", {})
+        cached_data = cache.get(batch_id)
+        
+        if not cached_data:
+            logger.error(f"❌ Preview expired or not found for batch_id: {batch_id}")
+            return jsonify({
+                "error": "Preview expired or not found. Please re-upload the file."
+            }), 400
+        
+        pr = cached_data.get('data')
+        if not pr:
+            return jsonify({"error": "Invalid cache data"}), 400
+        
+        filename = cached_data.get('filename', 'unknown')
+        filesize = cached_data.get('filesize', 0)
+        
+        # Get session_id if provided
+        session_id = body.get("session_id")
+        
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
         
         try:
-            token = auth.split(" ")[1]
-        except IndexError:
-            return jsonify({"error": "Invalid authorization header"}), 401
+            # CRITICAL FIX: Get batch_color from ParseResult
+            batch_color = pr.batch_color
             
-        payload = verify_token(token)
-        if not payload: 
-            return jsonify({"error": "Invalid or expired token"}), 401
+            logger.info(f"💾 Committing upload: batch_name={pr.batch_name}, color={batch_color}, session_id={session_id}")
+            
+            # Insert upload record
+            cur.execute("""
+                INSERT INTO uploads (batch_id, batch_name, batch_color, original_filename, file_size, session_id)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (pr.batch_id, pr.batch_name, batch_color, filename, filesize, session_id))
+            
+            upload_id = cur.lastrowid
+            
+            if not upload_id:
+                raise Exception("Failed to create upload record")
+            
+            logger.info(f"✅ Created upload record: ID={upload_id}, batch={pr.batch_name}")
+            
+            # Insert students
+            inserted, skipped = 0, 0
+            batch_data = pr.data.get(pr.batch_name, [])
+            
+            if not batch_data:
+                conn.rollback()
+                conn.close()
+                return jsonify({"error": "No student data found in batch"}), 400
+            
+            for row in batch_data:
+                try:
+                    # Handle both dict (mode 2) and string (mode 1) formats
+                    if isinstance(row, dict):
+                        enr = row.get("enrollmentNo") or row.get("enrollment")
+                        name = row.get("name", "")
+                        department = row.get("department", "")
+                    else:
+                        enr = str(row)
+                        name = ""
+                        department = ""
+                    
+                    if not enr or not str(enr).strip():
+                        skipped += 1
+                        continue
+                    
+                    enr = str(enr).strip()
+                    
+                    # Insert student with batch_color
+                    cur.execute("""
+                        INSERT INTO students (upload_id, batch_id, batch_name, batch_color, enrollment, name, department)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """, (upload_id, pr.batch_id, pr.batch_name, batch_color, enr, name, department))
+                    
+                    inserted += 1
+                    
+                except sqlite3.IntegrityError:
+                    logger.debug(f"Duplicate enrollment skipped: {enr}")
+                    skipped += 1
+                except Exception as e:
+                    logger.error(f"Error inserting student {enr}: {e}")
+                    skipped += 1
+            
+            if inserted == 0:
+                conn.rollback()
+                conn.close()
+                return jsonify({
+                    "error": "No students were inserted. Check for duplicates or invalid data."
+                }), 400
+            
+            # Update session total_students if session_id provided
+            if session_id:
+                cur.execute("""
+                    UPDATE allocation_sessions
+                    SET total_students = (
+                        SELECT COUNT(DISTINCT s.id)
+                        FROM students s
+                        JOIN uploads u ON s.upload_id = u.id
+                        WHERE u.session_id = ?
+                    ),
+                    last_activity = ?
+                    WHERE session_id = ?
+                """, (session_id, datetime.now().isoformat(), session_id))
+            
+            conn.commit()
+            
+            logger.info(f"✅ Committed {inserted} students (skipped {skipped})")
+            
+            conn.close()
+            
+            # Clear cache
+            if batch_id in app.config.get('UPLOAD_CACHE', {}):
+                del app.config['UPLOAD_CACHE'][batch_id]
+            
+            return jsonify({
+                "success": True,
+                "upload_id": upload_id,
+                "batch_id": pr.batch_id,
+                "batch_name": pr.batch_name,
+                "batch_color": batch_color,
+                "inserted": inserted,
+                "skipped": skipped
+            }), 200
+            
+        except Exception as e:
+            conn.rollback()
+            conn.close()
+            logger.error(f"Database error during commit: {e}")
+            raise
+            
+    except Exception as e:
+        logger.error(f"Commit upload error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            "success": False,
+            "error": f"Failed to commit data: {str(e)}"
+        }), 500
+
+
+@app.route("/api/students", methods=["GET"])
+def api_students():
+    """
+    Get all students (limited to last 1000 for performance).
+    
+    Returns:
+        JSON list of students
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
         
-        request.user_id = payload.get("user_id")
-        return fn(*args, **kwargs)
-    return wrapper
+        cur.execute("""
+            SELECT * FROM students
+            ORDER BY id DESC
+            LIMIT 1000
+        """)
+        
+        rows = [dict(r) for r in cur.fetchall()]
+        conn.close()
+        
+        logger.debug(f"📋 Retrieved {len(rows)} students")
+        
+        return jsonify(rows)
+        
+    except Exception as e:
+        logger.error(f"Get students error: {e}")
+        return jsonify({"error": str(e)}), 500
+    
+@app.route("/api/plans/recent", methods=["GET"])
+def get_recent_plans():
+    """
+    Get recent allocation plans (all statuses except deleted).
+    
+    FIXED: Shows last 20 sessions regardless of status.
+    """
+    try:
+        user_id = getattr(request, 'user_id', 1)
+        
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        
+        # Get all sessions (except maybe very old expired ones)
+        cur.execute("""
+            SELECT 
+                s.session_id,
+                s.plan_id,
+                s.total_students,
+                s.allocated_count,
+                s.status,
+                s.created_at,
+                s.completed_at,
+                s.last_activity,
+                COUNT(DISTINCT a.classroom_id) as room_count
+            FROM allocation_sessions s
+            LEFT JOIN allocations a ON s.session_id = a.session_id
+            WHERE (s.user_id = ? OR s.user_id IS NULL)
+            AND s.status != 'deleted'
+            GROUP BY s.session_id
+            ORDER BY 
+                CASE 
+                    WHEN s.status = 'active' THEN 0
+                    WHEN s.status = 'completed' THEN 1
+                    ELSE 2
+                END,
+                s.last_activity DESC,
+                s.created_at DESC
+            LIMIT 20
+        """, (user_id,))
+        
+        plans = []
+        for row in cur.fetchall():
+            plan = dict(row)
+            
+            # Get batch info for this session
+            cur.execute("""
+                SELECT DISTINCT u.batch_name, u.batch_color
+                FROM uploads u
+                WHERE u.session_id = ?
+                ORDER BY u.created_at
+            """, (plan['session_id'],))
+            
+            batches = []
+            for batch_row in cur.fetchall():
+                batches.append({
+                    'name': batch_row[0],
+                    'color': batch_row[1] or '#3b82f6'
+                })
+            
+            plan['batches'] = batches
+            plans.append(plan)
+        
+        conn.close()
+        
+        logger.info(f"📋 Retrieved {len(plans)} recent plans for user {user_id}")
+        
+        return jsonify({
+            "success": True,
+            "plans": plans,
+            "total": len(plans)
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Get recent plans error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "plans": []
+        }), 500
+# ============================================================================
+# ALLOCATION/SEATING GENERATION ROUTES
+# ============================================================================
+
+@app.route("/api/generate-seating", methods=["POST"])
+def generate_seating():
+    """Generate seating - FILTER by selected batches only"""
+    if SeatingAlgorithm is None:
+        return jsonify({"error": "SeatingAlgorithm module not available"}), 500
+    
+    try:
+        data = request.get_json(force=True)
+        
+        plan_id = data.get("plan_id")
+        session_id = data.get("session_id")
+        
+        if not plan_id:
+            plan_id = f"plan_{uuid.uuid4().hex[:8]}"
+        
+        use_db = bool(data.get("use_demo_db", True))
+        
+        # CRITICAL: Get batch info from payload
+        batch_labels = data.get("batch_labels", {})  # {1: "Batch A", 2: "Batch B"}
+        selected_batch_names = list(batch_labels.values()) if batch_labels else []
+        
+        counts = {}
+        labels = {}
+        rolls = {}
+        colors = {}
+        num_batches = 0
+        
+        if use_db and session_id:
+            logger.info(f"🔍 Selected batches: {selected_batch_names}")
+            
+            # Get ONLY pending students
+            pending_students = get_pending_students(session_id)
+            
+            if not pending_students:
+                return jsonify({
+                    "error": "No pending students available",
+                    "message": "All students have been allocated.",
+                    "pending_count": 0
+                }), 400
+            
+            # CRITICAL FIX: Filter by selected batch names ONLY
+            filtered_students = [
+                s for s in pending_students 
+                if s.get('batch_name') in selected_batch_names
+            ]
+            
+            if not filtered_students:
+                return jsonify({
+                    "error": "No pending students in selected batches",
+                    "pending_count": 0
+                }), 400
+            
+            logger.info(f"📋 Filtered: {len(filtered_students)} / {len(pending_students)} pending")
+            
+            # Group by batch name
+            batch_groups = {}
+            for student in filtered_students:
+                batch_name = student.get('batch_name') or 'Unknown'
+                if batch_name not in batch_groups:
+                    batch_groups[batch_name] = {
+                        'students': [],
+                        'color': student.get('batch_color', '#3b82f6')
+                    }
+                
+                batch_groups[batch_name]['students'].append({
+                    'roll': student.get('enrollment'),
+                    'name': student.get('name', '')
+                })
+            
+            # Convert to algorithm format (1-indexed, respecting order)
+            for idx, batch_name in enumerate(selected_batch_names, start=1):
+                if batch_name in batch_groups:
+                    students_list = batch_groups[batch_name]['students']
+                    counts[idx] = len(students_list)
+                    labels[idx] = batch_name
+                    rolls[idx] = students_list
+                    colors[idx] = batch_groups[batch_name]['color']
+                else:
+                    logger.warning(f"⚠️ Batch '{batch_name}' has no pending students")
+                    counts[idx] = 0
+                    labels[idx] = batch_name
+                    rolls[idx] = []
+                    colors[idx] = data.get("batch_colors", {}).get(idx, '#3b82f6')
+            
+            num_batches = len(selected_batch_names)
+            
+            logger.info(f"📊 Batch counts: {counts}")
+            logger.info(f"🎨 Batch colors: {colors}")
+        
+        else:
+            # Fallback for non-session mode
+            counts = parse_int_dict(data.get("batch_student_counts"))
+            labels = parse_str_dict(data.get("batch_labels"))
+            rolls = data.get("batch_roll_numbers") or {}
+            colors = parse_str_dict(data.get("batch_colors"))
+            num_batches = int(data.get("num_batches", len(counts)))
+        
+        if num_batches == 0 or not counts:
+            return jsonify({"error": "No batch data available"}), 400
+        
+        # Parse broken seats
+        broken_str = data.get("broken_seats", "")
+        broken_seats = []
+        
+        if broken_str:
+            if isinstance(broken_str, str) and broken_str.strip():
+                for seat_str in broken_str.split(","):
+                    seat_str = seat_str.strip()
+                    if "-" in seat_str:
+                        try:
+                            r, c = seat_str.split("-")
+                            broken_seats.append((int(r) - 1, int(c) - 1))
+                        except (ValueError, IndexError):
+                            logger.warning(f"Invalid seat format: {seat_str}")
+            elif isinstance(broken_str, list):
+                for seat in broken_str:
+                    if isinstance(seat, (list, tuple)) and len(seat) == 2:
+                        broken_seats.append((int(seat[0]), int(seat[1])))
+        
+        total_pending = sum(counts.values())
+        logger.info(f"🎯 Generating: {total_pending} students, {num_batches} batches")
+        
+        # Initialize algorithm
+        algo = SeatingAlgorithm(
+            rows=int(data.get("rows", 10)),
+            cols=int(data.get("cols", 6)),
+            num_batches=num_batches,
+            block_width=int(data.get("block_width", 2)),
+            batch_by_column=bool(data.get("batch_by_column", True)),
+            enforce_no_adjacent_batches=bool(data.get("enforce_no_adjacent_batches", False)),
+            broken_seats=broken_seats,
+            batch_student_counts=counts,
+            batch_roll_numbers=rolls,  # ONLY selected batches
+            batch_labels=labels,
+            start_rolls=parse_str_dict(data.get("start_rolls")),
+            batch_colors=colors,
+            serial_mode=data.get("serial_mode", "per_batch"),
+            serial_width=int(data.get("serial_width", 0))
+        )
+        
+        # Generate seating
+        algo.generate_seating()
+        web = algo.to_web_format()
+        
+        # Add metadata
+        web.setdefault("metadata", {})
+        web["plan_id"] = plan_id
+        web["session_id"] = session_id
+        web["pending_count"] = total_pending
+        web["selected_batches"] = selected_batch_names
+        
+        # Validate
+        ok, errors = algo.validate_constraints()
+        web["validation"] = {"is_valid": ok, "errors": errors}
+        
+        # Cache result
+        cache_manager.save_or_update(plan_id, data, web)
+        
+        logger.info(f"✅ Seating generated for: {selected_batch_names}")
+        
+        return jsonify(web)
+        
+    except Exception as e:
+        logger.error(f"❌ Seating generation error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Failed to generate seating: {str(e)}"}), 500
+@app.route("/api/constraints-status", methods=["POST"])
+def constraints_status():
+    """
+    Get constraint validation status for seating arrangement.
+    
+    Returns:
+        JSON with constraint validation results
+    """
+    if SeatingAlgorithm is None:
+        return jsonify({"error": "Algorithm module not available"}), 500
+    
+    try:
+        data = request.get_json(force=True)
+        
+        algo = SeatingAlgorithm(
+            rows=int(data.get("rows", 10)),
+            cols=int(data.get("cols", 6)),
+            num_batches=int(data.get("num_batches", 3)),
+            block_width=int(data.get("block_width", 2)),
+            batch_by_column=bool(data.get("batch_by_column", True)),
+            enforce_no_adjacent_batches=bool(data.get("enforce_no_adjacent_batches", False))
+        )
+        
+        algo.generate_seating()
+        
+        return jsonify(algo.get_constraints_status())
+        
+    except Exception as e:
+        logger.error(f"Constraints status error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+# ============================================================================
+# PDF GENERATION ROUTES
+# ============================================================================
+
+@app.route('/api/generate-pdf', methods=['POST'])
+def generate_pdf():
+    """
+    Generate PDF from seating arrangement.
+    
+    Request JSON:
+        {
+            "snapshot_id": "plan_abc" (optional),
+            "seating": [...] (required if no snapshot_id)
+        }
+    
+    Returns:
+        PDF file download
+    """
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+        
+        snapshot_id = data.get('snapshot_id')
+        
+        # Load from snapshot or use provided data
+        if snapshot_id:
+            snapshot = cache_manager.load_snapshot(snapshot_id)
+            if snapshot:
+                seating_payload = snapshot['raw_matrix']
+                logger.info(f"📄 Generating PDF from snapshot: {snapshot_id}")
+            else:
+                return jsonify({"error": "Snapshot not found"}), 404
+        else:
+            if 'seating' not in data:
+                return jsonify({"error": "Invalid seating data"}), 400
+            seating_payload = data
+            logger.info("📄 Generating PDF from request data")
+
+        user_id = 'test_user'
+        template_name = request.args.get('template_name', 'default')
+        
+        # Generate PDF
+        pdf_path = get_or_create_seating_pdf(
+            seating_payload,
+            user_id=user_id,
+            template_name=template_name
+        )
+        
+        logger.info(f"✅ PDF generated: {pdf_path}")
+        
+        return send_file(
+            pdf_path,
+            as_attachment=True,
+            download_name=f"seating_plan_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+            mimetype='application/pdf'
+        )
+        
+    except Exception as e:
+        logger.error(f"PDF generation error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/allocations', methods=['GET'])
+def get_all_allocations():
+    """
+    Get all allocation batches (for attendance generation).
+    
+    Returns:
+        JSON list of batches
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        
+        cur.execute("""
+            SELECT DISTINCT batch_id, batch_name, created_at
+            FROM uploads
+            ORDER BY created_at DESC
+        """)
+        
+        rows = cur.fetchall()
+        conn.close()
+        
+        return jsonify([
+            {
+                "id": r[0],
+                "batch_name": r[1],
+                "date": r[2]
+            }
+            for r in rows
+        ])
+        
+    except Exception as e:
+        logger.error(f"Get allocations error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/plan-batches/<plan_id>', methods=['GET'])
+def get_plan_batches(plan_id):
+    """
+    Get batch information for a plan (for attendance sheets).
+    
+    Returns:
+        JSON with plan_id, batches, and room_no
+    """
+    try:
+        cache_data = cache_manager.load_snapshot(plan_id)
+        if not cache_data:
+            return jsonify({"error": "Plan not found"}), 404
+        
+        batch_list = {}
+        for label, data in cache_data.get('batches', {}).items():
+            batch_list[label] = data.get('info', {})
+        
+        return jsonify({
+            "plan_id": plan_id,
+            "batches": batch_list,
+            "room_no": cache_data.get('inputs', {}).get('room_id', 'N/A')
+        })
+        
+    except Exception as e:
+        logger.error(f"Get plan batches error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+# ============================================================================
+# GET: Retrieve user's template configuration
+# ============================================================================
+
+@app.route("/api/template/config", methods=["GET"])
+@token_required
+def get_template_config():
+    """Get user's current template configuration"""
+    try:
+        user_id = request.user_id
+        template_name = request.args.get('template_name', 'default')
+        
+        # Get template
+        template = template_manager.get_user_template(user_id, template_name)
+        
+        if not template:
+            return jsonify({
+                "success": False,
+                "error": "Template not found"
+            }), 404
+        
+        # Get hash for caching
+        template_hash = template_manager.get_template_hash(user_id, template_name)
+        
+        logger.info(f"📋 Template config retrieved for user {user_id}")
+        
+        return jsonify({
+            "success": True,
+            "template": template,
+            "template_hash": template_hash,
+            "message": "Template loaded successfully"
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"❌ Template config error: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
+# ============================================================================
+# POST: Update user's template configuration (with optional file upload)
+# ============================================================================
+
+@app.route("/api/template/config", methods=["POST"])
+@token_required
+def update_template_config():
+    """
+    Update user's template configuration.
+    Supports both JSON and FormData (for banner uploads).
+    """
+    try:
+        user_id = request.user_id
+        
+        # Check if it's FormData (with file) or JSON
+        if request.content_type and 'multipart/form-data' in request.content_type:
+            # Handle FormData (from React component)
+            template_data = {
+                'dept_name': request.form.get('dept_name', ''),
+                'exam_details': request.form.get('exam_details', ''),
+                'seating_plan_title': request.form.get('seating_plan_title', ''),
+                'branch_text': request.form.get('branch_text', ''),
+                'room_number': request.form.get('room_number', ''),
+                'coordinator_name': request.form.get('coordinator_name', ''),
+                'coordinator_title': request.form.get('coordinator_title', ''),
+            }
+            template_name = request.form.get('template_name', 'default')
+            
+            # Handle banner image upload if provided
+            banner_path = None
+            if 'bannerImage' in request.files:
+                file = request.files['bannerImage']
+                if file and file.filename:
+                    # Check file size (max 5MB)
+                    file.seek(0, os.SEEK_END)
+                    file_length = file.tell()
+                    file.seek(0)
+                    
+                    if file_length > 5 * 1024 * 1024:  # 5MB
+                        return jsonify({
+                            "success": False,
+                            "error": "File too large (max 5MB)"
+                        }), 400
+                    
+                    banner_path = template_manager.save_user_banner(user_id, file, template_name)
+                    if banner_path:
+                        template_data['banner_image_path'] = banner_path
+                    else:
+                        return jsonify({
+                            "success": False,
+                            "error": "Invalid file type. Allowed: PNG, JPG, JPEG, GIF, BMP"
+                        }), 400
+            
+            # If no new banner, keep existing path
+            if not banner_path:
+                existing_template = template_manager.get_user_template(user_id, template_name)
+                template_data['banner_image_path'] = existing_template.get('banner_image_path', '')
+        
+        else:
+            # Handle JSON (for API calls)
+            data = request.get_json()
+            
+            if not data:
+                return jsonify({
+                    "success": False,
+                    "error": "No data provided"
+                }), 400
+            
+            template_name = data.pop('template_name', 'default')
+            template_data = data
+            
+            # Validate input fields
+            allowed_fields = {
+                'dept_name', 'exam_details', 'seating_plan_title',
+                'branch_text', 'room_number', 'coordinator_name',
+                'coordinator_title', 'banner_image_path'
+            }
+            
+            invalid_fields = set(template_data.keys()) - allowed_fields
+            if invalid_fields:
+                return jsonify({
+                    "success": False,
+                    "error": f"Invalid fields: {', '.join(invalid_fields)}"
+                }), 400
+        
+        # Validate field lengths
+        string_fields = {
+            'dept_name': 200,
+            'exam_details': 200,
+            'seating_plan_title': 100,
+            'branch_text': 100,
+            'room_number': 50,
+            'coordinator_name': 100,
+            'coordinator_title': 100,
+            'banner_image_path': 500
+        }
+        
+        for field, max_len in string_fields.items():
+            if field in template_data and len(str(template_data.get(field, ''))) > max_len:
+                return jsonify({
+                    "success": False,
+                    "error": f"Field '{field}' exceeds maximum length of {max_len}"
+                }), 400
+        
+        # Save template
+        success = template_manager.save_user_template(user_id, template_data, template_name)
+        
+        if not success:
+            return jsonify({
+                "success": False,
+                "error": "Failed to save template"
+            }), 500
+        
+        # Clean up old banners (keep only latest 3)
+        template_manager.delete_old_banners(user_id, keep_latest=3)
+        
+        # Get updated template and hash
+        updated_template = template_manager.get_user_template(user_id, template_name)
+        new_hash = template_manager.get_template_hash(user_id, template_name)
+        
+        logger.info(f"📝 Template config updated for user {user_id}")
+        
+        return jsonify({
+            "success": True,
+            "message": "Template saved successfully!",
+            "template": updated_template,
+            "template_hash": new_hash
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"❌ Template update error: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
+# ============================================================================
+# POST: Upload banner image separately (alternative endpoint)
+# ============================================================================
+
+@app.route("/api/template/banner", methods=["POST"])
+@token_required
+def upload_template_banner():
+    """Upload custom banner image for PDF template"""
+    try:
+        user_id = request.user_id
+        template_name = request.args.get('template_name', 'default')
+        
+        # Check if file is in request
+        if 'file' not in request.files:
+            return jsonify({
+                "success": False,
+                "error": "No file provided"
+            }), 400
+        
+        file = request.files['file']
+        
+        if file.filename == '':
+            return jsonify({
+                "success": False,
+                "error": "No file selected"
+            }), 400
+        
+        # Check file size (max 5MB)
+        file.seek(0, os.SEEK_END)
+        file_length = file.tell()
+        file.seek(0)
+        
+        if file_length > 5 * 1024 * 1024:  # 5MB
+            return jsonify({
+                "success": False,
+                "error": "File too large (max 5MB)"
+            }), 400
+        
+        # Save banner
+        banner_path = template_manager.save_user_banner(user_id, file, template_name)
+        
+        if not banner_path:
+            return jsonify({
+                "success": False,
+                "error": "Invalid file type. Allowed: PNG, JPG, JPEG, GIF, BMP"
+            }), 400
+        
+        # Update template with banner path
+        template = template_manager.get_user_template(user_id, template_name)
+        template['banner_image_path'] = banner_path
+        template_manager.save_user_template(user_id, template, template_name)
+        
+        # Clean up old banners
+        template_manager.delete_old_banners(user_id, keep_latest=3)
+        
+        logger.info(f"🖼️ Banner uploaded for user {user_id}: {banner_path}")
+        
+        return jsonify({
+            "success": True,
+            "message": "Banner uploaded successfully",
+            "banner_path": banner_path
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"❌ Banner upload error: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
+# ============================================================================
+# GET: Generate test PDF with current template
+# ============================================================================
+
+@app.route("/api/test-pdf", methods=["GET"])
+@token_required
+def generate_test_pdf():
+    """Generate a test PDF with sample data using current template"""
+    try:
+        user_id = request.user_id
+        template_name = request.args.get('template_name', 'default')
+        
+        # Create sample student data
+        # Mimic the structure of a real seating allocation (2D array)
+        sample_seating_matrix = [
+            [
+                {'roll_number': 'BTCS24001', 'name': 'Aarav Sharma', 'batch_label': 'Batch A', 'paper_set': 'A', 'color': '#e3f2fd'},
+                {'roll_number': 'BTCS24002', 'name': 'Vivaan Verma', 'batch_label': 'Batch B', 'paper_set': 'B', 'color': '#f3e5f5'},
+                {'roll_number': 'BTCS24003', 'name': 'Aditya Gupta', 'batch_label': 'Batch A', 'paper_set': 'A', 'color': '#e3f2fd'},
+                {'roll_number': 'BTCS24004', 'name': 'Vihaan Kumar', 'batch_label': 'Batch B', 'paper_set': 'B', 'color': '#f3e5f5'}
+            ],
+            [
+                {'roll_number': 'BTCS24005', 'name': 'Arjun Singh', 'batch_label': 'Batch A', 'paper_set': 'A', 'color': '#e3f2fd'},
+                {'roll_number': 'BTCS24006', 'name': 'Aadhya Patel', 'batch_label': 'Batch B', 'paper_set': 'B', 'color': '#f3e5f5'},
+                {'roll_number': 'BTCS24007', 'name': 'Ananya Reddy', 'batch_label': 'Batch A', 'paper_set': 'A', 'color': '#e3f2fd'},
+                {'roll_number': 'BTCS24008', 'name': 'Pari Mehta', 'batch_label': 'Batch B', 'paper_set': 'B', 'color': '#f3e5f5'}
+            ]
+        ]
+
+        # WRAP IT IN A DICTIONARY
+        seating_payload = {
+            'seating': sample_seating_matrix,
+            'metadata': {
+                'rows': 2, 
+                'cols': 4, 
+                'blocks': 1,
+                'total_students': 8
+            }
+        }
+        
+        # Generate PDF
+        pdf_path = get_or_create_seating_pdf(
+            seating_payload,  # Pass the DICT, not the LIST
+            user_id=str(user_id),
+            template_name=template_name
+        )
+        
+        logger.info(f"📄 Test PDF generated for user {user_id}")
+        
+        return send_file(
+            pdf_path,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=f'test_seating_plan_{datetime.now().strftime("%H%M%S")}.pdf'
+        )
+        
+    except Exception as e:
+        logger.error(f"❌ Error generating test PDF: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            "success": False,
+            "error": f'Failed to generate test PDF: {str(e)}'
+        }), 500
+
+
+# ============================================================================
+# GET: Serve banner images
+# ============================================================================
+
+@app.route("/api/template/banner/<path:filename>", methods=["GET"])
+@token_required
+def serve_banner_image(filename):
+    """Serve uploaded banner images"""
+    try:
+        user_id = request.user_id
+        user_folder = os.path.join(template_manager.upload_folder, str(user_id))
+        file_path = os.path.join(user_folder, filename)
+        
+        if os.path.exists(file_path):
+            return send_file(file_path)
+        else:
+            logger.warning(f"⚠️ Banner file not found: {file_path}")
+            return jsonify({'error': 'File not found'}), 404
+            
+    except Exception as e:
+        logger.error(f"❌ Error serving banner: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+# ============================================================================
+# DELETE: Reset template to system default
+# ============================================================================
+
+@app.route("/api/template/config", methods=["DELETE"])
+@token_required
+def reset_template_config():
+    """Reset user's template to system default"""
+    try:
+        user_id = request.user_id
+        template_name = request.args.get('template_name', 'default')
+        
+        # Get system default
+        default_template = template_manager._get_default_template()
+        
+        # Save as user's template (reset)
+        success = template_manager.save_user_template(user_id, default_template, template_name)
+        
+        if not success:
+            return jsonify({
+                "success": False,
+                "error": "Failed to reset template"
+            }), 500
+        
+        logger.info(f"🔄 Template reset to default for user {user_id}")
+        
+        return jsonify({
+            "success": True,
+            "message": "Template reset to default",
+            "template": default_template
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"❌ Template reset error: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
+# ============================================================================
+# GET: Get template preview (HTML)
+# ============================================================================
+
+@app.route("/api/template/preview", methods=["GET"])
+@token_required
+def get_template_preview():
+    """Get HTML preview of user's template configuration"""
+    try:
+        user_id = request.user_id
+        template_name = request.args.get('template_name', 'default')
+        
+        template = template_manager.get_user_template(user_id, template_name)
+        
+        # Generate preview HTML
+        preview_html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                body {{ 
+                    font-family: Arial, sans-serif; 
+                    margin: 20px; 
+                    background-color: #f5f5f5;
+                }}
+                .container {{ 
+                    max-width: 800px; 
+                    margin: 0 auto; 
+                    background: white;
+                    padding: 30px;
+                    border-radius: 8px;
+                    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                }}
+                .banner {{ 
+                    width: 100%; 
+                    max-height: 200px; 
+                    margin-bottom: 20px;
+                    object-fit: contain;
+                }}
+                .field {{ 
+                    margin: 15px 0; 
+                    padding: 10px;
+                    background: #f9f9f9;
+                    border-radius: 5px;
+                }}
+                .label {{ 
+                    font-weight: bold; 
+                    color: #333; 
+                    font-size: 14px;
+                }}
+                .value {{ 
+                    color: #666; 
+                    margin-top: 5px; 
+                    font-size: 16px;
+                }}
+                hr {{ 
+                    border: none;
+                    border-top: 2px solid #e0e0e0;
+                    margin: 25px 0;
+                }}
+                h1 {{
+                    color: #2c3e50;
+                    border-bottom: 3px solid #3498db;
+                    padding-bottom: 10px;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>Template Preview</h1>
+                
+                {f'<img src="{template.get("banner_image_path")}" class="banner" alt="Banner" />' if template.get('banner_image_path') else '<p style="color: #999;">No banner image set</p>'}
+                
+                <div class="field">
+                    <div class="label">Department Name:</div>
+                    <div class="value">{template.get('dept_name') or 'Not set'}</div>
+                </div>
+                
+                <div class="field">
+                    <div class="label">Exam Details:</div>
+                    <div class="value">{template.get('exam_details') or 'Not set'}</div>
+                </div>
+                
+                <div class="field">
+                    <div class="label">Seating Plan Title:</div>
+                    <div class="value">{template.get('seating_plan_title') or 'Not set'}</div>
+                </div>
+                
+                <div class="field">
+                    <div class="label">Branch:</div>
+                    <div class="value">{template.get('branch_text') or 'Not set'}</div>
+                </div>
+                
+                <div class="field">
+                    <div class="label">Room Number:</div>
+                    <div class="value">{template.get('room_number') or 'Not set'}</div>
+                </div>
+                
+                <hr>
+                
+                <div class="field">
+                    <div class="label">Coordinator Name:</div>
+                    <div class="value">{template.get('coordinator_name') or 'Not set'}</div>
+                </div>
+                
+                <div class="field">
+                    <div class="label">Coordinator Title:</div>
+                    <div class="value">{template.get('coordinator_title') or 'Not set'}</div>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        
+        logger.info(f"👁️ Template preview generated for user {user_id}")
+        
+        return preview_html, 200, {'Content-Type': 'text/html; charset=utf-8'}
+        
+    except Exception as e:
+        logger.error(f"❌ Template preview error: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
+# ============================================================================
+# GET: List available templates
+# ============================================================================
+
+@app.route("/api/template/list", methods=["GET"])
+@token_required
+def list_templates():
+    """List all available templates for user"""
+    try:
+        user_id = request.user_id
+        
+        templates = [
+            {
+                "name": "default",
+                "label": "Default Template",
+                "is_custom": False,
+                "description": "Standard seating plan template"
+            }
+        ]
+        
+        logger.info(f"📋 Templates listed for user {user_id}")
+        
+        return jsonify({
+            "success": True,
+            "templates": templates
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"❌ List templates error: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route('/api/export-attendance', methods=['POST'])
+def export_attendance():
+    """
+    Export attendance sheet PDF for a batch.
+    
+    Request JSON:
+        {
+            "plan_id": "plan_abc",
+            "batch_name": "Batch A",
+            "metadata": {...}
+        }
+    
+    Returns:
+        PDF file download
+    """
+    try:
+        data = request.get_json()
+        plan_id = data.get('plan_id')
+        batch_name = data.get('batch_name')
+        frontend_metadata = data.get('metadata', {})
+
+        # Load cached seating plan
+        cache_data = cache_manager.load_snapshot(plan_id)
+        if not cache_data:
+            return jsonify({"error": "Seating plan cache not found"}), 404
+
+        # Get batch data
+        batch_data = cache_data.get('batches', {}).get(batch_name)
+        if not batch_data:
+            return jsonify({"error": f"Batch '{batch_name}' not found"}), 404
+
+        # Generate attendance PDF
+        temp_filename = f"temp_{plan_id}_{batch_name.replace(' ', '_')}.pdf"
+        
+        create_attendance_pdf(
+            temp_filename,
+            batch_data['students'],
+            batch_name,
+            frontend_metadata,
+            batch_data['info']
+        )
+
+        # Read PDF into memory
+        return_data = io.BytesIO()
+        with open(temp_filename, 'rb') as f:
+            return_data.write(f.read())
+        return_data.seek(0)
+        
+        # Clean up temp file
+        if os.path.exists(temp_filename):
+            os.remove(temp_filename)
+
+        logger.info(f"📋 Generated attendance sheet for {batch_name}")
+
+        return send_file(
+            return_data,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=f"Attendance_{batch_name}_{frontend_metadata.get('course_code', '')}.pdf"
+        )
+
+    except Exception as e:
+        logger.error(f"Export attendance error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+# ============================================================================
+# AUTH ROUTES (OPTIONAL - IF AUTH MODULE AVAILABLE)
+# ============================================================================
+
+@app.route("/api/auth/signup", methods=["POST"])
+def signup_route():
+    """User registration endpoint."""
+    if auth_signup is None:
+        return jsonify({"error": "Auth module not available"}), 501
+    
+    try:
+        data = request.get_json(force=True)
+        ok, user_data, token = auth_signup(  # ✅ Get all 3 return values
+            data.get("username"),
+            data.get("email"),
+            data.get("password"),
+            data.get("role", "STUDENT"),
+        )
+        
+        if ok:
+            # ✅ Return proper structure with 'data' wrapper
+            return jsonify({
+                "success": True,
+                "message": "Signup successful",
+                "data": {
+                    "token": token,
+                    "user": user_data
+                }
+            }), 201
+        else:
+            # user_data contains error message on failure
+            return jsonify({
+                "success": False,
+                "error": user_data,  # Error message from backend
+                "message": user_data
+            }), 400
+        
+    except Exception as e:
+        logger.error(f"Signup error: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
+@app.route("/api/auth/login", methods=["POST"])
+def login_route():
+    """User login endpoint."""
+    if auth_login is None:
+        return jsonify({"error": "Auth module not available"}), 501
+    
+    try:
+        data = request.get_json(force=True)
+        ok, user, token = auth_login(data.get("email"), data.get("password"))
+        
+        if not ok:
+            return jsonify({"error": token}), 401
+        
+        return jsonify({"token": token, "user": user})
+        
+    except Exception as e:
+        logger.error(f"Login error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/auth/google", methods=["POST"])
+def google_auth_route():
+    """Google OAuth login endpoint."""
+    if google_auth_handler is None:
+        return jsonify({"error": "Google auth not available"}), 501
+    
+    try:
+        data = request.get_json(force=True)
+        token = data.get("token")
+        
+        if not token:
+            return jsonify({"error": "No token provided"}), 400
+        
+        ok, user, auth_token = google_auth_handler(token)
+        
+        if not ok:
+            return jsonify({"error": user}), 401
+        
+        return jsonify({"token": auth_token, "user": user})
+        
+    except Exception as e:
+        logger.error(f"Google auth error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/auth/profile", methods=["GET"])
+@token_required
+def get_profile_route():
+    """Get user profile (requires auth token)."""
+    if get_user_by_token is None:
+        return jsonify({"error": "Auth module not available"}), 501
+    
+    try:
+        auth_header = request.headers.get("Authorization")
+        if not auth_header:
+            return jsonify({"error": "Missing token"}), 401
+        
+        token = auth_header.split(" ")[1]
+        user = get_user_by_token(token)
+        
+        if not user:
+            return jsonify({"error": "User not found or token invalid"}), 404
+        
+        return jsonify({"success": True, "user": user})
+        
+    except Exception as e:
+        logger.error(f"Get profile error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/auth/profile", methods=["PUT"])
+@token_required
+def update_profile_route():
+    """Update user profile (requires auth token)."""
+    if update_user_profile is None:
+        return jsonify({"error": "Auth module not available"}), 501
+    
+    try:
+        data = request.get_json(force=True)
+        username = data.get("username")
+        email = data.get("email")
+        
+        ok, msg = update_user_profile(request.user_id, username, email)
+        
+        if ok:
+            auth_header = request.headers.get("Authorization")
+            token = auth_header.split(" ")[1]
+            user = get_user_by_token(token)
+            return jsonify({"success": True, "message": msg, "user": user})
+        else:
+            return jsonify({"success": False, "error": msg}), 400
+            
+    except Exception as e:
+        logger.error(f"Update profile error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/auth/logout", methods=["POST"])
+def logout_route():
+    """Logout endpoint (stateless - just confirmation)."""
+    return jsonify({"success": True, "message": "Logged out successfully"})
+
+
+# ============================================================================
 # FEEDBACK ROUTES
-# --------------------------------------------------
+# ============================================================================
 
 @app.route("/api/feedback", methods=["POST"])
 @token_required
 def submit_feedback():
-    """Submit new feedback"""
+    """
+    Submit user feedback with optional file attachment.
+    
+    Form Data:
+        - issueType: Type of issue
+        - priority: low/medium/high/critical
+        - description: Description of issue
+        - featureSuggestion: (optional)
+        - additionalInfo: (optional)
+        - file: (optional) Attachment
+    
+    Returns:
+        JSON with feedback_id
+    """
     try:
         issue_type = request.form.get('issueType')
         priority = request.form.get('priority')
@@ -698,6 +3560,7 @@ def submit_feedback():
         if not all([issue_type, priority, description]):
             return jsonify({"error": "Missing required fields"}), 400
         
+        # Handle file upload
         file_path = None
         file_name = None
         if 'file' in request.files:
@@ -710,23 +3573,17 @@ def submit_feedback():
                     file_path = app.config['FEEDBACK_FOLDER'] / safe_filename
                     file.save(str(file_path))
                     file_name = file.filename
-                    print(f"✅ Feedback file saved: {file_path}")
                 except Exception as file_error:
-                    print(f"⚠️  File upload error: {file_error}")
-                    file_path = None
-                    file_name = None
+                    logger.error(f"File upload error: {file_error}")
         
-        # Ensure user_id is available
-        user_id = getattr(request, 'user_id', None)
-        if not user_id:
-            print("⚠️  Warning: user_id not set by token_required decorator")
-            user_id = 1  # Default for testing
+        user_id = getattr(request, 'user_id', 1)
         
         conn = sqlite3.connect(DB_PATH)
         cur = conn.cursor()
+        
         cur.execute("""
             INSERT INTO feedback (
-                user_id, issue_type, priority, description, 
+                user_id, issue_type, priority, description,
                 feature_suggestion, additional_info, file_path, file_name
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """, (
@@ -734,43 +3591,47 @@ def submit_feedback():
             feature_suggestion, additional_info,
             str(file_path) if file_path else None, file_name
         ))
+        
         feedback_id = cur.lastrowid
         conn.commit()
         conn.close()
         
-        print(f"✅ Feedback submitted successfully: ID={feedback_id}, User={user_id}")
+        logger.info(f"📝 Feedback submitted: ID={feedback_id}, User={user_id}, Priority={priority}")
         
         return jsonify({
-            "success": True, 
+            "success": True,
             "message": "Feedback submitted successfully",
             "feedback_id": feedback_id
         }), 201
         
     except Exception as e:
-        print(f"❌ Error in submit_feedback: {str(e)}")
-        import traceback
-        traceback.print_exc()
+        logger.error(f"Feedback submission error: {str(e)}")
         return jsonify({"success": False, "error": str(e)}), 500
 
 
 @app.route("/api/feedback", methods=["GET"])
 @token_required
 def get_user_feedback():
-    """Get all feedback submitted by the current user"""
+    """
+    Get feedback submitted by current user.
+    
+    Returns:
+        JSON list of feedback entries
+    """
     try:
         user_id = getattr(request, 'user_id', None)
         if not user_id:
             return jsonify({"error": "User not authenticated"}), 401
-            
+        
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
         
         cur.execute("""
-            SELECT id, issue_type, priority, description, 
+            SELECT id, issue_type, priority, description,
                    feature_suggestion, additional_info, file_name,
                    status, created_at, resolved_at, admin_response
-            FROM feedback 
+            FROM feedback
             WHERE user_id = ?
             ORDER BY created_at DESC
         """, (user_id,))
@@ -778,1302 +3639,161 @@ def get_user_feedback():
         feedback_list = [dict(row) for row in cur.fetchall()]
         conn.close()
         
-        print(f"✅ Retrieved {len(feedback_list)} feedback records for user {user_id}")
-        
         return jsonify({
             "success": True,
             "feedback": feedback_list
         })
         
     except Exception as e:
-        print(f"❌ Error in get_user_feedback: {str(e)}")
-        import traceback
-        traceback.print_exc()
+        logger.error(f"Get feedback error: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
-
-@app.route("/api/feedback/<int:feedback_id>", methods=["GET"])
-@token_required
-def get_feedback_detail(feedback_id):
-    """Get detailed feedback by ID"""
-    try:
-        conn = sqlite3.connect(DB_PATH)
-        conn.row_factory = sqlite3.Row
-        cur = conn.cursor()
-        
-        cur.execute("""
-            SELECT * FROM feedback 
-            WHERE id = ? AND user_id = ?
-        """, (feedback_id, request.user_id))
-        
-        row = cur.fetchone()
-        conn.close()
-        
-        if not row:
-            return jsonify({"error": "Feedback not found"}), 404
-        
-        return jsonify({
-            "success": True,
-            "feedback": dict(row)
-        })
-        
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-@app.route("/api/feedback/<int:feedback_id>/file", methods=["GET"])
-@token_required
-def download_feedback_file(feedback_id):
-    """Download attached file from feedback"""
-    try:
-        conn = sqlite3.connect(DB_PATH)
-        conn.row_factory = sqlite3.Row
-        cur = conn.cursor()
-        
-        cur.execute("""
-            SELECT file_path, file_name FROM feedback 
-            WHERE id = ? AND user_id = ?
-        """, (feedback_id, request.user_id))
-        
-        row = cur.fetchone()
-        conn.close()
-        
-        if not row or not row['file_path']:
-            return jsonify({"error": "File not found"}), 404
-        
-        file_path = Path(row['file_path'])
-        if not file_path.exists():
-            return jsonify({"error": "File no longer exists"}), 404
-        
-        return send_file(
-            file_path,
-            as_attachment=True,
-            download_name=row['file_name']
-        )
-        
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-# --------------------------------------------------
-# ADMIN ROUTES
-# --------------------------------------------------
-
-@app.route("/api/admin/feedback", methods=["GET"])
-@token_required
-def get_all_feedback():
-    """Get all feedback (admin only)"""
-    try:
-        status = request.args.get('status', None)
-        
-        conn = sqlite3.connect(DB_PATH)
-        conn.row_factory = sqlite3.Row
-        cur = conn.cursor()
-        
-        if status:
-            cur.execute("""
-                SELECT f.*, u.username, u.email 
-                FROM feedback f
-                LEFT JOIN users u ON f.user_id = u.id
-                WHERE f.status = ?
-                ORDER BY f.created_at DESC
-            """, (status,))
-        else:
-            cur.execute("""
-                SELECT f.*, u.username, u.email 
-                FROM feedback f
-                LEFT JOIN users u ON f.user_id = u.id
-                ORDER BY f.created_at DESC
-            """)
-        
-        feedback_list = [dict(row) for row in cur.fetchall()]
-        conn.close()
-        
-        return jsonify({
-            "success": True,
-            "feedback": feedback_list
-        })
-        
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-@app.route("/api/admin/feedback/<int:feedback_id>/resolve", methods=["PUT"])
-@token_required
-def resolve_feedback(feedback_id):
-    """Mark feedback as resolved (admin only)"""
-    try:
-        data = request.get_json()
-        admin_response = data.get('adminResponse', '')
-        
-        conn = sqlite3.connect(DB_PATH)
-        cur = conn.cursor()
-        
-        cur.execute("""
-            UPDATE feedback 
-            SET status = 'resolved',
-                resolved_at = CURRENT_TIMESTAMP,
-                admin_response = ?
-            WHERE id = ?
-        """, (admin_response, feedback_id))
-        
-        conn.commit()
-        conn.close()
-        
-        return jsonify({
-            "success": True,
-            "message": "Feedback marked as resolved"
-        })
-        
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-@app.route("/api/admin/feedback/<int:feedback_id>", methods=["DELETE"])
-@token_required
-def delete_feedback(feedback_id):
-    """Delete feedback (admin only)"""
-    try:
-        conn = sqlite3.connect(DB_PATH)
-        cur = conn.cursor()
-        
-        cur.execute("SELECT file_path FROM feedback WHERE id = ?", (feedback_id,))
-        row = cur.fetchone()
-        
-        if row and row[0]:
-            file_path = Path(row[0])
-            if file_path.exists():
-                file_path.unlink()
-        
-        cur.execute("DELETE FROM feedback WHERE id = ?", (feedback_id,))
-        conn.commit()
-        conn.close()
-        
-        return jsonify({
-            "success": True,
-            "message": "Feedback deleted successfully"
-        })
-        
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-# --------------------------------------------------
-# 7. API ROUTES: CLASSROOMS
-# --------------------------------------------------
-@app.route("/api/classrooms", methods=["GET"])
-def get_classrooms():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM classrooms ORDER BY name ASC")
-    rooms = [dict(r) for r in cur.fetchall()]
-    conn.close()
-    return jsonify(rooms)
-
-@app.route("/api/classrooms", methods=["POST"])
-def save_classroom():
-    data = request.get_json()
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    try:
-        cur.execute("""
-            INSERT OR REPLACE INTO classrooms (id, name, rows, cols, broken_seats, block_width)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """, (data.get('id'), data['name'], data['rows'], data['cols'], 
-              data.get('broken_seats', ''), data.get('block_width', 1)))
-        conn.commit()
-        return jsonify({"success": True, "message": "Classroom saved"}), 201
-    except Exception as e:
-        return jsonify({"error": str(e)}), 400
-    finally:
-        conn.close()
-
-@app.route("/api/classrooms/<int:room_id>", methods=["DELETE"])
-def delete_classroom(room_id):
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    try:
-        cur.execute("DELETE FROM classrooms WHERE id = ?", (room_id,))
-        conn.commit()
-        return jsonify({"success": True})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    finally:
-        conn.close()
-
-
-# --------------------------------------------------
-# AUTH ROUTES
-# --------------------------------------------------
-@app.route("/api/auth/signup", methods=["POST"])
-def signup_route():
-    if auth_signup is None: 
-        return jsonify({"error": "Auth module not available"}), 501
-    
-    data = request.get_json(force=True)
-    ok, msg = auth_signup(
-        data.get("username"),
-        data.get("email"),
-        data.get("password"),
-        data.get("role", "STUDENT"),
-    )
-    return jsonify({"success": ok, "message": msg}), 201 if ok else 400
-
-@app.route("/api/auth/login", methods=["POST"])
-def login_route():
-    if auth_login is None: 
-        return jsonify({"error": "Auth module not available"}), 501
-    
-    data = request.get_json(force=True)
-    ok, user, token = auth_login(data.get("email"), data.get("password"))
-    if not ok:
-        return jsonify({"error": token}), 401
-    return jsonify({"token": token, "user": user})
 
 # ============================================================================
-# GOOGLE AUTH ROUTE (NEW)
-# ============================================================================
-@app.route("/api/auth/google", methods=["POST"])
-def google_auth_route():
-    """Handle Google OAuth token and create/update user"""
-    if google_auth_handler is None:
-        return jsonify({"error": "Google auth not available"}), 501
-    
-    data = request.get_json(force=True)
-    token = data.get("token")
-    
-    if not token:
-        return jsonify({"error": "No token provided"}), 400
-    
-    ok, user, auth_token = google_auth_handler(token)
-    if not ok:
-        return jsonify({"error": user}), 401
-    
-    return jsonify({"token": auth_token, "user": user})
-
-@app.route("/api/auth/profile", methods=["GET"])
-@token_required
-def get_profile_route():
-    if get_user_by_token is None: 
-        return jsonify({"error": "Auth module not available"}), 501
-    
-    auth_header = request.headers.get("Authorization")
-    if not auth_header: 
-        return jsonify({"error": "Missing token"}), 401
-    
-    try:
-        token = auth_header.split(" ")[1]
-        user = get_user_by_token(token)
-        
-        if not user:
-            return jsonify({"error": "User not found or token invalid"}), 404
-            
-        return jsonify({"success": True, "user": user})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/api/auth/profile", methods=["PUT"])
-@token_required
-def update_profile_route():
-    if update_user_profile is None: 
-        return jsonify({"error": "Auth module not available"}), 501
-    
-    data = request.get_json(force=True)
-    username = data.get("username")
-    email = data.get("email")
-    
-    ok, msg = update_user_profile(request.user_id, username, email)
-    
-    if ok:
-        user = get_user_by_token(request.headers.get("Authorization").split(" ")[1])
-        return jsonify({"success": True, "message": msg, "user": user})
-    else:
-        return jsonify({"success": False, "error": msg}), 400
-
-@app.route("/api/auth/logout", methods=["POST"])
-def logout_route():
-    return jsonify({"success": True, "message": "Logged out successfully"})
-
-# --------------------------------------------------
-# Upload Routes
-# --------------------------------------------------
-@app.route("/api/upload-preview", methods=["POST"])
-def api_upload_preview():
-    try:
-        if "file" not in request.files: 
-            return jsonify({"error": "No file provided"}), 400
-        
-        file = request.files["file"]
-        if file.filename == '': 
-            return jsonify({"error": "No file selected"}), 400
-        
-        if StudentDataParser is None:
-            return jsonify({"error": "Parser module not available"}), 500
-        
-        file_content = file.read()
-        parser = StudentDataParser()
-        preview_data = parser.preview(io.BytesIO(file_content), max_rows=10)
-        
-        return jsonify({"success": True, **preview_data}), 200
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
-
-@app.route("/api/upload", methods=["POST"])
-def api_upload():
-    try:
-        if "file" not in request.files: 
-            return jsonify({"error": "No file"}), 400
-        
-        if StudentDataParser is None:
-            return jsonify({"error": "Parser module not available"}), 500
-        
-        file = request.files["file"]
-        mode = int(request.form.get("mode", 2))
-        batch_name = request.form.get("batch_name", "BATCH1")
-        name_col = request.form.get("nameColumn", None)
-        enrollment_col = request.form.get("enrollmentColumn", None)
-        
-        file_content = file.read()
-        parser = StudentDataParser()
-        pr = parser.parse_file(
-            io.BytesIO(file_content),
-            mode=mode, 
-            batch_name=batch_name,
-            name_col=name_col, 
-            enrollment_col=enrollment_col
-        )
-        
-        if not hasattr(app, 'config'): 
-            app.config = {}
-        if 'UPLOAD_CACHE' not in app.config: 
-            app.config['UPLOAD_CACHE'] = {}
-        
-        app.config['UPLOAD_CACHE'][pr.batch_id] = pr
-        
-        return jsonify({
-            "success": True,
-            "batch_id": pr.batch_id,
-            "batch_name": pr.batch_name,
-            "rows_extracted": pr.rows_extracted,
-            "sample": pr.data[pr.batch_name][:10],
-            "preview": {
-                "columns": list(pr.data[pr.batch_name][0].keys()) if pr.mode == 2 and pr.data[pr.batch_name] else [],
-                "totalRows": pr.rows_total,
-                "extractedRows": pr.rows_extracted
-            }
-        }), 200
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
-
-@app.route("/api/commit-upload", methods=["POST"])
-def commit_upload():
-    try:
-        body = request.get_json(force=True)
-        batch_id = body.get("batch_id")
-        cache = app.config.get("UPLOAD_CACHE", {})
-        pr = cache.get(batch_id)
-        
-        if not pr: 
-            return jsonify({"error": "Preview expired or not found"}), 400
-        
-        conn = sqlite3.connect(DB_PATH)
-        cur = conn.cursor()
-        cur.execute(
-            "INSERT INTO uploads (batch_id, batch_name) VALUES (?, ?)", 
-            (pr.batch_id, pr.batch_name)
-        )
-        upload_id = cur.lastrowid
-        
-        inserted, skipped = 0, 0
-        for row in pr.data[pr.batch_name]:
-            enr = row.get("enrollmentNo") if isinstance(row, dict) else str(row)
-            name = row.get("name") if isinstance(row, dict) else None
-            
-            if not enr: 
-                skipped += 1
-                continue
-            
-            try:
-                cur.execute(
-                    "INSERT INTO students (upload_id, batch_id, batch_name, enrollment, name) VALUES (?, ?, ?, ?, ?)", 
-                    (upload_id, pr.batch_id, pr.batch_name, enr, name)
-                )
-                inserted += 1
-            except sqlite3.IntegrityError:
-                skipped += 1
-        
-        conn.commit()
-        conn.close()
-        
-        if batch_id in app.config['UPLOAD_CACHE']: 
-            del app.config['UPLOAD_CACHE'][batch_id]
-        
-        return jsonify({"success": True, "inserted": inserted, "skipped": skipped})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-# --------------------------------------------------
-# Data Access
-# --------------------------------------------------
-@app.route("/api/students", methods=["GET"])
-def api_students():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM students ORDER BY id DESC LIMIT 1000")
-    rows = [dict(r) for r in cur.fetchall()]
-    conn.close()
-    return jsonify(rows)
-
-# --------------------------------------------------
-# Allocation Routes (Permanent ID Logic)
-# --------------------------------------------------
-
-@app.route("/api/generate-seating", methods=["POST"])
-def generate_seating():
-    if SeatingAlgorithm is None:
-        return jsonify({"error": "SeatingAlgorithm module not available"}), 500
-    
-    data = request.get_json(force=True)
-    
-    # --- PERMANENT ID LOGIC ---
-    # 1. Determine the Plan ID
-    plan_id = data.get("plan_id")
-    is_new_plan = False
-
-    if not plan_id:
-        # Generate a fresh ID only if one wasn't provided
-        plan_id = f"plan_{uuid.uuid4().hex[:8]}"
-        is_new_plan = True
-    
-    # 2. Extract settings for the Algorithm
-    use_db = bool(data.get("use_demo_db", True))
-    if use_db:
-        counts, labels = get_batch_counts_and_labels_from_db()
-        rolls = get_batch_roll_numbers_from_db()
-        num_batches = len(counts)
-    else:
-        counts = parse_int_dict(data.get("batch_student_counts"))
-        labels = parse_str_dict(data.get("batch_labels"))
-        rolls = data.get("batch_roll_numbers") or {}
-        num_batches = int(data.get("num_batches", 3))
-
-    # Parse broken seats
-    broken_str = data.get("broken_seats", "")
-    broken_seats = []
-    if isinstance(broken_str, str) and "-" in broken_str:
-        broken_seats = [(int(r)-1, int(c)-1) for r, c in (p.split("-") for p in broken_str.split(",") if "-" in p)]
-    elif isinstance(broken_str, list):
-        broken_seats = broken_str 
-
-    # 3. Run the Algorithm
-    # We pass all configuration data to the algorithm
-    algo = SeatingAlgorithm(
-        rows=int(data.get("rows", 10)),
-        cols=int(data.get("cols", 6)),
-        num_batches=num_batches,
-        block_width=int(data.get("block_width", 2)),
-        batch_by_column=bool(data.get("batch_by_column", True)),
-        enforce_no_adjacent_batches=bool(data.get("enforce_no_adjacent_batches", False)),
-        broken_seats=broken_seats,
-        batch_student_counts=counts,
-        batch_roll_numbers=rolls,
-        batch_labels=labels,
-        start_rolls=parse_str_dict(data.get("start_rolls")),
-        batch_colors=parse_str_dict(data.get("batch_colors")),
-        serial_mode=data.get("serial_mode", "per_batch"),
-        serial_width=int(data.get("serial_width", 0))
-    )
-
-    algo.generate_seating()
-    web = algo.to_web_format()
-    
-    # 4. Finalize response object
-    web.setdefault("metadata", {})
-    # Crucial: Send the ID back so the Frontend can include it in the next request
-    web["plan_id"] = plan_id  
-    
-    ok, errors = algo.validate_constraints()
-    web["validation"] = {"is_valid": ok, "errors": errors}
-    
-    # 5. OVERWRITE CACHE: This ensures we update the SAME file
-    # Using save_or_update prevents duplication in the /cache folder
-    cache_manager.save_or_update(plan_id, data, web)
-    
-    action_type = "Created" if is_new_plan else "Updated"
-    print(f"💾 {action_type} plan: {plan_id} (Cache Overwritten)")
-
-    return jsonify(web)
-
-@app.route("/api/constraints-status", methods=["POST"])
-def constraints_status():
-    """Remains dynamic for real-time UI feedback (not cached)"""
-    if SeatingAlgorithm is None: 
-        return jsonify({"error": "Algorithm module not available"}), 500
-    
-    data = request.get_json(force=True)
-    algo = SeatingAlgorithm(
-        rows=int(data.get("rows", 10)),
-        cols=int(data.get("cols", 6)),
-        num_batches=int(data.get("num_batches", 3)),
-        block_width=int(data.get("block_width", 2)),
-        batch_by_column=bool(data.get("batch_by_column", True)),
-        enforce_no_adjacent_batches=bool(data.get("enforce_no_adjacent_batches", False))
-    )
-    algo.generate_seating()
-    return jsonify(algo.get_constraints_status())
-# ============================================================================
-# PDF GENERATION
-# ============================================================================
-@app.route('/template-editor')
-def template_editor():
-    """Serve the template editor interface"""
-    return render_template('template_editor.html')
-    # Since we changed Flask configuration, if 'template_editor.html'
-    # is still a separate file, you should ensure it is in the 'templates' folder
-    # or handle it as part of the React build. 
-    # If the TemplateEditor is a React component, this route should also use render_template('index.html')
-    # and let React Router handle the /template-editor path.
-
-@app.route('/api/template-config', methods=['GET', 'POST'])
-def manage_template():
-    user_id = 'test_user'
-    template_name = request.args.get('template_name', 'default')
-    
-    if request.method == 'GET':
-        try:
-            template = template_manager.get_user_template(user_id, template_name)
-            return jsonify({
-                'success': True,
-                'template': template,
-                'user_id': user_id
-            })
-        except Exception as e:
-            return jsonify({'error': f'Failed to load template: {str(e)}'}), 500
-    
-    elif request.method == 'POST':
-        try:
-            template_data = request.form.to_dict()
-            
-            if 'bannerImage' in request.files:
-                file = request.files['bannerImage']
-                if file and file.filename:
-                    image_path = template_manager.save_user_banner(user_id, file, template_name)
-                    if image_path:
-                        template_data['banner_image_path'] = image_path
-            
-            template_manager.save_user_template(user_id, template_data, template_name)
-            
-            return jsonify({
-                'success': True,
-                'message': 'Template updated successfully',
-                'template': template_manager.get_user_template(user_id, template_name)
-            })
-            
-        except Exception as e:
-            return jsonify({'error': f'Failed to update template: {str(e)}'}), 500
-# ============================================================================
-# FIXED PDF GENERATION (Snapshot-Aware)
+# ADMIN & MAINTENANCE ROUTES
 # ============================================================================
 
-@app.route('/api/generate-pdf', methods=['POST'])
-def generate_pdf():
-    try:
-        data = request.get_json()
-        if not data:
-            return jsonify({"error": "No data provided"}), 400
-        
-        # 1. Try to load from Central Cache if a snapshot_id is provided
-        # This ensures the PDF exactly matches what was generated by the algo
-        snapshot_id = data.get('snapshot_id')
-        
-        if snapshot_id:
-            snapshot = cache_manager.load_snapshot(snapshot_id)
-            if snapshot:
-                seating_payload = snapshot['seating_data']
-                print(f"📄 Generating PDF from Snapshot: {snapshot_id}")
-            else:
-                return jsonify({"error": "Cached snapshot not found. Please regenerate seating."}), 404
-        else:
-            # Fallback for direct data sends (like from your frontend preview)
-            if 'seating' not in data:
-                return jsonify({"error": "Invalid seating data"}), 400
-            seating_payload = data
-            print("📄 Generating PDF from raw request data")
-
-        user_id = 'test_user'
-        template_name = request.args.get('template_name', 'default')
-        
-        # 2. Call the generator with the validated payload
-        pdf_path = get_or_create_seating_pdf(
-            seating_payload, 
-            user_id=user_id, 
-            template_name=template_name
-        )
-        
-        return send_file(
-            pdf_path,
-            as_attachment=True,
-            download_name=f"seating_plan_{datetime.now().strftime('%Y%m%d%H%M%S')}.pdf"
-        )
-    except Exception as e:
-        print(f"❌ PDF Error: {str(e)}")
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/api/test-pdf', methods=['GET'])
-def test_pdf():
-    """Generates a sample PDF to verify the generator and template system work."""
-    user_id = 'test_user'
-    template_name = request.args.get('template_name', 'default')
-    
-    sample_data = {
-        'seating': [
-            [
-                {'roll_number': '2021001', 'paper_set': 'A', 'color': '#e3f2fd'},
-                {'roll_number': '2021002', 'paper_set': 'B', 'color': '#f3e5f5'},
-                {'roll_number': '2021003', 'paper_set': 'A', 'color': '#e8f5e8'}
-            ],
-            [
-                {'roll_number': '2021004', 'paper_set': 'B', 'color': '#fff3e0'},
-                {'is_broken': True, 'display': 'BROKEN', 'color': '#ffebee'},
-                {'roll_number': '2021005', 'paper_set': 'A', 'color': '#e3f2fd'}
-            ]
-        ],
-        'metadata': {'rows': 2, 'cols': 3, 'blocks': 1, 'block_width': 3}
-    }
-    
-    try:
-        # Note: We don't cache test PDFs to avoid cluttering the system
-        pdf_path = get_or_create_seating_pdf(sample_data, user_id=user_id, template_name=template_name)
-        return send_file(
-            pdf_path,
-            as_attachment=True,
-            download_name=f"test_seating_plan.pdf"
-        )
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-# ============================================================================
-# ATTENDANCE GENERATION & ALLOCATIONS
-# ============================================================================
-
-@app.route('/api/allocations', methods=['GET'])
-def get_all_allocations():
-    """Fetches list of previous uploads/plans for the frontend to select from"""
-    try:
-        conn = sqlite3.connect(DB_PATH)
-        cur = conn.cursor()
-        cur.execute("SELECT DISTINCT batch_id, batch_name, created_at FROM uploads")
-        rows = cur.fetchall()
-        conn.close()
-        return jsonify([{"id": r[0], "batch_name": r[1], "date": r[2]} for r in rows])
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/api/plan-batches/<plan_id>', methods=['GET'])
-def get_plan_batches(plan_id):
-    """
-    NEW: This route helps the frontend 'Attendance Page' know 
-    which batches exist in a plan so it can render the forms.
-    """
-    cache_data = cache_manager.load_snapshot(plan_id)
-    if not cache_data:
-        return jsonify({"error": "Plan not found"}), 404
-    
-    # Return just the batch names and their pre-parsed info
-    batch_list = {}
-    for label, data in cache_data.get('batches', {}).items():
-        batch_list[label] = data.get('info', {})
-        
-    return jsonify({
-        "plan_id": plan_id,
-        "batches": batch_list,
-        "room_no": cache_data.get('inputs', {}).get('room_id', 'N/A')
-    })
-
-@app.route('/api/export-attendance', methods=['POST'])
-def export_attendance():
-    """
-    FIXED: The main route to generate a PDF for a SPECIFIC batch 
-    using the structured cache data.
-    """
-    try:
-        data = request.get_json()
-        plan_id = data.get('plan_id')
-        batch_name = data.get('batch_name')
-        frontend_metadata = data.get('metadata', {}) 
-
-        # 1. Load the structured cache created by CacheManager
-        cache_data = cache_manager.load_snapshot(plan_id)
-        if not cache_data:
-            return jsonify({"error": "Seating plan cache not found"}), 404
-
-        # 2. Get the specific batch data organized by CacheManager
-        batch_data = cache_data.get('batches', {}).get(batch_name)
-        if not batch_data:
-            return jsonify({"error": f"Batch '{batch_name}' not found in this plan"}), 404
-
-        # 3. Path for temporary PDF generation
-        temp_filename = f"temp_{plan_id}_{batch_name.replace(' ', '_')}.pdf"
-        
-        # 4. Generate PDF using the pre-structured data
-        # student_list = batch_data['students']
-        # extracted_info = batch_data['info']
-        create_attendance_pdf(
-            temp_filename, 
-            batch_data['students'], 
-            batch_name, 
-            frontend_metadata, 
-            batch_data['info']
-        )
-
-        # 5. Read PDF into memory and return to user
-        return_data = io.BytesIO()
-        with open(temp_filename, 'rb') as f:
-            return_data.write(f.read())
-        return_data.seek(0)
-        
-        # 6. Cleanup the temp file
-        if os.path.exists(temp_filename):
-            os.remove(temp_filename)
-
-        return send_file(
-            return_data,
-            mimetype='application/pdf',
-            as_attachment=True,
-            download_name=f"Attendance_{batch_name}_{frontend_metadata.get('course_code', '')}.pdf"
-        )
-
-    except Exception as e:
-        print(f"Export Error: {str(e)}")
-        return jsonify({"error": str(e)}), 500
-# --------------------------------------------------
-# Admin/Maintenance Routes
-# --------------------------------------------------
 @app.route("/api/reset-data", methods=["POST"])
 @token_required
 def reset_data():
+    """
+    Reset all student data and allocations.
+    
+    WARNING: Destructive operation - cannot be undone.
+    
+    Returns:
+        Success confirmation
+    """
     try:
         conn = sqlite3.connect(DB_PATH)
         cur = conn.cursor()
         
+        # Delete data (cascading will handle related records)
         cur.execute("DELETE FROM students")
         cur.execute("DELETE FROM uploads")
         cur.execute("DELETE FROM allocations")
+        cur.execute("DELETE FROM allocation_sessions")
+        cur.execute("DELETE FROM allocation_history")
         
-        cur.execute("DELETE FROM sqlite_sequence WHERE name='students'")
-        cur.execute("DELETE FROM sqlite_sequence WHERE name='uploads'")
-        cur.execute("DELETE FROM sqlite_sequence WHERE name='allocations'")
-        
-        conn.commit()
-        conn.close()
-        
-        return jsonify({
-            "success": True, 
-            "message": "All data has been cleared."
-        })
-        
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
-
-# ============================================================================
-# DATABASE MANAGEMENT API ROUTES
-# Add these routes to app.py after the existing routes
-# ============================================================================
-
-# --------------------------------------------------
-# Database Overview & Statistics
-# --------------------------------------------------
-@app.route("/api/database/overview", methods=["GET"])
-@token_required
-def get_database_overview():
-    """Get comprehensive database statistics and overview"""
-    try:
-        conn = sqlite3.connect(DB_PATH)
-        conn.row_factory = sqlite3.Row
-        cur = conn.cursor()
-        
-        # Get counts for all tables
-        cur.execute("SELECT COUNT(*) as count FROM students")
-        students_count = cur.fetchone()['count']
-        
-        cur.execute("SELECT COUNT(*) as count FROM classrooms")
-        classrooms_count = cur.fetchone()['count']
-        
-        cur.execute("SELECT COUNT(*) as count FROM uploads")
-        uploads_count = cur.fetchone()['count']
-        
-        cur.execute("SELECT COUNT(*) as count FROM allocations")
-        allocations_count = cur.fetchone()['count']
-        
-        cur.execute("SELECT COUNT(*) as count FROM feedback")
-        feedback_count = cur.fetchone()['count']
-        
-        # Get batch statistics
-        cur.execute("""
-            SELECT batch_name, COUNT(*) as count 
-            FROM students 
-            GROUP BY batch_name 
-            ORDER BY count DESC
-        """)
-        batch_stats = [dict(row) for row in cur.fetchall()]
-        
-        # Get recent uploads
-        cur.execute("""
-            SELECT batch_id, batch_name, created_at 
-            FROM uploads 
-            ORDER BY created_at DESC 
-            LIMIT 5
-        """)
-        recent_uploads = [dict(row) for row in cur.fetchall()]
-        
-        # Database file size
-        db_size = DB_PATH.stat().st_size / (1024 * 1024)  # MB
-        
-        conn.close()
-        
-        return jsonify({
-            "success": True,
-            "overview": {
-                "tables": {
-                    "students": students_count,
-                    "classrooms": classrooms_count,
-                    "uploads": uploads_count,
-                    "allocations": allocations_count,
-                    "feedback": feedback_count
-                },
-                "batch_statistics": batch_stats,
-                "recent_uploads": recent_uploads,
-                "database_size_mb": round(db_size, 2),
-                "database_path": str(DB_PATH)
-            }
-        })
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
-
-
-# --------------------------------------------------
-# Generic Table Data Management
-# --------------------------------------------------
-@app.route("/api/database/table/<table_name>", methods=["GET"])
-@token_required
-def get_table_data(table_name):
-    """Get paginated data from any table"""
-    try:
-        # Whitelist allowed tables for security
-        allowed_tables = ['students', 'classrooms', 'uploads', 'allocations', 'feedback']
-        if table_name not in allowed_tables:
-            return jsonify({"error": "Invalid table name"}), 400
-        
-        # Pagination parameters
-        page = int(request.args.get('page', 1))
-        per_page = int(request.args.get('per_page', 50))
-        search = request.args.get('search', '')
-        sort_by = request.args.get('sort_by', 'id')
-        sort_order = request.args.get('sort_order', 'DESC')
-        
-        offset = (page - 1) * per_page
-        
-        conn = sqlite3.connect(DB_PATH)
-        conn.row_factory = sqlite3.Row
-        cur = conn.cursor()
-        
-        # Get total count
-        if search:
-            # Build search condition (search across all text columns)
-            cur.execute(f"PRAGMA table_info({table_name})")
-            columns = [col['name'] for col in cur.fetchall()]
-            search_conditions = ' OR '.join([f"{col} LIKE ?" for col in columns if col != 'id'])
-            search_params = [f"%{search}%"] * len([c for c in columns if c != 'id'])
-            
-            cur.execute(f"SELECT COUNT(*) as count FROM {table_name} WHERE {search_conditions}", search_params)
-        else:
-            cur.execute(f"SELECT COUNT(*) as count FROM {table_name}")
-        
-        total_count = cur.fetchone()['count']
-        
-        # Get paginated data
-        if search:
-            cur.execute(
-                f"SELECT * FROM {table_name} WHERE {search_conditions} ORDER BY {sort_by} {sort_order} LIMIT ? OFFSET ?",
-                search_params + [per_page, offset]
-            )
-        else:
-            cur.execute(
-                f"SELECT * FROM {table_name} ORDER BY {sort_by} {sort_order} LIMIT ? OFFSET ?",
-                [per_page, offset]
-            )
-        
-        rows = [dict(row) for row in cur.fetchall()]
-        
-        # Get column info
-        cur.execute(f"PRAGMA table_info({table_name})")
-        columns = [
-            {
-                'name': col['name'],
-                'type': col['type'],
-                'not_null': bool(col['notnull']),
-                'primary_key': bool(col['pk'])
-            }
-            for col in cur.fetchall()
-        ]
-        
-        conn.close()
-        
-        return jsonify({
-            "success": True,
-            "table": table_name,
-            "columns": columns,
-            "data": rows,
-            "pagination": {
-                "page": page,
-                "per_page": per_page,
-                "total": total_count,
-                "pages": (total_count + per_page - 1) // per_page
-            }
-        })
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
-
-
-# --------------------------------------------------
-# Create/Insert Record
-# --------------------------------------------------
-@app.route("/api/database/table/<table_name>", methods=["POST"])
-@token_required
-def create_record(table_name):
-    """Create a new record in specified table"""
-    try:
-        allowed_tables = ['students', 'classrooms', 'uploads', 'allocations']
-        if table_name not in allowed_tables:
-            return jsonify({"error": "Invalid table name"}), 400
-        
-        data = request.get_json()
-        if not data:
-            return jsonify({"error": "No data provided"}), 400
-        
-        conn = sqlite3.connect(DB_PATH)
-        cur = conn.cursor()
-        
-        # Build INSERT query
-        columns = ', '.join(data.keys())
-        placeholders = ', '.join(['?' for _ in data])
-        values = list(data.values())
-        
-        cur.execute(
-            f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders})",
-            values
-        )
-        
-        record_id = cur.lastrowid
-        conn.commit()
-        conn.close()
-        
-        return jsonify({
-            "success": True,
-            "message": f"Record created in {table_name}",
-            "id": record_id
-        }), 201
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 400
-
-
-# --------------------------------------------------
-# Update Record
-# --------------------------------------------------
-@app.route("/api/database/table/<table_name>/<int:record_id>", methods=["PUT"])
-@token_required
-def update_record(table_name, record_id):
-    """Update a record in specified table"""
-    try:
-        allowed_tables = ['students', 'classrooms', 'uploads', 'allocations']
-        if table_name not in allowed_tables:
-            return jsonify({"error": "Invalid table name"}), 400
-        
-        data = request.get_json()
-        if not data:
-            return jsonify({"error": "No data provided"}), 400
-        
-        conn = sqlite3.connect(DB_PATH)
-        cur = conn.cursor()
-        
-        # Build UPDATE query
-        set_clause = ', '.join([f"{k} = ?" for k in data.keys()])
-        values = list(data.values()) + [record_id]
-        
-        cur.execute(
-            f"UPDATE {table_name} SET {set_clause} WHERE id = ?",
-            values
-        )
-        
-        if cur.rowcount == 0:
-            conn.close()
-            return jsonify({"error": "Record not found"}), 404
+        # Reset auto-increment counters
+        cur.execute("DELETE FROM sqlite_sequence WHERE name IN ('students', 'uploads', 'allocations', 'allocation_sessions', 'allocation_history')")
         
         conn.commit()
         conn.close()
         
-        return jsonify({
-            "success": True,
-            "message": f"Record updated in {table_name}"
-        })
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 400
-
-
-# --------------------------------------------------
-# Delete Record
-# --------------------------------------------------
-@app.route("/api/database/table/<table_name>/<int:record_id>", methods=["DELETE"])
-@token_required
-def delete_record(table_name, record_id):
-    """Delete a record from specified table"""
-    try:
-        allowed_tables = ['students', 'classrooms', 'uploads', 'allocations', 'feedback']
-        if table_name not in allowed_tables:
-            return jsonify({"error": "Invalid table name"}), 400
-        
-        conn = sqlite3.connect(DB_PATH)
-        cur = conn.cursor()
-        
-        cur.execute(f"DELETE FROM {table_name} WHERE id = ?", [record_id])
-        
-        if cur.rowcount == 0:
-            conn.close()
-            return jsonify({"error": "Record not found"}), 404
-        
-        conn.commit()
-        conn.close()
+        logger.warning("⚠️ DATABASE RESET COMPLETED - All student data cleared")
         
         return jsonify({
             "success": True,
-            "message": f"Record deleted from {table_name}"
+            "message": "All data has been cleared successfully."
         })
+        
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 400
-
-
-# --------------------------------------------------
-# Bulk Delete
-# --------------------------------------------------
-@app.route("/api/database/table/<table_name>/bulk-delete", methods=["POST"])
-@token_required
-def bulk_delete_records(table_name):
-    """Delete multiple records from specified table"""
-    try:
-        allowed_tables = ['students', 'classrooms', 'uploads', 'allocations', 'feedback']
-        if table_name not in allowed_tables:
-            return jsonify({"error": "Invalid table name"}), 400
-        
-        data = request.get_json()
-        record_ids = data.get('ids', [])
-        
-        if not record_ids:
-            return jsonify({"error": "No IDs provided"}), 400
-        
-        conn = sqlite3.connect(DB_PATH)
-        cur = conn.cursor()
-        
-        placeholders = ','.join(['?' for _ in record_ids])
-        cur.execute(f"DELETE FROM {table_name} WHERE id IN ({placeholders})", record_ids)
-        
-        deleted_count = cur.rowcount
-        conn.commit()
-        conn.close()
-        
-        return jsonify({
-            "success": True,
-            "message": f"Deleted {deleted_count} records from {table_name}",
-            "deleted_count": deleted_count
-        })
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 400
-
-
-# --------------------------------------------------
-# Export Table to CSV
-# --------------------------------------------------
-@app.route("/api/database/table/<table_name>/export", methods=["GET"])
-@token_required
-def export_table_csv(table_name):
-    """Export table data as CSV"""
-    try:
-        allowed_tables = ['students', 'classrooms', 'uploads', 'allocations', 'feedback']
-        if table_name not in allowed_tables:
-            return jsonify({"error": "Invalid table name"}), 400
-        
-        conn = sqlite3.connect(DB_PATH)
-        conn.row_factory = sqlite3.Row
-        cur = conn.cursor()
-        
-        cur.execute(f"SELECT * FROM {table_name}")
-        rows = cur.fetchall()
-        
-        if not rows:
-            conn.close()
-            return jsonify({"error": "No data to export"}), 404
-        
-        # Create CSV
-        import csv
-        output = io.StringIO()
-        writer = csv.DictWriter(output, fieldnames=rows[0].keys())
-        writer.writeheader()
-        
-        for row in rows:
-            writer.writerow(dict(row))
-        
-        conn.close()
-        
-        # Create response
-        csv_data = output.getvalue()
-        response = app.response_class(
-            response=csv_data,
-            status=200,
-            mimetype='text/csv'
-        )
-        response.headers['Content-Disposition'] = f'attachment; filename={table_name}_export.csv'
-        
-        return response
-    except Exception as e:
+        logger.error(f"Reset error: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
 
-# --------------------------------------------------
-# Database Backup
-# --------------------------------------------------
-@app.route("/api/database/backup", methods=["POST"])
-@token_required
-def backup_database():
-    """Create a backup of the database"""
-    try:
-        backup_dir = BASE_DIR / "backups"
-        backup_dir.mkdir(exist_ok=True)
-        
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        backup_path = backup_dir / f"backup_{timestamp}.db"
-        
-        # Copy database file
-        import shutil
-        shutil.copy2(DB_PATH, backup_path)
-        
-        return jsonify({
-            "success": True,
-            "message": "Database backed up successfully",
-            "backup_file": backup_path.name,
-            "backup_size_mb": round(backup_path.stat().st_size / (1024 * 1024), 2)
-        })
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
-
-
-# --------------------------------------------------
-# Get Database Schema
-# --------------------------------------------------
-@app.route("/api/database/schema", methods=["GET"])
-@token_required
-def get_database_schema():
-    """Get complete database schema"""
-    try:
-        conn = sqlite3.connect(DB_PATH)
-        conn.row_factory = sqlite3.Row
-        cur = conn.cursor()
-        
-        # Get all tables
-        cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
-        tables = [row['name'] for row in cur.fetchall()]
-        
-        schema = {}
-        for table in tables:
-            cur.execute(f"PRAGMA table_info({table})")
-            columns = [dict(row) for row in cur.fetchall()]
-            
-            cur.execute(f"SELECT COUNT(*) as count FROM {table}")
-            row_count = cur.fetchone()['count']
-            
-            schema[table] = {
-                'columns': columns,
-                'row_count': row_count
-            }
-        
-        conn.close()
-        
-        return jsonify({
-            "success": True,
-            "schema": schema
-        })
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
-
-
-# --------------------------------------------------
-# Search Across All Tables
-# --------------------------------------------------
-@app.route("/api/database/search", methods=["GET"])
-@token_required
-def global_search():
-    """Search across all tables"""
-    try:
-        query = request.args.get('q', '')
-        if not query or len(query) < 2:
-            return jsonify({"error": "Query too short (minimum 2 characters)"}), 400
-        
-        conn = sqlite3.connect(DB_PATH)
-        conn.row_factory = sqlite3.Row
-        cur = conn.cursor()
-        
-        results = {}
-        search_pattern = f"%{query}%"
-        
-        # Search students
-        cur.execute("""
-            SELECT * FROM students 
-            WHERE enrollment LIKE ? OR name LIKE ? OR batch_name LIKE ?
-            LIMIT 20
-        """, [search_pattern, search_pattern, search_pattern])
-        results['students'] = [dict(row) for row in cur.fetchall()]
-        
-        # Search classrooms
-        cur.execute("SELECT * FROM classrooms WHERE name LIKE ? LIMIT 20", [search_pattern])
-        results['classrooms'] = [dict(row) for row in cur.fetchall()]
-        
-        # Search uploads
-        cur.execute("""
-            SELECT * FROM uploads 
-            WHERE batch_name LIKE ? OR batch_id LIKE ?
-            LIMIT 20
-        """, [search_pattern, search_pattern])
-        results['uploads'] = [dict(row) for row in cur.fetchall()]
-        
-        conn.close()
-        
-        total_results = sum(len(v) for v in results.values())
-        
-        return jsonify({
-            "success": True,
-            "query": query,
-            "total_results": total_results,
-            "results": results
-        })
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
-
-# --------------------------------------------------
-# Health Check
-# --------------------------------------------------
 @app.route("/api/health", methods=["GET"])
 def health_check():
+    """
+    Health check endpoint for monitoring.
+    
+    Returns:
+        JSON with system status
+    """
+    try:
+        # Check database connectivity
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        cur.execute("SELECT COUNT(*) FROM classrooms")
+        classroom_count = cur.fetchone()[0]
+        conn.close()
+        
+        return jsonify({
+            "status": "ok",
+            "timestamp": datetime.now().isoformat(),
+            "database": "connected",
+            "modules": {
+                "auth": auth_signup is not None,
+                "google_auth": google_auth_handler is not None,
+                "parser": StudentDataParser is not None,
+                "algorithm": SeatingAlgorithm is not None
+            },
+            "stats": {
+                "classrooms": classroom_count
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        return jsonify({
+            "status": "error",
+            "error": str(e)
+        }), 500
+
+
+@app.route("/api/debug/cache", methods=["GET"])
+def debug_cache():
+    """Debug endpoint to view upload cache (dev only)."""
+    if os.getenv('FLASK_ENV') != 'development':
+        return jsonify({"error": "Only available in development"}), 403
+    
+    cache = app.config.get('UPLOAD_CACHE', {})
+    
     return jsonify({
-        "status": "ok",
-        "modules": {
-            "auth": auth_signup is not None,
-            "google_auth": google_auth_handler is not None,
-            "pdf": create_seating_pdf is not None,
-            "parser": StudentDataParser is not None,
-            "algorithm": SeatingAlgorithm is not None
-        }
+        "cache_size": len(cache),
+        "batch_ids": list(cache.keys())
     })
 
+
+# ============================================================================
+# ERROR HANDLERS
+# ============================================================================
+
+@app.errorhandler(404)
+def not_found(error):
+    """Handle 404 errors."""
+    return jsonify({
+        "error": "Endpoint not found",
+        "path": request.path
+    }), 404
+
+
+@app.errorhandler(500)
+def internal_error(error):
+    """Handle 500 errors."""
+    logger.error(f"Internal server error: {error}")
+    return jsonify({
+        "error": "Internal server error",
+        "message": str(error)
+    }), 500
+
+
+@app.errorhandler(413)
+def request_entity_too_large(error):
+    """Handle file too large errors."""
+    return jsonify({
+        "error": "File too large",
+        "max_size": "50MB"
+    }), 413
+
+
+# ============================================================================
+# RUN SERVER
+# ============================================================================
+
 if __name__ == "__main__":
-    print("=" * 70)
-    print("🚀 Starting Flask Server on http://localhost:5000")
-    print("=" * 70)
-    app.run(debug=True, port=5000)
+    logger.info("=" * 70)
+    logger.info("🚀 Starting Seat Allocation System - Flask Backend")
+    logger.info("=" * 70)
+    logger.info(f"📁 Database: {DB_PATH}")
+    logger.info(f"🔧 Environment: {os.getenv('FLASK_ENV', 'production')}")
+    logger.info(f"🌐 CORS enabled for: http://localhost:5173")
+    logger.info("=" * 70)
+    
+    # Start server
+    app.run(
+        debug=True,
+        port=5000,
+        host='0.0.0.0'  # Allow external connections
+    )
