@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, Loader2, ArrowRight, Shield, Sparkles } from 'lucide-react';
 import SplitText from '../components/SplitText';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 import GoogleLoginComponent from '../components/GoogleLoginComponent';
 
 const LoginPage = ({ showToast }) => {

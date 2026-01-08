@@ -16,12 +16,17 @@ class AlgoEncoder(json.JSONEncoder):
         return super().default(obj)
 
 class CacheManager:
+    """
+    SIMPLIFIED: Focus on snapshot storage for PDF/Attendance generation
+    No aggressive session caching - that's handled by DB directly
+    """
+    
     def get_file_path(self, plan_id):
         safe_id = "".join([c for c in str(plan_id) if c.isalnum() or c in ('-', '_')])
         return os.path.join(CACHE_DIR, f"{safe_id}.json")
 
     def _parse_enrollment(self, roll_no):
-        """Moved from attend_gen to CacheManager for structural preprocessing"""
+        """Extract academic info from enrollment number"""
         match = re.match(r"([A-Z]{2})([A-Z]{2})(\d{2})", str(roll_no))
         if match:
             deg_code, branch_code, year_short = match.groups()
@@ -34,16 +39,19 @@ class CacheManager:
         return {"degree": "B.Tech", "branch": "N/A", "joining_year": "2024"}
 
     def save_or_update(self, plan_id, input_config, output_data):
-        # 1. Flatten seating and filter valid seats
+        """
+        Save allocation snapshot for PDF/attendance generation
+        This is the ONLY file-based cache we need
+        """
+        # Flatten seating
         all_seats = [seat for row in output_data.get('seating', []) for seat in row 
                      if seat and not seat.get('is_broken') and not seat.get('is_unallocated')]
 
-        # 2. Extract structured batches
+        # Extract structured batches
         batches = {}
         for student in all_seats:
             label = student.get('batch_label', 'Unknown')
             if label not in batches:
-                # Pre-parse academic info once per batch based on the first student
                 academic_info = self._parse_enrollment(student.get('roll_number'))
                 batches[label] = {
                     "info": academic_info,
@@ -51,7 +59,7 @@ class CacheManager:
                 }
             batches[label]["students"].append(student)
 
-        # 3. Sort students within batches by roll number
+        # Sort students within batches
         for label in batches:
             batches[label]["students"].sort(key=lambda x: x.get('roll_number', ''))
 
@@ -63,8 +71,8 @@ class CacheManager:
                 "type": "structured_seating_snapshot"
             },
             "inputs": input_config,
-            "batches": batches, # Organized batch-wise data
-            "raw_matrix": output_data.get('seating') # Kept for UI preview
+            "batches": batches,
+            "raw_matrix": output_data.get('seating')
         }
         
         file_path = self.get_file_path(plan_id)
@@ -73,8 +81,49 @@ class CacheManager:
         return plan_id
 
     def load_snapshot(self, plan_id):
+        """Load saved snapshot"""
         file_path = self.get_file_path(plan_id)
         if os.path.exists(file_path):
             with open(file_path, 'r') as f:
                 return json.load(f)
         return None
+
+    def delete_snapshot(self, plan_id):
+        """Delete a snapshot"""
+        file_path = self.get_file_path(plan_id)
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            return True
+        return False
+
+    def list_snapshots(self):
+        """List all cached snapshots"""
+        snapshots = []
+        for filename in os.listdir(CACHE_DIR):
+            if filename.endswith('.json'):
+                filepath = os.path.join(CACHE_DIR, filename)
+                try:
+                    with open(filepath, 'r') as f:
+                        data = json.load(f)
+                        snapshots.append({
+                            'plan_id': data['metadata']['plan_id'],
+                            'last_updated': data['metadata']['last_updated'],
+                            'total_students': data['metadata']['total_students']
+                        })
+                except:
+                    continue
+        return snapshots
+
+    def cleanup_old_snapshots(self, days=30):
+        """Remove snapshots older than X days"""
+        cutoff = datetime.now().timestamp() - (days * 24 * 60 * 60)
+        deleted = 0
+        
+        for filename in os.listdir(CACHE_DIR):
+            if filename.endswith('.json'):
+                filepath = os.path.join(CACHE_DIR, filename)
+                if os.path.getmtime(filepath) < cutoff:
+                    os.remove(filepath)
+                    deleted += 1
+        
+        return deleted

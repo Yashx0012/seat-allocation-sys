@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import SplitText from '../components/SplitText';
 import { User, LogOut, Mail, Edit2, Check, X, Loader2, Shield, Calendar, ArrowUpRight } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 
 const ProfilePage = ({ showToast }) => {
   const navigate = useNavigate();

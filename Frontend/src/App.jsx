@@ -1,12 +1,16 @@
-import React, { useState } from 'react';
+// frontend/src/App.jsx
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { ThemeProvider } from './context/ThemeContext';
-import { AuthProvider, useAuth } from './context/AuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { SessionProvider, useSession } from './contexts/SessionContext';
 
 // --- Components ---
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import Toast from './components/Toast';
+import SessionRecoveryModal from './components/SessionRecoveryModal';
+import ErrorBoundary from './components/ErrorBoundary';
 
 // --- Pages ---
 import LandingPage from './pages/LandingPage';
@@ -33,7 +37,7 @@ const ProtectedRoute = ({ children }) => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-900 dark:to-slate-800 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-slate-900 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mx-auto mb-4" />
           <p className="text-gray-600 dark:text-gray-400 font-medium">Loading your session…</p>
@@ -46,10 +50,34 @@ const ProtectedRoute = ({ children }) => {
 };
 
 // -------------------------------------------------------------------
-// APP CONTENT (inside providers)
+// SESSION RECOVERY HANDLER (FIXED)
+// -------------------------------------------------------------------
+const SessionRecoveryHandler = () => {
+  const sessionCtx = useSession();
+  const [showRecoveryModal, setShowRecoveryModal] = useState(false);
+
+  // CRITICAL FIX: Safe access to recoverableSessions
+  const sessions = React.useMemo(() => {
+    return Array.isArray(sessionCtx?.recoverableSessions) ? sessionCtx.recoverableSessions : [];
+  }, [sessionCtx?.recoverableSessions]);
+
+  useEffect(() => {
+    if (sessions.length > 0) {
+      setShowRecoveryModal(true);
+    }
+  }, [sessions]);
+
+  if (!showRecoveryModal || sessions.length === 0) return null;
+
+  return <SessionRecoveryModal onClose={() => setShowRecoveryModal(false)} />;
+};
+
+// -------------------------------------------------------------------
+// APP CONTENT
 // -------------------------------------------------------------------
 const AppContent = () => {
-  const { loading } = useAuth();
+  const { loading: authLoading } = useAuth();
+  const sessionCtx = useSession();
   const [toast, setToast] = useState(null);
 
   const showToast = (message, type = 'info') => {
@@ -59,91 +87,47 @@ const AppContent = () => {
 
   const closeToast = () => setToast(null);
 
-  // --------------------------------------------------
-  // LOADING SCREEN
-  // --------------------------------------------------
-  if (loading) {
+  // Show loading if either Auth or Session is loading
+  if (authLoading || sessionCtx?.loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-900 dark:to-slate-800 flex items-center justify-center">
+      <div className="min-h-screen bg-white dark:bg-phantom-black flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mx-auto mb-4" />
-          <p className="text-gray-600 dark:text-gray-400 font-medium">Loading your session…</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-orange-500 border-t-transparent mx-auto mb-4" />
+          <p className="text-gray-600 dark:text-gray-400 font-medium">Initializing System...</p>
         </div>
       </div>
     );
   }
 
-  // --------------------------------------------------
-  // MAIN LAYOUT WITH ROUTES
-  // --------------------------------------------------
   return (
     <div className="min-h-screen flex flex-col transition-colors duration-300 bg-white dark:bg-phantom-black">
+      {/* Global Session Recovery UI */}
+      <SessionRecoveryHandler />
+
       <Navbar />
 
       <main className="flex-1">
         <Routes>
-          {/* Public Routes */}
           <Route path="/" element={<LandingPage />} />
-          <Route path="/landing" element={<LandingPage />} />
           <Route path="/aboutus" element={<AboutusPage showToast={showToast} />} />
-          
-          {/* Auth Routes - Redirect to dashboard if already logged in */}
-          <Route 
-            path="/login" 
-            element={<LoginPage showToast={showToast} />} 
-          />
-          <Route 
-            path="/signup" 
-            element={<SignupPage showToast={showToast} />} 
-          />
+          <Route path="/login" element={<LoginPage showToast={showToast} />} />
+          <Route path="/signup" element={<SignupPage showToast={showToast} />} />
 
-          {/* Protected Routes */}
-          <Route 
-            path="/dashboard" 
-            element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} 
-          />
-          <Route 
-            path="/profile" 
-            element={<ProtectedRoute><ProfilePage showToast={showToast} /></ProtectedRoute>} 
-          />
+          <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><ProfilePage showToast={showToast} /></ProtectedRoute>} />
           <Route 
             path="/manual-allocation" 
             element={<ProtectedRoute><ManualAllocation showToast={showToast} /></ProtectedRoute>} 
           />
-          <Route 
-            path="/upload" 
-            element={<ProtectedRoute><UploadPage showToast={showToast} /></ProtectedRoute>} 
-          />
-          <Route 
-            path="/allocation" 
-            element={<ProtectedRoute><Allocation showToast={showToast} /></ProtectedRoute>} 
-          />
-          <Route 
-            path="/create-plan" 
-            element={<ProtectedRoute><CreatePlan /></ProtectedRoute>} 
-          />
-          <Route 
-            path="/classroom" 
-            element={<ProtectedRoute><ClassroomPage /></ProtectedRoute>} 
-          />
-          <Route 
-            path="/feedback" 
-            element={<ProtectedRoute><FeedbackPage showToast={showToast} /></ProtectedRoute>} 
-          />
-          <Route 
-            path="/template-editor" 
-            element={<ProtectedRoute><TemplateEditor showToast={showToast} /></ProtectedRoute>} 
-          />
-          <Route 
-            path="/attendance/:planId" 
-            element={<ProtectedRoute><AttendancePage showToast={showToast} /></ProtectedRoute>} 
-          />
-          <Route 
-            path="/database-manager" 
-            element={<ProtectedRoute><DatabaseManager showToast={showToast} /></ProtectedRoute>} 
-          />
+          <Route path="/upload" element={<ProtectedRoute><UploadPage showToast={showToast} /></ProtectedRoute>} />
+          <Route path="/allocation" element={<ProtectedRoute><Allocation showToast={showToast} /></ProtectedRoute>} />
+          <Route path="/create-plan" element={<ProtectedRoute><CreatePlan /></ProtectedRoute>} />
+          <Route path="/classroom" element={<ProtectedRoute><ClassroomPage /></ProtectedRoute>} />
+          <Route path="/feedback" element={<ProtectedRoute><FeedbackPage showToast={showToast} /></ProtectedRoute>} />
+          <Route path="/template-editor" element={<ProtectedRoute><TemplateEditor showToast={showToast} /></ProtectedRoute>} />
+          <Route path="/attendance/:planId" element={<ProtectedRoute><AttendancePage showToast={showToast} /></ProtectedRoute>} />
+          <Route path="/database-manager" element={<ProtectedRoute><DatabaseManager showToast={showToast} /></ProtectedRoute>} />
 
-          {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
@@ -166,13 +150,17 @@ const AppContent = () => {
 // -------------------------------------------------------------------
 const App = () => {
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <Router>
-          <AppContent />
-        </Router>
-      </AuthProvider>
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <AuthProvider>
+          <SessionProvider>
+            <Router>
+              <AppContent />
+            </Router>
+          </SessionProvider>
+        </AuthProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 };
 

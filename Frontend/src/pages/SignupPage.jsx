@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Users, Loader2, ArrowRight, Sparkles, Mail, Lock, User, Shield } from 'lucide-react';
 import SplitText from '../components/SplitText';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 
 const SignupPage = ({ showToast }) => {
   const navigate = useNavigate();
