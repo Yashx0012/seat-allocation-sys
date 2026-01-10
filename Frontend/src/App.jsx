@@ -5,6 +5,7 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SessionProvider, useSession } from './contexts/SessionContext';
 
+
 // --- Components ---
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
@@ -26,7 +27,7 @@ import AboutusPage from './pages/AboutusPage';
 import TemplateEditor from './pages/TemplateEditor';
 import AttendancePage from './pages/AttendencePage';
 import ClassroomPage from './pages/ClassroomPage';
-import DatabaseManager from './pages/DatabaseManager';
+import { DatabaseManager } from './components/database';
 import ManualAllocation from './pages/ManualAllocation';
 
 // -------------------------------------------------------------------
@@ -126,7 +127,7 @@ const AppContent = () => {
           <Route path="/feedback" element={<ProtectedRoute><FeedbackPage showToast={showToast} /></ProtectedRoute>} />
           <Route path="/template-editor" element={<ProtectedRoute><TemplateEditor showToast={showToast} /></ProtectedRoute>} />
           <Route path="/attendance/:planId" element={<ProtectedRoute><AttendancePage showToast={showToast} /></ProtectedRoute>} />
-          <Route path="/database-manager" element={<ProtectedRoute><DatabaseManager showToast={showToast} /></ProtectedRoute>} />
+          <Route path="/database" element={<ProtectedRoute><DatabaseManager showToast={showToast} /></ProtectedRoute>} />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

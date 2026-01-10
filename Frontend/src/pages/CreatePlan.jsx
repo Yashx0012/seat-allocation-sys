@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import SplitText from '../components/SplitText';
 // Added Wrench icon for the Custom Build box
-import { Upload, Layout, Monitor, Clock, ArrowRight, Loader2, AlertCircle, CheckCircle2, Users, Download, Eye, RefreshCw, X, FileText, BarChart3, Wrench } from 'lucide-react';
+import { Upload, Layout, Monitor, Clock, ArrowRight, Loader2, AlertCircle, CheckCircle2, Users, Download, Eye, RefreshCw, X, FileText, BarChart3, Wrench} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+
 
 const CreatePlan = ({ showToast }) => {
   const navigate = useNavigate();
@@ -19,6 +20,22 @@ const CreatePlan = ({ showToast }) => {
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
   const [attendanceLoading, setAttendanceLoading] = useState(false);
+  // ✅ CRITICAL: Attendance configuration state
+  const [attendanceConfig, setAttendanceConfig] = useState(null);
+  const [configBatchName, setConfigBatchName] = useState(null);
+  // Open attendance configuration dialog
+  const openAttendanceConfig = (batchName) => {
+    console.log('🎓 Opening attendance config for batch:', batchName);
+    setConfigBatchName(batchName);
+    setAttendanceConfig({
+      department: '',
+      examName: '',
+      courseCode: '',
+      examDate: new Date().toISOString().split('T')[0],
+      coordinatorName: '',
+      coordinatorTitle: ''
+    });
+  };
 
   useEffect(() => {
     fetchRecentPlans();
@@ -30,7 +47,7 @@ const CreatePlan = ({ showToast }) => {
     
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/plans/recent', {
+      const response = await fetch('/api/plans/recent', {
         headers: token ? { 'Authorization': `Bearer ${token}` } : {}
       });
 
@@ -62,7 +79,7 @@ const CreatePlan = ({ showToast }) => {
       const token = localStorage.getItem('token');
       
       // Get session statistics
-      const statsRes = await fetch(`http://localhost:5000/api/sessions/${plan.session_id}/stats`, {
+      const statsRes = await fetch(`/api/sessions/${plan.session_id}/stats`, {
         headers: token ? { 'Authorization': `Bearer ${token}` } : {}
       });
       
@@ -92,88 +109,131 @@ const CreatePlan = ({ showToast }) => {
     }
   };
 
-  // Export seating plan as PDF
-  const exportSeatingPDF = async (plan) => {
-    setExportLoading(true);
-    try {
-      const token = localStorage.getItem('token');
-      
-      const response = await fetch('http://localhost:5000/api/generate-pdf', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token && { 'Authorization': `Bearer ${token}` })
-        },
-        body: JSON.stringify({
-          snapshot_id: plan.plan_id
-        })
-      });
+const exportSeatingPDF = async (plan) => {
+  setExportLoading(true);
+  try {
+    const token = localStorage.getItem('token');
+    const timestamp = Date.now(); // ✅ Add unique timestamp
+    
+    console.log('📄 Exporting PDF for plan:', plan.plan_id);
+    
+    const response = await fetch('/api/generate-pdf', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token && { 'Authorization': `Bearer ${token}` })
+      },
+      body: JSON.stringify({
+        snapshot_id: plan.plan_id
+      })
+    });
 
-      if (!response.ok) {
-        throw new Error('Failed to generate PDF');
-      }
+    console.log('Response status:', response.status);
 
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `seating_plan_${plan.plan_id}_${new Date().toISOString().split('T')[0]}.pdf`;
-      a.click();
-      window.URL.revokeObjectURL(url);
-
-      if (showToast) {
-        showToast('✅ Seating plan PDF downloaded successfully', 'success');
+    if (!response.ok) {
+      let errorMsg = `HTTP ${response.status}`;
+      try {
+        const errorData = await response.json();
+        errorMsg = errorData.error || errorMsg;
+      } catch (e) {
+        const errorText = await response.text();
+        errorMsg = errorText || errorMsg;
       }
-    } catch (err) {
-      console.error('PDF export error:', err);
-      if (showToast) {
-        showToast(`Failed to export PDF: ${err.message}`, 'error');
-      }
-    } finally {
-      setExportLoading(false);
+      throw new Error(`Failed to generate PDF: ${errorMsg}`);
     }
-  };
 
-  // Export attendance sheets for each batch
-  const exportAttendancePDF = async (plan, batchName) => {
+    const blob = await response.blob();
+    console.log('Blob size:', blob.size);
+    
+    if (blob.size === 0) {
+      throw new Error('Empty response from server - PDF generation may have failed');
+    }
+
+    // Download PDF - ✅ Add timestamp to filename
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `seating_plan_${plan.plan_id}_${timestamp}.pdf`; // ✅ Unique filename
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+
+    if (showToast) {
+      showToast('✅ Seating plan PDF downloaded successfully', 'success');
+    }
+  } catch (err) {
+    console.error('❌ PDF export error:', err);
+    if (showToast) {
+      showToast(`Failed to export PDF: ${err.message}`, 'error');
+    }
+  } finally {
+    setExportLoading(false);
+  }
+};
+
+const handleAttendanceDownload = async () => {
+    if (!configBatchName || !planDetails) return;
+    
     setAttendanceLoading(true);
     try {
       const token = localStorage.getItem('token');
       
-      const response = await fetch('http://localhost:5000/api/export-attendance', {
+      const payload = {
+        plan_id: planDetails.plan_id,
+        batch_name: configBatchName,
+        metadata: {
+          department: attendanceConfig.department || 'N/A',
+          exam_name: attendanceConfig.examName || 'N/A',
+          course_code: attendanceConfig.courseCode || planDetails.course_code || 'N/A',
+          exam_date: attendanceConfig.examDate || new Date().toISOString().split('T')[0],
+          coordinator_name: attendanceConfig.coordinatorName || 'N/A',
+          coordinator_title: attendanceConfig.coordinatorTitle || 'N/A'
+        }
+      };
+
+      console.log('📋 Attendance Payload:', payload);
+      
+      const response = await fetch('/api/export-attendance', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...(token && { 'Authorization': `Bearer ${token}` })
         },
-        body: JSON.stringify({
-          plan_id: plan.plan_id,
-          batch_name: batchName,
-          metadata: {
-            course_code: plan.course_code || 'N/A',
-            exam_date: plan.exam_date || new Date().toISOString(),
-            created_at: plan.created_at
-          }
-        })
+        body: JSON.stringify(payload)
       });
 
+      console.log('Response status:', response.status);
+
       if (!response.ok) {
-        throw new Error('Failed to generate attendance sheet');
+        const errorData = await response.json();
+        console.error('Error response:', errorData);
+        throw new Error(errorData.error || `HTTP ${response.status}: Failed to generate attendance`);
       }
 
       const blob = await response.blob();
+      if (blob.size === 0) {
+        throw new Error('Empty response from server - PDF generation may have failed');
+      }
+
+      // Download with unique timestamp
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `attendance_${batchName}_${new Date().toISOString().split('T')[0]}.pdf`;
+      a.download = `attendance_${configBatchName}_${Date.now()}.pdf`; // ✅ Unique filename
+      document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
 
       if (showToast) {
-        showToast(`✅ Attendance sheet for ${batchName} downloaded`, 'success');
+        showToast(`✅ Attendance sheet for ${configBatchName} downloaded successfully`, 'success');
       }
+      
+      setAttendanceConfig(null);
+      setConfigBatchName(null);
     } catch (err) {
-      console.error('Attendance export error:', err);
+      console.error('❌ Attendance export error:', err);
       if (showToast) {
         showToast(`Failed to export attendance: ${err.message}`, 'error');
       }
@@ -181,7 +241,6 @@ const CreatePlan = ({ showToast }) => {
       setAttendanceLoading(false);
     }
   };
-
   const goAllocate = () => navigate('/allocation');
   const goUpload = () => navigate('/upload');
   const goClassroom = () => navigate('/classroom');
@@ -722,29 +781,22 @@ const CreatePlan = ({ showToast }) => {
                       )}
                     </button>
 
-                    {planDetails.batches && planDetails.batches.length > 0 && (
+                   {planDetails.batches && planDetails.batches.length > 0 && (
                       <div>
-                        <p className="text-sm font-bold text-gray-600 dark:text-gray-400 mb-2">Export Attendance Sheets:</p>
+                        <p className="text-sm font-bold text-gray-600 dark:text-gray-400 mb-2">
+                          Export Attendance Sheets:
+                        </p>
                         <div className="space-y-2">
                           {planDetails.batches.map((batch, idx) => (
                             <button
                               key={idx}
-                              onClick={() => exportAttendancePDF(planDetails, batch.name)}
+                              onClick={() => openAttendanceConfig(batch.name)}  // ✅ CRITICAL!
                               disabled={attendanceLoading}
                               className="w-full px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition-all disabled:opacity-50"
                               style={{ borderTopColor: batch.color, borderTopWidth: '3px' }}
                             >
-                              {attendanceLoading ? (
-                                <>
-                                  <Loader2 size={16} className="animate-spin" />
-                                  Generating...
-                                </>
-                              ) : (
-                                <>
-                                  <FileText size={16} />
-                                  {batch.name} Attendance
-                                </>
-                              )}
+                              <FileText size={16} />
+                              {batch.name} Attendance
                             </button>
                           ))}
                         </div>
@@ -753,6 +805,143 @@ const CreatePlan = ({ showToast }) => {
                   </div>
                 </>
               )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      {/* Attendance Configuration Modal */}
+      <AnimatePresence>
+        {attendanceConfig && configBatchName && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4"
+            onClick={() => setAttendanceConfig(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white dark:bg-gray-900 rounded-2xl p-8 max-w-md w-full border-2 border-gray-200 dark:border-gray-700"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {configBatchName} Attendance
+                </h3>
+                <button
+                  onClick={() => setAttendanceConfig(null)}
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="space-y-4 mb-6">
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
+                    Department Name
+                  </label>
+                  <input
+                    type="text"
+                    value={attendanceConfig.department}
+                    onChange={(e) => setAttendanceConfig({ ...attendanceConfig, department: e.target.value })}
+                    placeholder="e.g., Computer Science"
+                    className="w-full px-4 py-2 border-2 border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
+                    Exam Name
+                  </label>
+                  <input
+                    type="text"
+                    value={attendanceConfig.examName}
+                    onChange={(e) => setAttendanceConfig({ ...attendanceConfig, examName: e.target.value })}
+                    placeholder="e.g., Mid-term Examination"
+                    className="w-full px-4 py-2 border-2 border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
+                    Course Code
+                  </label>
+                  <input
+                    type="text"
+                    value={attendanceConfig.courseCode}
+                    onChange={(e) => setAttendanceConfig({ ...attendanceConfig, courseCode: e.target.value })}
+                    placeholder="e.g., CS-101"
+                    className="w-full px-4 py-2 border-2 border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
+                    Exam Date
+                  </label>
+                  <input
+                    type="date"
+                    value={attendanceConfig.examDate}
+                    onChange={(e) => setAttendanceConfig({ ...attendanceConfig, examDate: e.target.value })}
+                    className="w-full px-4 py-2 border-2 border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
+                    Coordinator Name
+                  </label>
+                  <input
+                    type="text"
+                    value={attendanceConfig.coordinatorName}
+                    onChange={(e) => setAttendanceConfig({ ...attendanceConfig, coordinatorName: e.target.value })}
+                    placeholder="e.g., Dr. John Doe"
+                    className="w-full px-4 py-2 border-2 border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
+                    Coordinator Title
+                  </label>
+                  <input
+                    type="text"
+                    value={attendanceConfig.coordinatorTitle}
+                    onChange={(e) => setAttendanceConfig({ ...attendanceConfig, coordinatorTitle: e.target.value })}
+                    placeholder="e.g., Exam Coordinator"
+                    className="w-full px-4 py-2 border-2 border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setAttendanceConfig(null)}
+                  className="flex-1 px-4 py-2 border-2 border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white font-bold hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAttendanceDownload}
+                  disabled={attendanceLoading}
+                  className="flex-1 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                >
+                  {attendanceLoading ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      Downloading...
+                    </>
+                  ) : (
+                    <>
+                      <Download size={16} />
+                      Download
+                    </>
+                  )}
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         )}

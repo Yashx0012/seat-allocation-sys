@@ -38,7 +38,7 @@ const UploadPage = ({ showToast }) => {
 
   const fetchSessionUploads = async (sessionId) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/sessions/${sessionId}/uploads`);
+      const response = await fetch(`/api/sessions/${sessionId}/uploads`);
       const data = await response.json();
       
       if (data.success && data.uploads) {
@@ -178,7 +178,7 @@ const UploadPage = ({ showToast }) => {
       const upload_ids = uploadedBatches.map(b => b.upload_id);
       
       // Try normal session start
-      let response = await fetch('http://localhost:5000/api/sessions/start', {
+      let response = await fetch('/api/sessions/start', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ upload_ids })
@@ -189,7 +189,7 @@ const UploadPage = ({ showToast }) => {
       // If blocked by active session, ask to force
       if (!response.ok && data.error?.includes('active session')) {
           if (window.confirm('An active session exists. Force start new session? (This will expire the old one)')) {
-              response = await fetch('http://localhost:5000/api/sessions/force-new', {
+              response = await fetch('/api/sessions/force-new', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ upload_ids })

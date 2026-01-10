@@ -99,7 +99,7 @@ const DashboardPage = () => {
   // UPDATED: Added Database Manager to quick actions
   const quickActions = [
     { label: 'Create Plan', page: 'create-plan', icon: Upload, color: 'bg-orange-500 dark:bg-orange-600' },
-    { label: 'Database Manager', page: 'database-manager', icon: Database, color: 'bg-purple-500 dark:bg-purple-600' }, // NEW
+    { label: 'Database Manager', page: 'database', icon: Database, color: 'bg-purple-500 dark:bg-purple-600' }, // NEW
     { label: 'Template Editor', page: 'template-editor', icon: Layout, color: 'bg-amber-500 dark:bg-amber-600' },
     { label: 'Classroom Layout', page: 'classroom', icon: MapPin, color: 'bg-orange-600 dark:bg-orange-700' }
   ];
@@ -173,7 +173,7 @@ const DashboardPage = () => {
             <div className="w-px bg-gray-200 dark:bg-gray-700 h-12 hidden md:block"></div>
             <div className="text-right">
               <div className="micro-label mb-1">Next Exam</div>
-              <div className="font-mono text-xl text-orange-600 dark:text-orange-400">08:00 AM</div>
+              <div className="font-mono text-xl text-orange-600 dark:text-orange-400"></div>
             </div>
           </div>
         </div>

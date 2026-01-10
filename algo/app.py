@@ -28,6 +28,7 @@ import io
 import sqlite3
 import uuid
 import logging
+import time
 from datetime import datetime, timedelta
 from pathlib import Path
 from functools import wraps
@@ -2791,15 +2792,6 @@ def manual_generate_seating():
 def generate_pdf():
     """
     Generate PDF from seating arrangement.
-    
-    Request JSON:
-        {
-            "snapshot_id": "plan_abc" (optional),
-            "seating": [...] (required if no snapshot_id)
-        }
-    
-    Returns:
-        PDF file download
     """
     try:
         data = request.get_json()
@@ -2807,30 +2799,55 @@ def generate_pdf():
             return jsonify({"error": "No data provided"}), 400
         
         snapshot_id = data.get('snapshot_id')
+        seating_payload = None
         
         # Load from snapshot or use provided data
         if snapshot_id:
+            logger.info(f"🔍 Loading snapshot: {snapshot_id}")
             snapshot = cache_manager.load_snapshot(snapshot_id)
-            if snapshot:
-                seating_payload = snapshot['raw_matrix']
-                logger.info(f"📄 Generating PDF from snapshot: {snapshot_id}")
-            else:
+            
+            # ✅ FIXED: Check if snapshot does NOT exist
+            if not snapshot:
+                logger.warning(f"❌ Snapshot not found: {snapshot_id}")
                 return jsonify({"error": "Snapshot not found"}), 404
+            
+            # ✅ Use snapshot data
+            seating_payload = {
+                'seating': snapshot.get('raw_matrix'),
+                'metadata': snapshot.get('metadata', {}),
+                'batches': snapshot.get('batches', {})
+            }
+            logger.info(f"✅ Snapshot loaded: {snapshot_id}")
+            
         else:
+            # Use data from request
             if 'seating' not in data:
                 return jsonify({"error": "Invalid seating data"}), 400
             seating_payload = data
             logger.info("📄 Generating PDF from request data")
 
+        # Validate seating payload
+        if not seating_payload or not seating_payload.get('seating'):
+            return jsonify({"error": "No seating data available"}), 400
+
         user_id = 'test_user'
         template_name = request.args.get('template_name', 'default')
         
+        
         # Generate PDF
-        pdf_path = get_or_create_seating_pdf(
-            seating_payload,
-            user_id=user_id,
-            template_name=template_name
-        )
+        try:
+            pdf_path = get_or_create_seating_pdf(
+                seating_payload,
+                user_id=user_id,
+                template_name=template_name
+            )
+        except Exception as pdf_err:
+            logger.error(f"PDF generation failed: {str(pdf_err)}")
+            return jsonify({"error": f"PDF generation failed: {str(pdf_err)}"}), 500
+        
+        # Verify PDF exists
+        if not os.path.exists(pdf_path):
+            return jsonify({"error": "PDF file not created"}), 500
         
         logger.info(f"✅ PDF generated: {pdf_path}")
         
@@ -2842,7 +2859,7 @@ def generate_pdf():
         )
         
     except Exception as e:
-        logger.error(f"PDF generation error: {str(e)}")
+        logger.error(f"❌ PDF generation error: {str(e)}")
         import traceback
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
@@ -3495,14 +3512,16 @@ def export_attendance():
         if not batch_data:
             return jsonify({"error": f"Batch '{batch_name}' not found"}), 404
 
-        # Generate attendance PDF
-        temp_filename = f"temp_{plan_id}_{batch_name.replace(' ', '_')}.pdf"
+        # Generate attendance PDF - ✅ Pass frontend_metadata
+        temp_filename = f"temp_{plan_id}_{batch_name.replace(' ', '_')}_{int(time.time())}.pdf"
+        
+        print(f"📋 Generating attendance with metadata: {frontend_metadata}")  # Debug
         
         create_attendance_pdf(
             temp_filename,
             batch_data['students'],
             batch_name,
-            frontend_metadata,
+            frontend_metadata,  # ✅ Pass the metadata here
             batch_data['info']
         )
 
@@ -3520,7 +3539,7 @@ def export_attendance():
             return_data,
             mimetype='application/pdf',
             as_attachment=True,
-            download_name=f"Attendance_{batch_name}_{frontend_metadata.get('course_code', '')}.pdf"
+            download_name=f"Attendance_{batch_name}_{frontend_metadata.get('course_code', '')}_{int(time.time())}.pdf"
         )
 
     except Exception as e:
@@ -3891,6 +3910,327 @@ def debug_cache():
         "batch_ids": list(cache.keys())
     })
 
+# ============================================================================
+# DATABASE MANAGER ENDPOINTS
+# ============================================================================
+
+ALLOWED_TABLES = ['students', 'classrooms', 'uploads', 'allocations', 'feedback']
+
+TABLE_CONFIG = {
+    'students': {'primary_key': 'id', 'searchable': ['enrollment', 'name', 'batch_name'], 'editable': ['name', 'batch_name', 'department']},
+    'classrooms': {'primary_key': 'id', 'searchable': ['name'], 'editable': ['name', 'rows', 'cols', 'broken_seats', 'block_width']},
+    'uploads': {'primary_key': 'id', 'searchable': ['batch_name', 'original_filename'], 'editable': ['batch_name', 'batch_color']},
+    'allocations': {'primary_key': 'id', 'searchable': ['enrollment', 'batch_name'], 'editable': ['seat_position', 'paper_set']},
+    'feedback': {'primary_key': 'id', 'searchable': ['issue_type', 'description'], 'editable': ['status', 'admin_response']}
+}
+
+
+@app.route("/api/database/overview", methods=["GET"])
+def get_database_overview():
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        tables = {}
+        for table in ALLOWED_TABLES:
+            try:
+                cur.execute(f"SELECT COUNT(*) FROM {table}")
+                tables[table] = cur.fetchone()[0]
+            except:
+                tables[table] = 0
+        conn.close()
+        return jsonify({"success": True, "overview": {"tables": tables}})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/database/hierarchy", methods=["GET"])
+def get_database_hierarchy():
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        
+        cur.execute("""
+            SELECT s.session_id, s.plan_id, s.total_students, s.allocated_count, s.status, s.created_at,
+                   u.batch_name, u.batch_color, u.batch_id, u.id as upload_id, COUNT(st.id) as batch_student_count
+            FROM allocation_sessions s
+            LEFT JOIN uploads u ON s.session_id = u.session_id
+            LEFT JOIN students st ON u.id = st.upload_id
+            GROUP BY s.session_id, u.batch_id
+            ORDER BY s.created_at DESC, u.batch_name
+        """)
+        rows = cur.fetchall()
+        
+        hierarchy = {}
+        for row in rows:
+            sid = row['session_id']
+            if sid not in hierarchy:
+                hierarchy[sid] = {
+                    'session_id': sid, 'plan_id': row['plan_id'], 'total_students': row['total_students'],
+                    'allocated_count': row['allocated_count'], 'status': row['status'], 'created_at': row['created_at'], 'batches': {}
+                }
+            if row['batch_name']:
+                hierarchy[sid]['batches'][row['batch_name']] = {
+                    'batch_name': row['batch_name'], 'batch_id': row['batch_id'], 'upload_id': row['upload_id'],
+                    'batch_color': row['batch_color'], 'student_count': row['batch_student_count'] or 0
+                }
+        
+        for sid in hierarchy:
+            for bn in hierarchy[sid]['batches']:
+                bid = hierarchy[sid]['batches'][bn]['batch_id']
+                cur.execute("SELECT id, enrollment, name, department, batch_color FROM students WHERE batch_id = ? ORDER BY enrollment", (bid,))
+                hierarchy[sid]['batches'][bn]['students'] = [dict(r) for r in cur.fetchall()]
+        
+        conn.close()
+        return jsonify({"success": True, "hierarchy": list(hierarchy.values())})
+    except Exception as e:
+        logger.error(f"Hierarchy error: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/database/table/<table_name>", methods=["GET"])
+def get_table_data(table_name):
+    if table_name not in ALLOWED_TABLES:
+        return jsonify({"success": False, "error": "Table not allowed"}), 403
+    try:
+        page = max(1, int(request.args.get('page', 1)))
+        per_page = min(100, max(1, int(request.args.get('per_page', 50))))
+        search = request.args.get('search', '').strip()
+        sort_by = request.args.get('sort_by', 'id')
+        sort_order = 'DESC' if request.args.get('sort_order', 'DESC').upper() == 'DESC' else 'ASC'
+        
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        
+        cur.execute(f"PRAGMA table_info({table_name})")
+        columns = [{'name': c[1], 'type': c[2], 'nullable': not c[3], 'primary_key': bool(c[5])} for c in cur.fetchall()]
+        col_names = [c['name'] for c in columns]
+        
+        if sort_by not in col_names:
+            sort_by = col_names[0]
+        
+        searchable = TABLE_CONFIG.get(table_name, {}).get('searchable', col_names[:3])
+        base_query = f"SELECT * FROM {table_name}"
+        count_query = f"SELECT COUNT(*) FROM {table_name}"
+        params = []
+        
+        if search and searchable:
+            conditions = [f"{c} LIKE ?" for c in searchable if c in col_names]
+            if conditions:
+                where = " OR ".join(conditions)
+                base_query += f" WHERE ({where})"
+                count_query += f" WHERE ({where})"
+                params = [f"%{search}%" for _ in conditions]
+        
+        cur.execute(count_query, params)
+        total = cur.fetchone()[0]
+        
+        base_query += f" ORDER BY {sort_by} {sort_order} LIMIT ? OFFSET ?"
+        params.extend([per_page, (page - 1) * per_page])
+        
+        cur.execute(base_query, params)
+        data = [dict(r) for r in cur.fetchall()]
+        conn.close()
+        
+        return jsonify({
+            "success": True, "columns": columns, "data": data,
+            "pagination": {"page": page, "per_page": per_page, "total": total, "pages": (total + per_page - 1) // per_page}
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/database/table/<table_name>/<int:record_id>", methods=["PUT"])
+def update_record(table_name, record_id):
+    if table_name not in ALLOWED_TABLES:
+        return jsonify({"success": False, "error": "Table not allowed"}), 403
+    try:
+        data = request.get_json()
+        editable = TABLE_CONFIG.get(table_name, {}).get('editable', [])
+        update_data = {k: v for k, v in data.items() if k in editable}
+        if not update_data:
+            return jsonify({"success": False, "error": "No editable fields"}), 400
+        
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        set_clause = ", ".join([f"{k} = ?" for k in update_data])
+        cur.execute(f"UPDATE {table_name} SET {set_clause} WHERE id = ?", list(update_data.values()) + [record_id])
+        if cur.rowcount == 0:
+            conn.close()
+            return jsonify({"success": False, "error": "Not found"}), 404
+        conn.commit()
+        conn.close()
+        return jsonify({"success": True, "message": "Updated"})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/database/table/<table_name>/<int:record_id>", methods=["DELETE"])
+def delete_record(table_name, record_id):
+    if table_name not in ALLOWED_TABLES:
+        return jsonify({"success": False, "error": "Table not allowed"}), 403
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        cur.execute(f"DELETE FROM {table_name} WHERE id = ?", (record_id,))
+        if cur.rowcount == 0:
+            conn.close()
+            return jsonify({"success": False, "error": "Not found"}), 404
+        conn.commit()
+        conn.close()
+        return jsonify({"success": True, "message": "Deleted"})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/database/table/<table_name>/bulk-delete", methods=["POST"])
+def bulk_delete_records(table_name):
+    if table_name not in ALLOWED_TABLES:
+        return jsonify({"success": False, "error": "Table not allowed"}), 403
+    try:
+        ids = request.get_json().get('ids', [])
+        if not ids:
+            return jsonify({"success": False, "error": "No IDs"}), 400
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        placeholders = ','.join(['?' for _ in ids])
+        cur.execute(f"DELETE FROM {table_name} WHERE id IN ({placeholders})", ids)
+        deleted = cur.rowcount
+        conn.commit()
+        conn.close()
+        return jsonify({"success": True, "message": f"Deleted {deleted} records"})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/database/table/<table_name>/export", methods=["GET"])
+def export_table(table_name):
+    if table_name not in ALLOWED_TABLES:
+        return jsonify({"success": False, "error": "Table not allowed"}), 403
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        cur.execute(f"SELECT * FROM {table_name}")
+        rows = cur.fetchall()
+        if not rows:
+            conn.close()
+            return jsonify({"success": False, "error": "No data"}), 404
+        cols = [d[0] for d in cur.description]
+        conn.close()
+        
+        output = io.StringIO()
+        output.write(','.join(cols) + '\n')
+        for row in rows:
+            vals = []
+            for c in cols:
+                v = row[c]
+                if v is None:
+                    vals.append('')
+                elif isinstance(v, str) and (',' in v or '"' in v):
+                    vals.append(f'"{v.replace(chr(34), chr(34)+chr(34))}"')
+                else:
+                    vals.append(str(v))
+            output.write(','.join(vals) + '\n')
+        output.seek(0)
+        
+        return send_file(io.BytesIO(output.getvalue().encode('utf-8')), mimetype='text/csv', as_attachment=True, download_name=f"{table_name}_export.csv")
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/database/batch/<int:batch_id>/delete", methods=["DELETE"])
+def delete_batch(batch_id):
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        
+        cur.execute("SELECT batch_name, session_id FROM uploads WHERE id = ?", (batch_id,))
+        row = cur.fetchone()
+        if not row:
+            conn.close()
+            return jsonify({"success": False, "error": "Batch not found"}), 404
+        
+        batch_name, session_id = row
+        cur.execute("SELECT id FROM students WHERE upload_id = ?", (batch_id,))
+        student_ids = [r[0] for r in cur.fetchall()]
+        
+        if student_ids:
+            placeholders = ','.join(['?' for _ in student_ids])
+            cur.execute(f"DELETE FROM allocations WHERE student_id IN ({placeholders})", student_ids)
+        
+        cur.execute("DELETE FROM students WHERE upload_id = ?", (batch_id,))
+        deleted_students = cur.rowcount
+        cur.execute("DELETE FROM uploads WHERE id = ?", (batch_id,))
+        
+        if session_id:
+            cur.execute("""
+                UPDATE allocation_sessions SET
+                    total_students = (SELECT COUNT(*) FROM students s JOIN uploads u ON s.upload_id = u.id WHERE u.session_id = ?),
+                    allocated_count = (SELECT COUNT(*) FROM allocations WHERE session_id = ?),
+                    last_activity = ?
+                WHERE session_id = ?
+            """, (session_id, session_id, datetime.now().isoformat(), session_id))
+        
+        conn.commit()
+        conn.close()
+        return jsonify({"success": True, "message": f"Deleted batch '{batch_name}' with {deleted_students} students"})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/database/session/<int:session_id>/delete", methods=["DELETE"])
+def delete_session_endpoint(session_id):
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        
+        cur.execute("SELECT plan_id FROM allocation_sessions WHERE session_id = ?", (session_id,))
+        row = cur.fetchone()
+        if not row:
+            conn.close()
+            return jsonify({"success": False, "error": "Session not found"}), 404
+        
+        plan_id = row[0]
+        cur.execute("SELECT id FROM uploads WHERE session_id = ?", (session_id,))
+        upload_ids = [r[0] for r in cur.fetchall()]
+        
+        cur.execute("DELETE FROM allocations WHERE session_id = ?", (session_id,))
+        
+        if upload_ids:
+            placeholders = ','.join(['?' for _ in upload_ids])
+            cur.execute(f"DELETE FROM students WHERE upload_id IN ({placeholders})", upload_ids)
+        
+        cur.execute("DELETE FROM uploads WHERE session_id = ?", (session_id,))
+        cur.execute("DELETE FROM allocation_history WHERE session_id = ?", (session_id,))
+        cur.execute("DELETE FROM allocation_sessions WHERE session_id = ?", (session_id,))
+        
+        conn.commit()
+        conn.close()
+        return jsonify({"success": True, "message": f"Deleted session '{plan_id}'"})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/database/backup", methods=["POST"])
+def create_backup():
+    try:
+        import shutil
+        backup_dir = BASE_DIR / "backups"
+        backup_dir.mkdir(exist_ok=True)
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        backup_file = f"backup_{timestamp}.db"
+        shutil.copy2(DB_PATH, backup_dir / backup_file)
+        
+        # Keep only last 10 backups
+        backups = sorted(backup_dir.glob("backup_*.db"), key=os.path.getmtime, reverse=True)
+        for old in backups[10:]:
+            old.unlink()
+        
+        return jsonify({"success": True, "backup_file": backup_file})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
 # ============================================================================
 # ERROR HANDLERS

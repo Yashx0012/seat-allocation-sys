@@ -72,7 +72,7 @@ export const SessionProvider = ({ children }) => {
       setError(null);
       const token = localStorage.getItem('token');
       
-      const response = await fetch('http://localhost:5000/api/sessions/active', {
+      const response = await fetch('/api/sessions/active', {
         headers: token ? { 'Authorization': `Bearer ${token}` } : {}
       });
 
@@ -149,7 +149,7 @@ export const SessionProvider = ({ children }) => {
       setError(null);
       const token = localStorage.getItem('token');
       
-      const response = await fetch('http://localhost:5000/api/sessions/start', {
+      const response = await fetch('/api/sessions/start', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -210,7 +210,7 @@ export const SessionProvider = ({ children }) => {
 
     try {
       const response = await fetch(
-        `http://localhost:5000/api/sessions/${session.session_id}/finalize`,
+        `/api/sessions/${session.session_id}/finalize`,
         { method: 'POST' }
       );
 
