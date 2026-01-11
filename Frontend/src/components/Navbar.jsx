@@ -39,7 +39,6 @@ const Navbar = () => {
       { name: 'Dashboard', page: '/dashboard', icon: LayoutDashboard },
       { name: 'Create', page: '/create-plan', icon: Plus },
       { name: 'Template Editor', page: '/template-editor', icon: FileEdit },
-      { name: 'Attendance', page: '/attendence', icon: ClipboardList },
       { name: 'Feedback', page: '/feedback', icon: MessageSquare },
       { name: 'About us', page: '/aboutus', icon: Info }
     ];
@@ -72,7 +71,7 @@ const Navbar = () => {
           {/* Logo */}
           <div
             className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/dashboard')}
           >
             <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shadow-lg shadow-orange-500/20">
               <Layout className="text-white w-6 h-6" />

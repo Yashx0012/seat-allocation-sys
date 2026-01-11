@@ -90,7 +90,7 @@ const ManualAllocation = ({ showToast }) => {
         };
         
         try {
-            const response = await fetch('http://localhost:5000/api/manual-generate-seating', {
+            const response = await fetch('/api/manual-generate-seating', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
