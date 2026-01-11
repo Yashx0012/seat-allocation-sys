@@ -40,7 +40,11 @@ Frontend/
 │       ├── DashboardPage.jsx    # Dashboard
 │       ├── UploadPage.jsx       # Student data upload
 │       ├── LayoutPage.jsx       # Seat layout visualization
-│       └── LayoutPage.jsx
+│       ├── AttendencePage.jsx   # Attendance sheet generation
+│       ├── FeedbackPage.jsx     # Feedback system
+│       ├── TemplateEditor.jsx   # PDF template customization
+│       ├── DatabaseManager.jsx  # Database admin interface
+│       └── AboutusPage.jsx      # About Us information
 │
 └── package.json
 
@@ -58,6 +62,14 @@ algo/
 ├── requirements.txt             # Dependencies
 │
 └── __pycache__/
+├── attendence_gen/              # Attendance PDF generation
+├── pdf_gen/                     # Seating plan PDF generation
+├── cache/                       # Cache storage
+├── cache_manager.py             # Session cache logic
+├── leftover_calculator.py       # Unallocated student analysis
+├── student_parser.py            # CSV parsing logic
+├── attend_gen.py                # Attendance logic wrapper
+└── requirements.txt             # Dependencies
 
 
 Backend/
@@ -140,6 +152,30 @@ POST /api/generate-seating
 ├─ Receives: rows, cols, num_batches, broken_seats, etc.
 ├─ Algorithm: SeatingAlgorithm.generate_seating()
 └─ Returns: Seating arrangement + validation
+
+SESSION MANAGEMENT ENDPOINTS (New):
+==================================
+1. CREATE SESSION
+   POST /api/create-session
+   ├─ Inputs: plan_id, total_students, upload_ids
+   └─ Starts new allocation workflow
+
+2. PENDING STUDENTS
+   GET /api/get-pending-students?session_id=...
+   └─ Returns list of students waiting for adjustment/allocation
+
+3. SAVE ALLOCATION
+   POST /api/save-room-allocation
+   └─ Saves current room state & updates pending list
+
+4. FINALIZE
+   POST /api/finalize-session
+   └─ Commits all allocations to permanent record
+
+5. ATTENDANCE & FEEDBACK
+   POST /api/generate-attendance
+   POST /api/feedback
+   POST /api/template
 
 
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -285,6 +321,14 @@ Protected Routes:
 
 Token Expiry: 7 days
 Storage: localStorage (secure from XSS in this setup)
+
+GOOGLE OAUTH:
+=============
+Handler: google_auth_handler()
+Features:
+- Verifies Google token
+- Auto-registers new users
+- Assigns ADMIN role if email in ADMIN_EMAILS list
 
 
 ┌─────────────────────────────────────────────────────────────────────┐

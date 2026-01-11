@@ -21,6 +21,9 @@ The Classroom Seating Arrangement Algorithm is a constraint-based seating system
 - Batch color coding
 - Comprehensive constraint validation
 - PDF export capability
+- **Attendance Sheet Generation**
+- **Leftover & Utilization Analytics**
+- **Manual Adjustment Support**
 
 ## Architecture
 
@@ -105,6 +108,8 @@ class PaperSet(Enum):
 | `serial_width` | int | 4 | Zero-padding width for serial |
 | `batch_by_column` | bool | true | Column-based assignment? |
 | `enforce_no_adjacent_batches` | bool | false | Enforce no adjacent batches? |
+| `batch_labels` | dict | `{"1": "CSE", "2": "ECE"}` | Human-readable batch names |
+| `batch_roll_numbers` | dict | `{"1": ["Start", "End"]}` | List of actual student enrollments |
 
 ## Algorithm Logic - 5 Phases
 
@@ -173,6 +178,11 @@ class PaperSet(Enum):
       "1": 10,
       "2": 8,
       "3": 7
+    },
+    "analytics": {
+      "capacity_utilization": 85.5,
+      "leftover_students": [],
+      "allocation_status": "complete"
     }
   },
   "validation": {

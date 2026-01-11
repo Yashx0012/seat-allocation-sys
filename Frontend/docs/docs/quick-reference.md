@@ -134,7 +134,11 @@ data.constraints_status.constraints     // Array of constraint objects
   "serial_width": 4,
   
   "batch_by_column": true,
-  "enforce_no_adjacent_batches": false
+  "enforce_no_adjacent_batches": false,
+  "batch_roll_numbers": {
+    "1": ["Student1", "Student2"],
+    "2": ["Student3", "Student4"]
+  }
 }
 ```
 
@@ -215,6 +219,26 @@ async function basicGeneration() {
   }).then(r => r.json());
   
   return result;
+}
+
+### Workflow 1.5: Generate Attendance
+```javascript
+async function downloadAttendance(sessionId) {
+  const response = await fetch(`/api/generate-attendance`, {
+    method: 'POST',
+    body: JSON.stringify({ session_id: sessionId })
+  });
+  // Handle blob download
+}
+```
+
+### Workflow 1.6: Save Manual Changes
+```javascript
+async function saveManual(allocationData) {
+   await fetch('/api/save-room-allocation', {
+     method: 'POST',
+     body: JSON.stringify(allocationData)
+   });
 }
 ```
 

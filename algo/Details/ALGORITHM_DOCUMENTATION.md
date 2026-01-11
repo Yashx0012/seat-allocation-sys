@@ -28,7 +28,13 @@ The **Classroom Seating Arrangement Algorithm** is a sophisticated constraint-ba
 - ✅ Paper set alternation (A/B within blocks)
 - ✅ Batch color coding
 - ✅ Comprehensive constraint validation
+- ✅ Comprehensive constraint validation
 - ✅ PDF export capability
+- ✅ Interactive Session Management (Multi-room allocation)
+- ✅ Attendance Sheet Generation
+- ✅ Google OAuth Support
+- ✅ Leftover Student Calculation
+
 
 ---
 
@@ -83,9 +89,22 @@ class PaperSet(Enum):
 | `block` | `Optional[int]` | Block number |
 | `roll_number` | `Optional[str]` | Assigned roll number |
 | `is_broken` | `bool` | Is seat unavailable? |
+| `is_broken` | `bool` | Is seat unavailable? |
 | `color` | `str` | Hex color for display |
+| `student_name` | `Optional[str]` | Name of assigned student |
 
-#### 3. **SeatingAlgorithm** (Main Class)
+#### 3. **SessionCacheManager** (Cache Layer)
+- Manages temporary state during allocation sessions
+- handle "pending students" list across requests
+- supports iterative room-by-room allocation
+
+#### 4. **LeftoverCalculator** (Analysis)
+- Calculates unallocated students after seating generation
+- Provides capacity utilization statistics
+- Breakdowns by batch
+
+#### 5. **SeatingAlgorithm** (Main Class)
+
 - Generates seating arrangements
 - Validates constraints
 - Returns web-formatted data
@@ -588,6 +607,16 @@ Content-Type: application/json
 {"error": "PDF generation failed: <exception message>"}
 ```
 
+### 5. **POST `/api/create-session`** - Start Allocation Session
+Starts a new multi-step allocation workflow using uploaded student data.
+
+### 6. **POST `/api/generate-attendance`** - Attendance Sheet
+Generates a PDF attendance sheet for the allocated seating plan.
+
+### 7. **POST `/api/feedback`** - User Feedback
+Submit user feedback or bug reports.
+
+
 #### Integration Pattern
 
 **Step 1: Generate Seating (from `/api/generate-seating`)**
@@ -725,7 +754,12 @@ SeatingAlgorithm (Main)
 │   ├── batch_by_column
 │   └── enforce_no_adjacent_batches
 │
+├── Session Management
+│   ├── SessionCacheManager
+│   └── Pending Student Cache
+│
 ├── Roll Formatting
+
 │   ├── roll_template
 │   ├── batch_prefixes
 │   ├── year
@@ -1256,6 +1290,6 @@ For issues, questions, or feature requests:
 
 ---
 
-**Document Version**: 2.2 (Added Backend PDF Generation via /api/generate-pdf endpoint with Reportlab)  
-**Last Updated**: December 12, 2025  
+**Document Version**: 2.3 (Added Session Management, Attendance Generation, Google OAuth, and updated Data Models)  
+**Last Updated**: January 3, 2026  
 **Maintained By**: SAS Development Team 
