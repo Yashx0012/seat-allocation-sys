@@ -2,6 +2,8 @@
 sidebar_position: 4
 ---
 
+import ComplexityCards from '@site/src/components/complexitycards';
+
 # System Architecture
 
 Complete system design and data flow documentation.
@@ -10,35 +12,91 @@ Complete system design and data flow documentation.
 
 ```mermaid
 graph TB
-    subgraph Client["CLIENT LAYER"]
-        HTML["HTML Form Inputs"]
-        GRID["Seating Grid Display"]
-        SUMMARY["Summary Statistics"]
-        MODAL["Constraints Modal"]
-        PDF["PDF Export"]
+    %% Styles matching the reference image explanation
+    classDef client fill:#e3f2fd,stroke:#1565c0,stroke-width:2px,color:#0d47a1,rx:5,ry:5
+    classDef api fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:#1b5e20,rx:5,ry:5
+    classDef algo fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#4a148c,rx:5,ry:5
+    classDef router fill:#fff3e0,stroke:#ff6d00,stroke-width:2px,color:#e65100,stroke-dasharray: 5 5,shape:circle
+    classDef spacerNode width:0px,height:50px,fill:none,stroke:none;
+    %% Label Node Style (White box, clear border, rounded like others)
+    classDef labelNode fill:#ffffff,stroke:#333333,stroke-width:1px,rx:5,ry:5,color:#000
+    
+            classDef transparentBox fill:none,stroke:none;
+    %% Orange Thicker Arrows
+    linkStyle default stroke:#ff9800,stroke-width:4px,fill:none
+
+    %% CLIENT LAYER (Horizontal)
+    subgraph Client[" "]
+ direction TB
+        style Client fill:transparent,stroke-width:0px,color:#ff9800
+        %% --- 1. THE NEW BOX ABOVE ---
+        
+        %% --- 2. THE ROW BELOW (Nested Subgraph) ---
+        subgraph ClientRow[" "]
+            direction LR
+            style ClientRow fill:none,stroke:none
+            %% EXISTING NODES
+            HTML["HTML Form Inputs"]:::client
+            GRID["Seating Grid Display"]:::client
+            SUMMARY["Summary Statistics"]:::client
+            MODAL["Constraints Modal"]:::client
+            PDF["PDF/Attendance Export"]:::client
+            MANUAL["Manual Adjustments"]:::client
+            FEEDBACK["Feedback System"]:::client
+        end
     end
        
-    subgraph API["API LAYER - Flask"]
-        GET[" GET /"]
-        POST1["POST /api/generate-seating"]
-        POST2["POST /api/constraints-status"]
+    %% API LAYER (Vertical with Router)
+    %% Moved label to side using spaces to avoid arrow overlap
+    subgraph API[" "]
+        direction TB
+        style API fill:transparent,stroke-width:0px,color:#ff9800
+        
+        ROUTER((" / Flask Router / ")):::router
+        
+        GET[" GET / "]:::api
+        POST1["POST /api/generate-seating"]:::api
+        POST2["POST /api/constraints-status"]:::api
+        
+        %% Internal API Label Nodes
+        L_ROUTE1["Route"]:::labelNode
+        L_ROUTE2["Route"]:::labelNode
+        L_ROUTE3["Route"]:::labelNode
+
+        ROUTER --> L_ROUTE1 --> GET
+        ROUTER --> L_ROUTE2 --> POST1
+        ROUTER --> L_ROUTE3 --> POST2
     end
     
-    subgraph Algorithm["ALGORITHM LAYER - Python"]
-        SA["SeatingAlgorithm"]
-        SC["Seat Class"]
-        PS["PaperSet Enum"]
-        METHODS["20+ Methods"]
+    %% ALGORITHM LAYER (Bottom)
+    %% Shift Left via padding-right
+    subgraph Algorithm[" "]
+        direction TB
+        style Algorithm fill:transparent,stroke-width:0px,color:#ff9800
+
+        
+        SA["SeatingAlgorithm"]:::algo
+        SC["Seat Class"]:::algo
+        PS["PaperSet Enum"]:::algo
+        METHODS["20+ Methods"]:::algo
+        ATT["Attendance Generator"]:::algo
+        LEFT["Leftover Calculator"]:::algo
+        
+        SA -.-> SC
+        SA -.-> PS
+        SA -.-> METHODS
+        SA -.-> ATT
+        SA -.-> LEFT
     end
     
-    Client -->|JSON via HTTP| API
-    API -->|Python Objects| Algorithm
-    API -->|Process| GET
-    API -->|Process| POST1
-    API -->|Process| POST2
-    SA -.-> SC
-    SA -.-> PS
-    SA -.-> METHODS
+    %% Inter-Layer Connections with Label Nodes
+    L_JSON["JSON via HTTP"]:::labelNode
+    L_PY["Python Objects"]:::labelNode
+    L_STATUS["Status Check"]:::labelNode
+
+    MODAL --> L_JSON --> ROUTER
+    POST1 --> L_PY --> SA
+    POST2 --> L_STATUS --> SA
 ```
 
 ## Data Flow Diagram
@@ -132,7 +190,7 @@ graph TB
 | Start Rolls | CSV | "1:BTCS24O1001" | Dictionary mapping batch numbers to starting roll numbers |
 | Batch Prefixes | CSV | "BTCS,BTCD" | List of prefixes for each batch |
 | Year | Integer | 2024 | 2024 |
-| Template | String | "{prefix}{year}O{serial}" | str |
+| Template | String | `"{prefix}{year}O{serial}"` | str |
 | Serial Width | Integer | 4 | 4 |
 | Flags | Checkbox | true/false | Boolean |
 
@@ -318,34 +376,8 @@ erDiagram
         timestamp created_at
     }
 ```
-
-## Performance Analysis
-
-### Time Complexity
-
-| Operation | Complexity | Details |
-|---|---|---|
-| Initialization | O(rows × cols) | Grid creation |
-| Batch Assignment | O(cols) | Column distribution |
-| Seat Allocation | O(rows × cols) | Fill seats |
-| Validation | O(rows × cols) | Check constraints |
-| Overall | O(rows × cols) | Linear in grid size |
-
-### Space Complexity
-
-| Component | Complexity | Details |
-|---|---|---|
-| Seating Grid | O(rows × cols) | 2D array |
-| Student Mapping | O(total_students) | Tracking allocations |
-| Overall | O(rows × cols) | Dominated by grid |
-
-### Performance Benchmarks
-
-| Grid Size | Time | Memory | Notes |
-|---|---|---|---|
-| 10×10 | < 10ms | < 1MB | Small classroom |
-| 50×50 | < 50ms | < 5MB | Large classroom |
-| 100×100 | < 100ms | < 15MB | Extra large |
+### System Performance Metrics
+<ComplexityCards />
 
 ## Extension Points
 
@@ -402,19 +434,6 @@ graph TB
     D --> F
     G --> I
 ```
-
-## Deployment Checklist
-
-- [ ] Backend environment variables configured
-- [ ] Database initialized and migrated
-- [ ] Frontend build optimized
-- [ ] API CORS settings correct
-- [ ] PDF export tested
-- [ ] Authentication system verified
-- [ ] Load testing completed
-- [ ] Error logging configured
-- [ ] Documentation updated
-- [ ] Backup strategy in place
 
 ---
 

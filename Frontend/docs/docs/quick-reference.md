@@ -2,6 +2,8 @@
 sidebar_position: 5
 ---
 
+import CodeHeader from '@site/src/components/filetypeheaderstyle';
+
 # Quick Reference Guide
 
 Fast developer integration and common workflows.
@@ -9,26 +11,26 @@ Fast developer integration and common workflows.
 ## 5-Minute Setup
 
 ### Backend Setup
-```bash
-cd algo
+<CodeHeader title="BASH">
+{`cd algo
 pip install Flask Flask-CORS
 python app.py
-# Running on http://localhost:5000
-```
+# Running on http://localhost:5000`}
+</CodeHeader>
 
 ### Frontend Setup
-```bash
-cd Frontend
+<CodeHeader title="BASH">
+{`cd Frontend
 npm install
 npm start
-# Running on http://localhost:3000
-```
+# Running on http://localhost:3000`}
+</CodeHeader>
 
 ## Simple API Call
 
 ### JavaScript/Fetch
-```javascript
-async function generateSeating() {
+<CodeHeader title="JAVASCRIPT">
+{`async function generateSeating() {
   const response = await fetch('/api/generate-seating', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -40,12 +42,12 @@ async function generateSeating() {
     })
   });
   return await response.json();
-}
-```
+}`}
+</CodeHeader>
 
 ### React Hook
-```javascript
-const [seating, setSeating] = useState(null);
+<CodeHeader title="REACT HOOK">
+{`const [seating, setSeating] = useState(null);
 
 const handleGenerate = async (params) => {
   const response = await fetch('/api/generate-seating', {
@@ -55,32 +57,32 @@ const handleGenerate = async (params) => {
   });
   const data = await response.json();
   setSeating(data);
-};
-```
+};`}
+</CodeHeader>
 
 ### Vue.js
-```javascript
-async generateSeating(params) {
+<CodeHeader title="VUE.JS">
+{`async generateSeating(params) {
   const response = await fetch('/api/generate-seating', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params)
   });
   return response.json();
-}
-```
+}`}
+</CodeHeader>
 
 ### Angular
-```typescript
-generateSeating(params: any): Observable<any> {
+<CodeHeader title="TYPESCRIPT">
+{`generateSeating(params: any): Observable<any> {
   return this.http.post('/api/generate-seating', params);
-}
-```
+}`}
+</CodeHeader>
 
 ## Access Results
 
-```javascript
-const data = await generateSeating();
+<CodeHeader title="JAVASCRIPT">
+{`const data = await generateSeating();
 
 // Seating grid (2D array)
 data.seating[row][col] 
@@ -102,24 +104,24 @@ data.validation.is_valid                // true/false
 data.validation.errors                  // ["error1", "error2"]
 
 // Constraints
-data.constraints_status.constraints     // Array of constraint objects
-```
+data.constraints_status.constraints     // Array of constraint objects`}
+</CodeHeader>
 
 ## Input/Output Quick Reference
 
 ### Minimal Input (Required Only)
-```json
-{
+<CodeHeader title="JSON">
+{`{
   "rows": 8,
   "cols": 10,
   "num_batches": 3,
   "block_width": 2
-}
-```
+}`}
+</CodeHeader>
 
 ### Full Input (All Options)
-```json
-{
+<CodeHeader title="JSON">
+{`{
   "rows": 8,
   "cols": 10,
   "num_batches": 3,
@@ -134,13 +136,17 @@ data.constraints_status.constraints     // Array of constraint objects
   "serial_width": 4,
   
   "batch_by_column": true,
-  "enforce_no_adjacent_batches": false
-}
-```
+  "enforce_no_adjacent_batches": false,
+  "batch_roll_numbers": {
+    "1": ["Student1", "Student2"],
+    "2": ["Student3", "Student4"]
+  }
+}`}
+</CodeHeader>
 
 ### Output Response
-```json
-{
+<CodeHeader title="JSON">
+{`{
   "success": true,
   "metadata": {
     "rows": 8,
@@ -192,15 +198,15 @@ data.constraints_status.constraints     // Array of constraint objects
       // ... more constraints
     ]
   }
-}
-```
+}`}
+</CodeHeader>
 
 ## Common Workflows
 
 ### Workflow 1: Basic Generation
 
-```javascript
-async function basicGeneration() {
+<CodeHeader title="JAVASCRIPT">
+{`async function basicGeneration() {
   const params = {
     rows: 8,
     cols: 10,
@@ -215,13 +221,34 @@ async function basicGeneration() {
   }).then(r => r.json());
   
   return result;
-}
-```
+}`}
+</CodeHeader>
+
+### Workflow 1.5: Generate Attendance
+<CodeHeader title="JAVASCRIPT">
+{`async function downloadAttendance(sessionId) {
+  const response = await fetch(\`/api/generate-attendance\`, {
+    method: 'POST',
+    body: JSON.stringify({ session_id: sessionId })
+  });
+  // Handle blob download
+}`}
+</CodeHeader>
+
+### Workflow 1.6: Save Manual Changes
+<CodeHeader title="JAVASCRIPT">
+{`async function saveManual(allocationData) {
+   await fetch('/api/save-room-allocation', {
+     method: 'POST',
+     body: JSON.stringify(allocationData)
+   });
+}`}
+</CodeHeader>
 
 ### Workflow 2: With Student Limits
 
-```javascript
-async function generationWithLimits() {
+<CodeHeader title="JAVASCRIPT">
+{`async function generationWithLimits() {
   const params = {
     rows: 8,
     cols: 10,
@@ -235,13 +262,13 @@ async function generationWithLimits() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params)
   }).then(r => r.json());
-}
-```
+}`}
+</CodeHeader>
 
 ### Workflow 3: With Broken Seats
 
-```javascript
-async function generationWithBrokenSeats() {
+<CodeHeader title="JAVASCRIPT">
+{`async function generationWithBrokenSeats() {
   const params = {
     rows: 8,
     cols: 10,
@@ -255,13 +282,13 @@ async function generationWithBrokenSeats() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params)
   }).then(r => r.json());
-}
-```
+}`}
+</CodeHeader>
 
 ### Workflow 4: Custom Roll Numbers
 
-```javascript
-async function customRollNumbers() {
+<CodeHeader title="JAVASCRIPT">
+{`async function customRollNumbers() {
   const params = {
     rows: 8,
     cols: 10,
@@ -279,13 +306,13 @@ async function customRollNumbers() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params)
   }).then(r => r.json());
-}
-```
+}`}
+</CodeHeader>
 
 ### Workflow 5: Complete Configuration
 
-```javascript
-async function completeConfiguration() {
+<CodeHeader title="JAVASCRIPT">
+{`async function completeConfiguration() {
   const params = {
     rows: 10,
     cols: 12,
@@ -307,22 +334,22 @@ async function completeConfiguration() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params)
   }).then(r => r.json());
-}
-```
+}`}
+</CodeHeader>
 
 ## Component Examples
 
 ### React Grid Renderer
 
-```javascript
-function SeatingGrid({ seating }) {
+<CodeHeader title="REACT">
+{`function SeatingGrid({ seating }) {
   return (
     <div className="grid gap-1 p-4">
       {seating.map((row, rowIdx) => (
         <div key={rowIdx} className="flex gap-1">
           {row.map((seat, colIdx) => (
             <div
-              key={`${rowIdx}-${colIdx}`}
+              key={\`\${rowIdx}-\${colIdx}\`}
               style={{
                 backgroundColor: seat.color,
                 border: seat.is_broken ? '2px solid red' : '1px solid black',
@@ -338,18 +365,18 @@ function SeatingGrid({ seating }) {
       ))}
     </div>
   );
-}
-```
+}`}
+</CodeHeader>
 
 ### Vue Seating Component
 
-```vue
-<template>
+<CodeHeader title="VUE.JS">
+{`<template>
   <div class="seating-grid">
     <div v-for="(row, rowIdx) in seating" :key="rowIdx" class="grid-row">
       <div
         v-for="(seat, colIdx) in row"
-        :key="`${rowIdx}-${colIdx}`"
+        :key="\`\${rowIdx}-\${colIdx}\`"
         :style="{ backgroundColor: seat.color }"
         :class="{ broken: seat.is_broken }"
       >
@@ -365,17 +392,17 @@ export default {
     seating: Array
   }
 };
-</script>
-```
+</script>`}
+</CodeHeader>
 
 ### Angular Component
 
-```typescript
-import { Component, Input } from '@angular/core';
+<CodeHeader title="ANGULAR">
+{`import { Component, Input } from '@angular/core';
 
 @Component({
   selector: 'app-seating-grid',
-  template: `
+  template: \`
     <div class="seating-grid">
       <div *ngFor="let row of seating; let i = index" class="grid-row">
         <div
@@ -387,48 +414,48 @@ import { Component, Input } from '@angular/core';
         </div>
       </div>
     </div>
-  `
+  \`
 })
 export class SeatingGridComponent {
   @Input() seating: any[];
-}
-```
+}`}
+</CodeHeader>
 
 ## Color Reference
 
 ### Default Batch Colors
 
-```
-Batch 1: #DBEAFE (Light Blue)    RGB(219, 234, 254)
+<CodeHeader title="TEXT">
+{`Batch 1: #DBEAFE (Light Blue)    RGB(219, 234, 254)
 Batch 2: #D1FAE5 (Light Green)   RGB(209, 250, 229)
 Batch 3: #FEE2E2 (Light Red)     RGB(254, 226, 226)
 Batch 4: #FEF3C7 (Light Yellow)  RGB(254, 243, 199)
-Batch 5: #F3E8FF (Light Purple)  RGB(243, 232, 255)
-```
+Batch 5: #F3E8FF (Light Purple)  RGB(243, 232, 255)`}
+</CodeHeader>
 
 ### Special Statuses
 
-```
-Broken Seat:     Border #FF0000 (Red)
+<CodeHeader title="TEXT">
+{`Broken Seat:     Border #FF0000 (Red)
 Unallocated:     Gray background
-Empty:           White background
-```
+Empty:           White background`}
+</CodeHeader>
 
 ## Debugging Workflow
 
 ### Step 1: Verify Input
 
-```javascript
-// Check input format
+<CodeHeader title="JAVASCRIPT">
+{`// Check input format
 console.log("Input:", params);
 // Should have all required fields
-// Values should be correct types
-```
+// Values should be correct types`}
+</CodeHeader>
 
 ### Step 2: Make API Call
 
-```javascript
-// Log response
+<CodeHeader title="JAVASCRIPT">
+{`// Log response
 const response = await fetch('/api/generate-seating', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
@@ -437,59 +464,40 @@ const response = await fetch('/api/generate-seating', {
 
 console.log("Status:", response.status);
 const data = await response.json();
-console.log("Response:", data);
-```
+console.log("Response:", data);`}
+</CodeHeader>
 
 ### Step 3: Check Validation
 
-```javascript
-// Check if seating is valid
+<CodeHeader title="JAVASCRIPT">
+{`// Check if seating is valid
 if (data.validation.is_valid) {
   console.log("✓ Seating is valid");
 } else {
   console.error("✗ Validation errors:", data.validation.errors);
-}
-```
+}`}
+</CodeHeader>
 
 ### Step 4: Inspect Constraints
 
-```javascript
-// Check constraint details
+<CodeHeader title="JAVASCRIPT">
+{`// Check constraint details
 data.constraints_status.constraints.forEach(c => {
-  console.log(`${c.name}: ${c.satisfied ? 'PASS' : 'FAIL'} (${c.priority})`);
-});
-```
+  console.log(\`\${c.name}: \${c.satisfied ? 'PASS' : 'FAIL'} (\${c.priority})\`);
+});`}
+</CodeHeader>
 
 ### Step 5: Render and Verify
 
-```javascript
-// Render grid and visually verify
+<CodeHeader title="JAVASCRIPT">
+{`// Render grid and visually verify
 // Check for:
 // - Correct number of batches
 // - Proper roll number formatting
 // - Correct colors
-// - Broken seats marked properly
-```
+// - Broken seats marked properly`}
+</CodeHeader>
 
-## Performance Benchmarks
-
-### Response Times
-
-| Grid Size | Time | Notes |
-|---|---|---|
-| 8×10 | < 10ms | Small classroom |
-| 20×20 | < 20ms | Medium classroom |
-| 50×50 | < 50ms | Large classroom |
-| 100×100 | < 100ms | Extra large |
-
-### Memory Usage
-
-| Grid Size | Memory | Notes |
-|---|---|---|
-| 8×10 | < 1MB | Small |
-| 20×20 | < 2MB | Medium |
-| 50×50 | < 5MB | Large |
-| 100×100 | < 15MB | Extra large |
 
 ## Error Handling
 
@@ -503,21 +511,21 @@ data.constraints_status.constraints.forEach(c => {
 
 ### Error Response Example
 
-```json
-{
+<CodeHeader title="JSON">
+{`{
   "success": false,
   "error": "Invalid rows parameter",
   "details": {
     "field": "rows",
     "message": "Must be integer > 0"
   }
-}
-```
+}`}
+</CodeHeader>
 
 ## File Structure Reference
 
-```
-seat-allocation-sys/
+<CodeHeader title="FILE STRUCTURE">
+{`seat-allocation-sys/
 ├── algo/
 │   ├── app.py                 # Flask app
 │   ├── algo.py               # Algorithm core
@@ -535,8 +543,8 @@ seat-allocation-sys/
 │   │   └── context/         # Context providers
 │   └── package.json         # npm dependencies
 └── docs/
-    └── docs/               # Documentation
-```
+    └── docs/               # Documentation`}
+</CodeHeader>
 
 ---
 

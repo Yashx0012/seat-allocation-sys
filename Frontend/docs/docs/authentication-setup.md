@@ -295,6 +295,32 @@ Authorization: Bearer <token>
 }
 ```
 
+
+## Google OAuth Integration
+
+The system supports Google Sign-In for easier access.
+
+### 1. Setup
+- Backend uses `google_auth_handler`
+- Frontend uses `GoogleLoginComponent.jsx`
+
+### 2. Flow
+1. User clicks "Sign in with Google"
+2. Google popup handles authentication
+3. Token sent to `/api/auth/google`
+4. Backend verifies token with Google
+5. If valid email:
+   - Registers user (if new)
+   - Logs in user (if exists)
+   - Returns standard JWT token
+
+### 3. Configuration
+Add to `.env`:
+```env
+GOOGLE_CLIENT_ID=your_client_id
+GOOGLE_CLIENT_SECRET=your_client_secret
+```
+
 ## Frontend Implementation
 
 ### Authentication Context Usage

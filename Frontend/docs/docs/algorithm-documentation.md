@@ -21,34 +21,58 @@ The Classroom Seating Arrangement Algorithm is a constraint-based seating system
 - Batch color coding
 - Comprehensive constraint validation
 - PDF export capability
+- **Attendance Sheet Generation**
+- **Leftover & Utilization Analytics**
+- **Manual Adjustment Support**
 
 ## Architecture
 
 ### System Components
 
 ```mermaid
-graph TB
-    subgraph Frontend["Frontend Layer"]
-        HTML["HTML Form<br/>Inputs"]
-        JS["Vanilla JavaScript<br/>+ Tailwind CSS"]
-    end
+flowchart LR
+    %%{init: {'themeVariables': { 'fontSize': '16px', 'fontFamily': 'system-ui' }, 'flowchart': {'padding': 20, 'nodeSpacing': 50, 'rankSpacing': 50}}}%%
     
-    subgraph API["API Layer"]
-        Flask["Flask Backend<br/>REST API"]
+    %% Frontend Layer
+    subgraph FE [Frontend Layer]
+        direction TB
+        HTML(HTML Form<br><small>User Inputs</small>)
+        JS(Vanilla JS<br><small>+ Tailwind CSS</small>)
     end
-    
-    subgraph Algorithm["Algorithm Layer"]
-        Core["SeatingAlgorithm<br/>Core Engine"]
-        Classes["Data Classes<br/>Seat + PaperSet"]
+
+    %% Backend Layer
+    subgraph BE [Backend Layer]
+        direction TB
+        Flask(Flask Backend<br><small>REST API</small>)
     end
-    
-    Frontend -->|JSON POST| API
-    API -->|Instantiate| Algorithm
+
+    %% Algorithm Layer (Now in line)
+    subgraph ALGO [Algorithm Layer]
+        direction TB
+        Core(Seating Algorithm<br><small>Core Engine</small>)
+        Classes(Data Classes<br><small>Seat + PaperSet</small>)
+    end
+
+    %% Key Structural Links (Left -> Right)
+    JS --> Flask
+    Flask --> Core
+
+    %% Internal Flow
+    HTML --> JS
     Core -.-> Classes
+
+    %% Styling
+    linkStyle default stroke:#f97316,stroke-width:3px,fill:none;
+
+    %% Node Classes
+    class HTML,JS clientNode
+    class Flask serverNode
+    class Core,Classes coreNode
     
-    style Frontend fill:#e3f2fd
-    style API fill:#fff9c4
-    style Algorithm fill:#c8e6c9
+    %% Layer Classes
+    class FE feNode
+    class BE beNode
+    class ALGO algoNode
 ```
 
 ### Core Classes
@@ -105,39 +129,63 @@ class PaperSet(Enum):
 | `serial_width` | int | 4 | Zero-padding width for serial |
 | `batch_by_column` | bool | true | Column-based assignment? |
 | `enforce_no_adjacent_batches` | bool | false | Enforce no adjacent batches? |
+| `batch_labels` | dict | `{"1": "CSE", "2": "ECE"}` | Human-readable batch names |
+| `batch_roll_numbers` | dict | `{"1": ["Start", "End"]}` | List of actual student enrollments |
 
 ## Algorithm Logic - 5 Phases
 
-### Phase 1: Initialization
-- Parse and validate all inputs
-- Initialize 2D seating grid
-- Mark broken seats
-- Create batch-to-student mapping
-
-### Phase 2: Batch Assignment
-- Calculate columns per batch using division
-- Distribute remainder columns
-- Apply modulo mapping (col % num_batches)
-- Assign each column to a batch
-
-### Phase 3: Seat Allocation
-- For each batch column:
-  - Check per-batch student limits
-  - Skip broken seats
-  - Fill seats top-to-bottom
-  - Track allocated students
-
-### Phase 4: Paper Set Assignment
-- Apply block-based paper set alternation
-- A and B alternate within blocks
-- Priority-based same-batch handling
-- Ensure compliance with paper set rules
-
-### Phase 5: Validation
-- Check all 8 constraints
-- Apply 3-tier priority system
-- Generate validation report
-- Provide detailed error messages
+<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', marginTop: '20px', marginBottom: '40px' }}>
+  <div style={{ border: '1px solid var(--ifm-color-emphasis-200)', borderRadius: '6px', padding: '20px', backgroundColor: 'var(--ifm-card-background-color)', transition: 'transform 0.2s', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
+    <h4 style={{ marginTop: 0, color: 'var(--ifm-color-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>Phase 1: Initialization</h4>
+    <ul style={{ paddingLeft: '20px', margin: 0 }}>
+      <li>Parse and validate all inputs</li>
+      <li>Initialize 2D seating grid</li>
+      <li>Mark broken seats</li>
+      <li>Create batch-to-student mapping</li>
+    </ul>
+  </div>
+  <div style={{ border: '1px solid var(--ifm-color-emphasis-200)', borderRadius: '6px', padding: '20px', backgroundColor: 'var(--ifm-card-background-color)', transition: 'transform 0.2s', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
+    <h4 style={{ marginTop: 0, color: 'var(--ifm-color-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>Phase 2: Batch Assignment</h4>
+    <ul style={{ paddingLeft: '20px', margin: 0 }}>
+      <li>Calculate columns per batch using division</li>
+      <li>Distribute remainder columns</li>
+      <li>Apply modulo mapping (col % num_batches)</li>
+      <li>Assign each column to a batch</li>
+    </ul>
+  </div>
+  <div style={{ border: '1px solid var(--ifm-color-emphasis-200)', borderRadius: '6px', padding: '20px', backgroundColor: 'var(--ifm-card-background-color)', transition: 'transform 0.2s', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
+    <h4 style={{ marginTop: 0, color: 'var(--ifm-color-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>Phase 3: Seat Allocation</h4>
+    <ul style={{ paddingLeft: '20px', margin: 0 }}>
+      <li>
+        For each batch column:
+        <ul style={{ paddingLeft: '20px', marginTop: '5px' }}>
+          <li>Check per-batch student limits</li>
+          <li>Skip broken seats</li>
+          <li>Fill seats top-to-bottom</li>
+          <li>Track allocated students</li>
+        </ul>
+      </li>
+    </ul>
+  </div>
+  <div style={{ border: '1px solid var(--ifm-color-emphasis-200)', borderRadius: '6px', padding: '20px', backgroundColor: 'var(--ifm-card-background-color)', transition: 'transform 0.2s', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
+    <h4 style={{ marginTop: 0, color: 'var(--ifm-color-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>Phase 4: Paper Set Assignment</h4>
+    <ul style={{ paddingLeft: '20px', margin: 0 }}>
+      <li>Apply block-based paper set alternation</li>
+      <li>A and B alternate within blocks</li>
+      <li>Priority-based same-batch handling</li>
+      <li>Ensure compliance with paper set rules</li>
+    </ul>
+  </div>
+  <div style={{ border: '1px solid var(--ifm-color-emphasis-200)', borderRadius: '6px', padding: '20px', backgroundColor: 'var(--ifm-card-background-color)', transition: 'transform 0.2s', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
+    <h4 style={{ marginTop: 0, color: 'var(--ifm-color-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>Phase 5: Validation</h4>
+    <ul style={{ paddingLeft: '20px', margin: 0 }}>
+      <li>Check all 8 constraints</li>
+      <li>Apply 3-tier priority system</li>
+      <li>Generate validation report</li>
+      <li>Provide detailed error messages</li>
+    </ul>
+  </div>
+</div>
 
 ## Output Format & Types
 
@@ -173,6 +221,11 @@ class PaperSet(Enum):
       "1": 10,
       "2": 8,
       "3": 7
+    },
+    "analytics": {
+      "capacity_utilization": 85.5,
+      "leftover_students": [],
+      "allocation_status": "complete"
     }
   },
   "validation": {
@@ -271,54 +324,59 @@ Customizable via configuration or theme settings.
 
 ## Examples
 
-### Example 1: Basic 3-Batch Configuration
+<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '20px', marginTop: '20px' }}>
 
-**Input:**
-```json
-{
-  "rows": 4,
-  "cols": 9,
+  <div style={{ border: '1px solid var(--ifm-color-emphasis-200)', borderRadius: '8px', padding: '20px', backgroundColor: 'var(--ifm-card-background-color)' }}>
+    <h4 style={{ marginTop: 0, color: 'var(--ifm-color-primary)' }}>Example 1: Basic 3-Batch Config</h4>
+    <p><strong>Input:</strong></p>
+    <pre style={{ background: 'var(--ifm-pre-background)', padding: '10px', borderRadius: '6px', fontSize: '0.9em' }}>
+{`{
+  "rows": 4, "cols": 9,
   "num_batches": 3,
   "block_width": 2,
   "batch_student_counts": "1:3,2:3,3:3"
-}
-```
+}`}
+    </pre>
+    <p><strong>Output:</strong></p>
+    <ul>
+      <li>Batch 1: Cols [0, 3, 6]</li>
+      <li>Batch 2: Cols [1, 4, 7]</li>
+      <li>Batch 3: Cols [2, 5, 8]</li>
+    </ul>
+  </div>
 
-**Output:**
-- Batch 1 gets columns: [0, 3, 6] (3 students each)
-- Batch 2 gets columns: [1, 4, 7] (3 students each)
-- Batch 3 gets columns: [2, 5, 8] (3 students each)
-
-### Example 2: With Broken Seats
-
-**Input:**
-```json
-{
-  "rows": 4,
-  "cols": 6,
+  <div style={{ border: '1px solid var(--ifm-color-emphasis-200)', borderRadius: '8px', padding: '20px', backgroundColor: 'var(--ifm-card-background-color)' }}>
+    <h4 style={{ marginTop: 0, color: 'var(--ifm-color-primary)' }}>Example 2: With Broken Seats</h4>
+    <p><strong>Input:</strong></p>
+    <pre style={{ background: 'var(--ifm-pre-background)', padding: '10px', borderRadius: '6px', fontSize: '0.9em' }}>
+{`{
+  "rows": 4, "cols": 6,
   "num_batches": 2,
   "broken_seats": "0-1,2-2"
-}
-```
+}`}
+    </pre>
+    <p><strong>Result:</strong></p>
+    <p>Seats at (0,1) and (2,2) are marked unavailable and skipped.</p>
+  </div>
 
-**Result:** Seats at (0,1) and (2,2) are marked as unavailable and skipped during allocation.
-
-### Example 3: Custom Roll Numbers
-
-**Input:**
-```json
-{
+  <div style={{ border: '1px solid var(--ifm-color-emphasis-200)', borderRadius: '8px', padding: '20px', backgroundColor: 'var(--ifm-card-background-color)' }}>
+    <h4 style={{ marginTop: 0, color: 'var(--ifm-color-primary)' }}>Example 3: Custom Roll Numbers</h4>
+    <p><strong>Input:</strong></p>
+    <pre style={{ background: 'var(--ifm-pre-background)', padding: '10px', borderRadius: '6px', fontSize: '0.9em' }}>
+{`{
   "batch_prefixes": "BTCS,BTCD",
-  "year": 2024,
-  "start_rolls": "1:BTCS24O1001,2:BTCD24O2001",
-  "roll_template": "{prefix}{year}O{serial}",
-  "serial_width": 4
-}
-```
+  "start_rolls": "1:BTCS...1001",
+  "roll_template": "{prefix}{year}O{serial}"
+}`}
+    </pre>
+    <p><strong>Output:</strong></p>
+    <ul>
+      <li>Batch 1: BTCS24O1001...</li>
+      <li>Batch 2: BTCD24O2001...</li>
+    </ul>
+  </div>
 
-**Output Roll Numbers:**
-- Batch 1: BTCS24O1001, BTCS24O1002, BTCS24O1003...
-- Batch 2: BTCD24O2001, BTCD24O2002...
+</div>
 
 ## Integration Guide
 
@@ -369,25 +427,55 @@ generateSeating(params: any): Observable<any> {
 
 ## Performance Considerations
 
-### Time Complexity
-- **Initialization**: O(rows × cols)
-- **Batch Assignment**: O(cols)
-- **Seat Allocation**: O(rows × cols)
-- **Validation**: O(rows × cols)
-- **Overall**: O(rows × cols)
-
-### Space Complexity
-- **Seating Grid**: O(rows × cols)
-- **Student Tracking**: O(total_students)
-- **Overall**: O(rows × cols)
-
-### Benchmarks
-
-| Grid Size | Time | Memory |
-|---|---|---|
-| 10×10 | < 10ms | < 1MB |
-| 50×50 | < 50ms | < 5MB |
-| 100×100 | < 100ms | < 15MB |
+<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', marginTop: '20px', marginBottom: '40px' }}>
+  <div style={{ border: '1px solid var(--ifm-color-emphasis-200)', borderRadius: '12px', padding: '20px', backgroundColor: 'var(--ifm-card-background-color)', transition: 'transform 0.2s', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
+    <h4 style={{ marginTop: 0, color: 'var(--ifm-color-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>Time Complexity</h4>
+    <ul style={{ paddingLeft: '20px', margin: 0 }}>
+      <li><strong>Initialization</strong>: O(rows × cols)</li>
+      <li><strong>Batch Assignment</strong>: O(cols)</li>
+      <li><strong>Seat Allocation</strong>: O(rows × cols)</li>
+      <li><strong>Validation</strong>: O(rows × cols)</li>
+      <li><strong>Overall</strong>: O(rows × cols)</li>
+    </ul>
+  </div>
+  <div style={{ border: '1px solid var(--ifm-color-emphasis-200)', borderRadius: '12px', padding: '20px', backgroundColor: 'var(--ifm-card-background-color)', transition: 'transform 0.2s', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
+    <h4 style={{ marginTop: 0, color: 'var(--ifm-color-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>Space Complexity</h4>
+    <ul style={{ paddingLeft: '20px', margin: 0 }}>
+      <li><strong>Seating Grid</strong>: O(rows × cols)</li>
+      <li><strong>Student Tracking</strong>: O(total_students)</li>
+      <li><strong>Overall</strong>: O(rows × cols)</li>
+    </ul>
+  </div>
+  <div style={{ border: '1px solid var(--ifm-color-emphasis-200)', borderRadius: '12px', padding: '20px', backgroundColor: 'var(--ifm-card-background-color)', transition: 'transform 0.2s', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
+    <h4 style={{ marginTop: 0, color: 'var(--ifm-color-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>Benchmarks</h4>
+    <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
+      <thead>
+        <tr style={{ borderBottom: '1px solid var(--ifm-color-emphasis-300)' }}>
+          <th style={{ textAlign: 'left', padding: '8px' }}>Grid Size</th>
+          <th style={{ textAlign: 'left', padding: '8px' }}>Time</th>
+          <th style={{ textAlign: 'left', padding: '8px' }}>Memory</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style={{ borderBottom: '1px solid var(--ifm-color-emphasis-200)' }}>
+          <td style={{ padding: '8px' }}>10×10</td>
+          <td style={{ padding: '8px' }}>&lt; 10ms</td>
+          <td style={{ padding: '8px' }}>&lt; 1MB</td>
+        </tr>
+        <tr style={{ borderBottom: '1px solid var(--ifm-color-emphasis-200)' }}>
+          <td style={{ padding: '8px' }}>50×50</td>
+          <td style={{ padding: '8px' }}>&lt; 50ms</td>
+          <td style={{ padding: '8px' }}>&lt; 5MB</td>
+        </tr>
+        <tr>
+          <td style={{ padding: '8px' }}>100×100</td>
+          <td style={{ padding: '8px' }}>&lt; 100ms</td>
+          <td style={{ padding: '8px' }}>&lt; 15MB</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
 
 ## Future Enhancements
 
