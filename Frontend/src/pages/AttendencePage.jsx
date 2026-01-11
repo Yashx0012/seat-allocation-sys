@@ -3,7 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   UserCheck, Eye, X, Loader2, 
-  BookOpen, Hash, Calendar, Clock, FileDown, Building2, ArrowLeft
+  BookOpen, Hash, Calendar, Clock, FileDown, Building2, ArrowLeft, Users
 } from 'lucide-react';
 
 const AttendancePage = ({ showToast }) => {
@@ -11,12 +11,12 @@ const AttendancePage = ({ showToast }) => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  // Get room from URL query param
   const roomFromUrl = searchParams.get('room');
 
   const [batchGroups, setBatchGroups] = useState({});
   const [roomName, setRoomName] = useState(roomFromUrl || "");
   const [allRooms, setAllRooms] = useState([]);
+  const [roomsData, setRoomsData] = useState({}); // Store all rooms data for stats
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null);
   const [previewData, setPreviewData] = useState(null);
@@ -44,8 +44,12 @@ const AttendancePage = ({ showToast }) => {
       
       const data = await response.json();
 
+      // Store all rooms data
+      const rooms = data?.rooms || {};
+      setRoomsData(rooms);
+
       // Store all available rooms
-      const availableRooms = Object.keys(data?.rooms || {});
+      const availableRooms = Object.keys(rooms);
       setAllRooms(availableRooms);
 
       // Determine which room to display
@@ -59,7 +63,6 @@ const AttendancePage = ({ showToast }) => {
         targetRoom = data.inputs.room_no;
       }
 
-      // If still no room, use first available
       if (!targetRoom && availableRooms.length > 0) {
         targetRoom = availableRooms[0];
       }
@@ -67,8 +70,8 @@ const AttendancePage = ({ showToast }) => {
       // Extract batches for target room
       let extractedBatches = {};
       
-      if (data?.rooms && targetRoom && data.rooms[targetRoom]) {
-        extractedBatches = data.rooms[targetRoom].batches || {};
+      if (rooms[targetRoom]) {
+        extractedBatches = rooms[targetRoom].batches || {};
       } else if (data?.batches) {
         extractedBatches = data.batches;
       }
@@ -95,6 +98,37 @@ const AttendancePage = ({ showToast }) => {
     navigate(`/attendance/${planId}?room=${encodeURIComponent(newRoom)}`);
   };
 
+  // ✅ FIXED: Build complete metadata for API
+  // ✅ FIXED: Build metadata with EXACT field names that backend/PDF expects
+const buildCompleteMetadata = () => {
+  return {
+    // ✅ Use 'exam_title' (not 'exam_name') - this is what PDF expects
+    exam_title: metadata.exam_title,
+    
+    // ✅ Use 'course_name' - this is what PDF expects
+    course_name: metadata.course_name,
+    
+    // ✅ Use 'course_code' - this is what PDF expects
+    course_code: metadata.course_code,
+    
+    // ✅ Use 'date' (not 'exam_date') - this is what PDF expects
+    date: metadata.date,
+    
+    // ✅ Use 'time' - this is what PDF expects
+    time: metadata.time,
+    
+    // ✅ Use 'year' - this is what PDF expects
+    year: metadata.year,
+    
+    // Room info
+    room_no: roomName,
+    room_name: roomName,
+    
+    // Plan info
+    plan_id: planId
+  };
+};
+
   const handleDownloadSingle = async (batchLabel) => {
     if (!metadata.course_name || !metadata.course_code) {
       if (showToast) showToast("Please enter Course Name and Code", "warning");
@@ -104,7 +138,10 @@ const AttendancePage = ({ showToast }) => {
     setActionLoading(batchLabel);
     try {
       const token = localStorage.getItem('token');
+      const completeMetadata = buildCompleteMetadata();
       
+      console.log('📤 Sending batch download request:', { batchLabel, metadata: completeMetadata });
+
       const response = await fetch('/api/export-attendance', {
         method: 'POST',
         headers: { 
@@ -114,14 +151,7 @@ const AttendancePage = ({ showToast }) => {
         body: JSON.stringify({
           plan_id: planId,
           batch_name: batchLabel,
-          metadata: { 
-            ...metadata, 
-            room_no: roomName,
-            department: metadata.course_name,
-            exam_name: metadata.exam_title,
-            coordinator_name: '',
-            coordinator_title: ''
-          }
+          metadata: completeMetadata
         }),
       });
 
@@ -138,7 +168,7 @@ const AttendancePage = ({ showToast }) => {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `Attendance_${roomName}_${batchLabel}_${Date.now()}.pdf`;
+      link.download = `Attendance_${roomName}_${batchLabel}_${metadata.course_code}_${Date.now()}.pdf`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -153,7 +183,6 @@ const AttendancePage = ({ showToast }) => {
     }
   };
 
-  // Download attendance for entire room (all batches)
   const handleDownloadRoom = async () => {
     if (!metadata.course_name || !metadata.course_code) {
       if (showToast) showToast("Please enter Course Name and Code", "warning");
@@ -163,7 +192,10 @@ const AttendancePage = ({ showToast }) => {
     setActionLoading('room');
     try {
       const token = localStorage.getItem('token');
+      const completeMetadata = buildCompleteMetadata();
       
+      console.log('📤 Sending room download request:', { roomName, metadata: completeMetadata });
+
       const response = await fetch('/api/export-attendance', {
         method: 'POST',
         headers: { 
@@ -172,15 +204,8 @@ const AttendancePage = ({ showToast }) => {
         },
         body: JSON.stringify({
           plan_id: planId,
-          batch_name: roomName,  // Use room name to get all batches
-          metadata: { 
-            ...metadata, 
-            room_no: roomName,
-            department: metadata.course_name,
-            exam_name: metadata.exam_title,
-            coordinator_name: '',
-            coordinator_title: ''
-          }
+          batch_name: roomName,
+          metadata: completeMetadata
         }),
       });
 
@@ -197,7 +222,7 @@ const AttendancePage = ({ showToast }) => {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `Attendance_${roomName}_Complete_${Date.now()}.pdf`;
+      link.download = `Attendance_${roomName}_Complete_${metadata.course_code}_${Date.now()}.pdf`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -223,10 +248,31 @@ const AttendancePage = ({ showToast }) => {
     });
   };
 
+  // ✅ FIXED: Calculate total students from actual batch data
   const totalStudents = Object.values(batchGroups).reduce(
     (sum, batch) => sum + (batch?.students?.length || 0), 
     0
   );
+
+  // ✅ FIXED: Calculate room capacity from matrix if available
+  const getRoomCapacity = () => {
+    const currentRoomData = roomsData[roomName];
+    if (!currentRoomData) return 0;
+    
+    const matrix = currentRoomData.raw_matrix || currentRoomData.matrix;
+    if (matrix && matrix.length > 0) {
+      return matrix.length * (matrix[0]?.length || 0);
+    }
+    
+    const inputs = currentRoomData.inputs;
+    if (inputs) {
+      return (inputs.rows || 0) * (inputs.cols || 0);
+    }
+    
+    return 0;
+  };
+
+  const roomCapacity = getRoomCapacity();
 
   if (loading) {
     return (
@@ -248,7 +294,7 @@ const AttendancePage = ({ showToast }) => {
               <UserCheck className="text-orange-500" size={36} />
               Attendance Control
             </h1>
-            <div className="flex items-center gap-4 mt-2">
+            <div className="flex items-center gap-4 mt-2 flex-wrap">
               <p className="text-gray-500 font-medium">
                 Plan: <span className="text-orange-500 font-bold">{planId}</span>
               </p>
@@ -259,6 +305,9 @@ const AttendancePage = ({ showToast }) => {
               <span className="text-gray-300 dark:text-gray-600">|</span>
               <p className="text-gray-500 font-medium">
                 Students: <span className="text-blue-500 font-bold">{totalStudents}</span>
+                {roomCapacity > 0 && (
+                  <span className="text-gray-400"> / {roomCapacity} capacity</span>
+                )}
               </p>
             </div>
           </div>
@@ -278,19 +327,34 @@ const AttendancePage = ({ showToast }) => {
               <Building2 size={16}/> Select Room
             </h2>
             <div className="flex flex-wrap gap-3">
-              {allRooms.map((room) => (
-                <button
-                  key={room}
-                  onClick={() => switchRoom(room)}
-                  className={`px-4 py-2 rounded-xl font-bold text-sm transition-all ${
-                    room === roomName
-                      ? 'bg-orange-500 text-white shadow-lg'
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-orange-100 dark:hover:bg-orange-900/30'
-                  }`}
-                >
-                  {room}
-                </button>
-              ))}
+              {allRooms.map((room) => {
+                // ✅ FIXED: Calculate actual student count per room
+                const roomBatches = roomsData[room]?.batches || {};
+                const roomStudentCount = Object.values(roomBatches).reduce(
+                  (sum, batch) => sum + (batch?.students?.length || 0), 0
+                );
+                
+                return (
+                  <button
+                    key={room}
+                    onClick={() => switchRoom(room)}
+                    className={`px-4 py-2 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${
+                      room === roomName
+                        ? 'bg-orange-500 text-white shadow-lg'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-orange-100 dark:hover:bg-orange-900/30'
+                    }`}
+                  >
+                    {room}
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${
+                      room === roomName
+                        ? 'bg-white/20 text-white'
+                        : 'bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400'
+                    }`}>
+                      {roomStudentCount}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
@@ -381,51 +445,62 @@ const AttendancePage = ({ showToast }) => {
           <h2 className="text-xs font-black text-orange-500 uppercase tracking-[0.2em] ml-1">Step 2: Export by Batch</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {Object.entries(batchGroups).length > 0 ? (
-              Object.entries(batchGroups).map(([label, data]) => (
-                <motion.div 
-                  key={label}
-                  whileHover={{ y: -5 }}
-                  className="bg-white dark:bg-gray-800 rounded-3xl border-2 border-gray-100 dark:border-gray-700 overflow-hidden shadow-sm hover:shadow-xl transition-all"
-                >
-                  <div className="p-6">
-                    <div className="flex justify-between items-start mb-4">
-                      <div>
-                        <span className="px-3 py-1 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 rounded-full text-[10px] font-black uppercase tracking-wider">
-                          {data?.info?.degree || "N/A"}
-                        </span>
-                        <h3 className="text-xl font-black dark:text-white mt-2">{label}</h3>
+              Object.entries(batchGroups).map(([label, data]) => {
+                // ✅ FIXED: Get actual student count from data
+                const studentCount = data?.students?.length || 0;
+                
+                return (
+                  <motion.div 
+                    key={label}
+                    whileHover={{ y: -5 }}
+                    className="bg-white dark:bg-gray-800 rounded-3xl border-2 border-gray-100 dark:border-gray-700 overflow-hidden shadow-sm hover:shadow-xl transition-all"
+                  >
+                    <div className="p-6">
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                          <span className="px-3 py-1 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 rounded-full text-[10px] font-black uppercase tracking-wider">
+                            {data?.info?.degree || "N/A"}
+                          </span>
+                          <h3 className="text-xl font-black dark:text-white mt-2">{label}</h3>
+                        </div>
+                        <button 
+                          onClick={() => handlePreview(label)} 
+                          className="p-2 text-gray-400 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-lg transition-colors"
+                          title="Preview students"
+                        >
+                          <Eye size={20} />
+                        </button>
                       </div>
+                      
+                      <div className="space-y-1 mb-6">
+                        <p className="text-xs text-gray-500 font-medium italic">
+                          {data?.info?.branch || "General"}
+                        </p>
+                        {/* ✅ FIXED: Display actual student count */}
+                        <div className="flex items-center gap-2">
+                          <Users size={14} className="text-blue-500" />
+                          <p className="text-sm font-bold dark:text-gray-300">
+                            {studentCount} Students
+                          </p>
+                        </div>
+                      </div>
+
                       <button 
-                        onClick={() => handlePreview(label)} 
-                        className="p-2 text-gray-400 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-lg transition-colors"
-                        title="Preview students"
+                        onClick={() => handleDownloadSingle(label)}
+                        disabled={actionLoading === label || !metadata.course_name || !metadata.course_code}
+                        className="w-full py-4 bg-gray-900 dark:bg-orange-500 text-white rounded-2xl font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2 hover:bg-orange-500 dark:hover:bg-orange-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        <Eye size={20} />
+                        {actionLoading === label ? (
+                          <Loader2 className="animate-spin" size={16}/>
+                        ) : (
+                          <FileDown size={16}/>
+                        )}
+                        Download PDF
                       </button>
                     </div>
-                    
-                    <div className="space-y-1 mb-6">
-                      <p className="text-xs text-gray-500 font-medium italic">{data?.info?.branch || "General"}</p>
-                      <p className="text-sm font-bold dark:text-gray-300">
-                        {data?.students?.length || 0} Students
-                      </p>
-                    </div>
-
-                    <button 
-                      onClick={() => handleDownloadSingle(label)}
-                      disabled={actionLoading === label || !metadata.course_name || !metadata.course_code}
-                      className="w-full py-4 bg-gray-900 dark:bg-orange-500 text-white rounded-2xl font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2 hover:bg-orange-500 dark:hover:bg-orange-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {actionLoading === label ? (
-                        <Loader2 className="animate-spin" size={16}/>
-                      ) : (
-                        <FileDown size={16}/>
-                      )}
-                      Download PDF
-                    </button>
-                  </div>
-                </motion.div>
-              ))
+                  </motion.div>
+                );
+              })
             ) : (
               <div className="col-span-full py-12 text-center bg-gray-100 dark:bg-gray-900 rounded-3xl border-2 border-dashed border-gray-200 dark:border-gray-800">
                 <p className="text-gray-400 font-bold uppercase tracking-widest">No batches found for this room</p>

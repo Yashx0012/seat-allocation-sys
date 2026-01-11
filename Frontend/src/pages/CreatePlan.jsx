@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import SplitText from '../components/SplitText';
-// Added Wrench icon for the Custom Build box
-import { Upload, Layout, Monitor, Clock, ArrowRight, Loader2, AlertCircle, CheckCircle2, Users, Download, Eye, RefreshCw, X, FileText, BarChart3, Wrench} from 'lucide-react';
+import { 
+  Upload, Layout, Monitor, Clock, ArrowRight, Loader2, AlertCircle, 
+  CheckCircle2, Users, Download, Eye, RefreshCw, X, FileText, 
+  BarChart3, Wrench, Building2
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-
 
 const CreatePlan = ({ showToast }) => {
   const navigate = useNavigate();
@@ -18,24 +20,7 @@ const CreatePlan = ({ showToast }) => {
   const [viewingPlan, setViewingPlan] = useState(null);
   const [planDetails, setPlanDetails] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
-  const [exportLoading, setExportLoading] = useState(false);
-  const [attendanceLoading, setAttendanceLoading] = useState(false);
-  // ✅ CRITICAL: Attendance configuration state
-  const [attendanceConfig, setAttendanceConfig] = useState(null);
-  const [configBatchName, setConfigBatchName] = useState(null);
-  // Open attendance configuration dialog
-  const openAttendanceConfig = (batchName) => {
-    console.log('🎓 Opening attendance config for batch:', batchName);
-    setConfigBatchName(batchName);
-    setAttendanceConfig({
-      department: '',
-      examName: '',
-      courseCode: '',
-      examDate: new Date().toISOString().split('T')[0],
-      coordinatorName: '',
-      coordinatorTitle: ''
-    });
-  };
+  const [exportLoading, setExportLoading] = useState(null); // Track which room is exporting
 
   useEffect(() => {
     fetchRecentPlans();
@@ -78,7 +63,6 @@ const CreatePlan = ({ showToast }) => {
     try {
       const token = localStorage.getItem('token');
       
-      // Get session statistics
       const statsRes = await fetch(`/api/sessions/${plan.session_id}/stats`, {
         headers: token ? { 'Authorization': `Bearer ${token}` } : {}
       });
@@ -109,142 +93,144 @@ const CreatePlan = ({ showToast }) => {
     }
   };
 
-const exportSeatingPDF = async (plan) => {
-  setExportLoading(true);
-  try {
-    const token = localStorage.getItem('token');
-    const timestamp = Date.now(); // ✅ Add unique timestamp
-    
-    console.log('📄 Exporting PDF for plan:', plan.plan_id);
-    
-    const response = await fetch('/api/generate-pdf', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token && { 'Authorization': `Bearer ${token}` })
-      },
-      body: JSON.stringify({
-        snapshot_id: plan.plan_id
-      })
-    });
-
-    console.log('Response status:', response.status);
-
-    if (!response.ok) {
-      let errorMsg = `HTTP ${response.status}`;
-      try {
-        const errorData = await response.json();
-        errorMsg = errorData.error || errorMsg;
-      } catch (e) {
-        const errorText = await response.text();
-        errorMsg = errorText || errorMsg;
-      }
-      throw new Error(`Failed to generate PDF: ${errorMsg}`);
-    }
-
-    const blob = await response.blob();
-    console.log('Blob size:', blob.size);
-    
-    if (blob.size === 0) {
-      throw new Error('Empty response from server - PDF generation may have failed');
-    }
-
-    // Download PDF - ✅ Add timestamp to filename
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `seating_plan_${plan.plan_id}_${timestamp}.pdf`; // ✅ Unique filename
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
-
-    if (showToast) {
-      showToast('✅ Seating plan PDF downloaded successfully', 'success');
-    }
-  } catch (err) {
-    console.error('❌ PDF export error:', err);
-    if (showToast) {
-      showToast(`Failed to export PDF: ${err.message}`, 'error');
-    }
-  } finally {
-    setExportLoading(false);
-  }
-};
-
-const handleAttendanceDownload = async () => {
-    if (!configBatchName || !planDetails) return;
-    
-    setAttendanceLoading(true);
+  // Export PDF for a specific room
+  const exportRoomPDF = async (plan, roomName) => {
+    setExportLoading(roomName);
     try {
       const token = localStorage.getItem('token');
+      const timestamp = Date.now();
       
-      const payload = {
-        plan_id: planDetails.plan_id,
-        batch_name: configBatchName,
-        metadata: {
-          department: attendanceConfig.department || 'N/A',
-          exam_name: attendanceConfig.examName || 'N/A',
-          course_code: attendanceConfig.courseCode || planDetails.course_code || 'N/A',
-          exam_date: attendanceConfig.examDate || new Date().toISOString().split('T')[0],
-          coordinator_name: attendanceConfig.coordinatorName || 'N/A',
-          coordinator_title: attendanceConfig.coordinatorTitle || 'N/A'
-        }
-      };
-
-      console.log('📋 Attendance Payload:', payload);
+      console.log(`📄 Exporting PDF for room: ${roomName} in plan: ${plan.plan_id}`);
       
-      const response = await fetch('/api/export-attendance', {
+      const response = await fetch('/api/generate-pdf', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...(token && { 'Authorization': `Bearer ${token}` })
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({
+          snapshot_id: plan.plan_id,
+          room_name: roomName
+        })
       });
 
-      console.log('Response status:', response.status);
-
       if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Error response:', errorData);
-        throw new Error(errorData.error || `HTTP ${response.status}: Failed to generate attendance`);
+        let errorMsg = `HTTP ${response.status}`;
+        try {
+          const errorData = await response.json();
+          errorMsg = errorData.error || errorMsg;
+        } catch (e) {
+          const errorText = await response.text();
+          errorMsg = errorText || errorMsg;
+        }
+        throw new Error(errorMsg);
       }
 
       const blob = await response.blob();
       if (blob.size === 0) {
-        throw new Error('Empty response from server - PDF generation may have failed');
+        throw new Error('Empty response from server');
       }
 
-      // Download with unique timestamp
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `attendance_${configBatchName}_${Date.now()}.pdf`; // ✅ Unique filename
+      a.download = `seating_${roomName.replace(/\s+/g, '_')}_${plan.plan_id}_${timestamp}.pdf`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
 
       if (showToast) {
-        showToast(`✅ Attendance sheet for ${configBatchName} downloaded successfully`, 'success');
+        showToast(`✅ Seating plan for ${roomName} downloaded`, 'success');
       }
-      
-      setAttendanceConfig(null);
-      setConfigBatchName(null);
     } catch (err) {
-      console.error('❌ Attendance export error:', err);
+      console.error('❌ PDF export error:', err);
       if (showToast) {
-        showToast(`Failed to export attendance: ${err.message}`, 'error');
+        showToast(`Failed to export PDF: ${err.message}`, 'error');
       }
     } finally {
-      setAttendanceLoading(false);
+      setExportLoading(null);
     }
   };
+
+  // Export all rooms combined PDF
+  const exportAllRoomsPDF = async (plan) => {
+    setExportLoading('all');
+    try {
+      const token = localStorage.getItem('token');
+      const timestamp = Date.now();
+      
+      console.log(`📄 Exporting combined PDF for plan: ${plan.plan_id}`);
+      
+      const response = await fetch('/api/generate-pdf', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        },
+        body: JSON.stringify({
+          snapshot_id: plan.plan_id
+          // No room_name = export all
+        })
+      });
+
+      if (!response.ok) {
+        let errorMsg = `HTTP ${response.status}`;
+        try {
+          const errorData = await response.json();
+          errorMsg = errorData.error || errorMsg;
+        } catch (e) {
+          const errorText = await response.text();
+          errorMsg = errorText || errorMsg;
+        }
+        throw new Error(errorMsg);
+      }
+
+      const blob = await response.blob();
+      if (blob.size === 0) {
+        throw new Error('Empty response from server');
+      }
+
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `seating_all_rooms_${plan.plan_id}_${timestamp}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+
+      if (showToast) {
+        showToast(`✅ Combined seating plan downloaded`, 'success');
+      }
+    } catch (err) {
+      console.error('❌ PDF export error:', err);
+      if (showToast) {
+        showToast(`Failed to export PDF: ${err.message}`, 'error');
+      }
+    } finally {
+      setExportLoading(null);
+    }
+  };
+
+  // Navigate to Attendance Page with room info
+  const goToAttendancePage = (plan, roomName = null) => {
+    const params = new URLSearchParams();
+    if (roomName) {
+      params.set('room', roomName);
+    }
+    
+    const queryString = params.toString();
+    const url = `/attendance/${plan.plan_id}${queryString ? `?${queryString}` : ''}`;
+    
+    console.log(`📋 Navigating to attendance page: ${url}`);
+    navigate(url);
+  };
+
+  // Navigation functions
   const goAllocate = () => navigate('/allocation');
   const goUpload = () => navigate('/upload');
   const goClassroom = () => navigate('/classroom');
-  // New Navigation function
   const goManual = () => navigate('/manual-allocation');
 
   const actions = [
@@ -258,7 +244,7 @@ const handleAttendanceDownload = async () => {
       onClick: goAllocate
     },
     {
-      title: 'Custom Build', // New Box added here
+      title: 'Custom Build',
       description: 'Build grid from scratch',
       icon: Wrench,
       color: 'blue',
@@ -337,6 +323,11 @@ const handleAttendanceDownload = async () => {
     }
   };
 
+  const closePlanViewer = () => {
+    setViewingPlan(null);
+    setPlanDetails(null);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[#050505] py-8 px-4 transition-colors duration-300">
       <div className="max-w-7xl mx-auto space-y-8">
@@ -378,7 +369,7 @@ const handleAttendanceDownload = async () => {
           </div>
         </div>
 
-        {/* Action Cards Grid - Updated to md:grid-cols-4 */}
+        {/* Action Cards Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
           {actions.map((action, index) => (
             <button
@@ -614,20 +605,19 @@ const handleAttendanceDownload = async () => {
                         </div>
 
                         <div className="flex items-center gap-3">
-                        <span className="text-xs font-bold uppercase tracking-wider text-orange-600 dark:text-orange-400 bg-orange-500/10 px-4 py-2 rounded-lg border border-orange-500/20">
-                          {plan.type || 'Manual'}
-                        </span>
-                        <ArrowRight 
-                          className={`text-gray-400 group-hover:text-orange-500 group-hover:translate-x-1 transition-all duration-300 ${
-                            hoveredPlan === idx ? 'opacity-100' : 'opacity-50'
-                          }`} 
-                          size={20} 
-                         />
-                       </div>
+                          <span className="text-xs font-bold uppercase tracking-wider text-orange-600 dark:text-orange-400 bg-orange-500/10 px-4 py-2 rounded-lg border border-orange-500/20">
+                            {plan.type || 'Manual'}
+                          </span>
+                          <ArrowRight 
+                            className={`text-gray-400 group-hover:text-orange-500 group-hover:translate-x-1 transition-all duration-300 ${
+                              hoveredPlan === idx ? 'opacity-100' : 'opacity-50'
+                            }`} 
+                            size={20} 
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
-                  
                 );
               })}
             </div>
@@ -651,13 +641,13 @@ const handleAttendanceDownload = async () => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-            onClick={() => setViewingPlan(null)}
+            onClick={closePlanViewer}
           >
             <motion.div
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.9, y: 20 }}
-              className="bg-white dark:bg-gray-900 rounded-2xl p-8 max-w-2xl w-full max-h-[80vh] overflow-auto border-2 border-gray-200 dark:border-gray-700"
+              className="bg-white dark:bg-gray-900 rounded-2xl p-8 max-w-3xl w-full max-h-[85vh] overflow-auto border-2 border-gray-200 dark:border-gray-700"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
@@ -671,7 +661,7 @@ const handleAttendanceDownload = async () => {
                   </p>
                 </div>
                 <button
-                  onClick={() => setViewingPlan(null)}
+                  onClick={closePlanViewer}
                   className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
                 >
                   <X size={24} />
@@ -718,24 +708,66 @@ const handleAttendanceDownload = async () => {
                     </div>
                   )}
 
-                  {/* Room Utilization */}
+                  {/* Room-wise Exports */}
                   {planDetails.stats?.rooms && planDetails.stats.rooms.length > 0 && (
                     <div className="mb-6">
                       <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                        <Monitor size={20} />
-                        Room Utilization
+                        <Building2 size={20} className="text-orange-500" />
+                        Room-wise Export
                       </h3>
+                      
                       <div className="space-y-3">
                         {planDetails.stats.rooms.map((room, idx) => (
-                          <div key={idx} className="p-4 bg-gray-50 dark:bg-gray-800 rounded-xl">
-                            <div className="flex justify-between items-center mb-2">
-                              <span className="font-bold text-gray-900 dark:text-white">{room.name || 'Unknown Room'}</span>
-                              <span className="text-sm font-mono text-gray-600 dark:text-gray-400">
-                                {room.allocated || 0}/{room.capacity || 0} ({Math.round(((room.allocated || 0)/(room.capacity || 1))*100)}%)
-                              </span>
-                            </div>
-                            <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                              <div className="h-full bg-emerald-500" style={{ width: `${Math.min(100, ((room.allocated || 0)/(room.capacity || 1))*100)}%` }} />
+                          <div 
+                            key={idx} 
+                            className="p-4 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700"
+                          >
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                              {/* Room Info */}
+                              <div className="flex-1">
+                                <div className="flex items-center gap-3 mb-2">
+                                  <span className="font-bold text-gray-900 dark:text-white text-lg">
+                                    {room.name || 'Unknown Room'}
+                                  </span>
+                                  <span className="text-xs font-mono bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded text-gray-600 dark:text-gray-400">
+                                    {room.allocated || 0}/{room.capacity || 0} seats
+                                  </span>
+                                </div>
+                                
+                                {/* Progress Bar */}
+                                <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                                  <div 
+                                    className="h-full bg-gradient-to-r from-emerald-500 to-green-500 transition-all duration-300" 
+                                    style={{ width: `${Math.min(100, ((room.allocated || 0)/(room.capacity || 1))*100)}%` }} 
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Action Buttons */}
+                              <div className="flex gap-2">
+                                {/* Seating PDF */}
+                                <button
+                                  onClick={() => exportRoomPDF(planDetails, room.name)}
+                                  disabled={exportLoading === room.name}
+                                  className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-2 disabled:opacity-50"
+                                >
+                                  {exportLoading === room.name ? (
+                                    <Loader2 size={14} className="animate-spin" />
+                                  ) : (
+                                    <Download size={14} />
+                                  )}
+                                  Seating PDF
+                                </button>
+
+                                {/* Attendance Sheet */}
+                                <button
+                                  onClick={() => goToAttendancePage(planDetails, room.name)}
+                                  className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-2"
+                                >
+                                  <FileText size={14} />
+                                  Attendance
+                                </button>
+                              </div>
                             </div>
                           </div>
                         ))}
@@ -747,201 +779,56 @@ const handleAttendanceDownload = async () => {
                   {planDetails.stats?.batches && planDetails.stats.batches.length > 0 && (
                     <div className="mb-6">
                       <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                        <Users size={20} />
+                        <Users size={20} className="text-orange-500" />
                         Batch Distribution
                       </h3>
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                         {planDetails.stats.batches.map((batch, idx) => (
-                          <div key={idx} className="p-4 bg-gray-50 dark:bg-gray-800 rounded-xl text-center">
-                            <div className="text-sm font-bold text-gray-600 dark:text-gray-400 mb-1">{batch.batch_name || 'Unknown'}</div>
-                            <div className="text-2xl font-black text-orange-600 dark:text-orange-400">{batch.count || 0}</div>
+                          <div key={idx} className="p-4 bg-gray-50 dark:bg-gray-800 rounded-xl text-center border border-gray-200 dark:border-gray-700">
+                            <div className="text-sm font-bold text-gray-600 dark:text-gray-400 mb-1 truncate">
+                              {batch.batch_name || 'Unknown'}
+                            </div>
+                            <div className="text-2xl font-black text-orange-600 dark:text-orange-400">
+                              {batch.count || 0}
+                            </div>
                           </div>
                         ))}
                       </div>
                     </div>
                   )}
 
-                  {/* Export & Attendance Buttons */}
+                  {/* Combined Export & Attendance Page Button */}
                   <div className="border-t border-gray-200 dark:border-gray-700 pt-6 space-y-3">
+                    {/* Export All Rooms */}
                     <button
-                      onClick={() => exportSeatingPDF(planDetails)}
-                      disabled={exportLoading}
-                      className="w-full px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+                      onClick={() => exportAllRoomsPDF(planDetails)}
+                      disabled={exportLoading === 'all'}
+                      className="w-full px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-50"
                     >
-                      {exportLoading ? (
+                      {exportLoading === 'all' ? (
                         <>
                           <Loader2 size={18} className="animate-spin" />
-                          Generating PDF...
+                          Generating...
                         </>
                       ) : (
                         <>
                           <Download size={18} />
-                          Export Seating Plan as PDF
+                          Export All Rooms (Combined PDF)
                         </>
                       )}
                     </button>
 
-                   {planDetails.batches && planDetails.batches.length > 0 && (
-                      <div>
-                        <p className="text-sm font-bold text-gray-600 dark:text-gray-400 mb-2">
-                          Export Attendance Sheets:
-                        </p>
-                        <div className="space-y-2">
-                          {planDetails.batches.map((batch, idx) => (
-                            <button
-                              key={idx}
-                              onClick={() => openAttendanceConfig(batch.name)}  // ✅ CRITICAL!
-                              disabled={attendanceLoading}
-                              className="w-full px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition-all disabled:opacity-50"
-                              style={{ borderTopColor: batch.color, borderTopWidth: '3px' }}
-                            >
-                              <FileText size={16} />
-                              {batch.name} Attendance
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                    {/* Go to Attendance Page (all rooms) */}
+                    <button
+                      onClick={() => goToAttendancePage(planDetails)}
+                      className="w-full px-6 py-3 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all"
+                    >
+                      <BarChart3 size={18} />
+                      Go to Attendance Control Page
+                    </button>
                   </div>
                 </>
               )}
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-      {/* Attendance Configuration Modal */}
-      <AnimatePresence>
-        {attendanceConfig && configBatchName && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4"
-            onClick={() => setAttendanceConfig(null)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.9, y: 20 }}
-              className="bg-white dark:bg-gray-900 rounded-2xl p-8 max-w-md w-full border-2 border-gray-200 dark:border-gray-700"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {configBatchName} Attendance
-                </h3>
-                <button
-                  onClick={() => setAttendanceConfig(null)}
-                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-
-              <div className="space-y-4 mb-6">
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
-                    Department Name
-                  </label>
-                  <input
-                    type="text"
-                    value={attendanceConfig.department}
-                    onChange={(e) => setAttendanceConfig({ ...attendanceConfig, department: e.target.value })}
-                    placeholder="e.g., Computer Science"
-                    className="w-full px-4 py-2 border-2 border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
-                    Exam Name
-                  </label>
-                  <input
-                    type="text"
-                    value={attendanceConfig.examName}
-                    onChange={(e) => setAttendanceConfig({ ...attendanceConfig, examName: e.target.value })}
-                    placeholder="e.g., Mid-term Examination"
-                    className="w-full px-4 py-2 border-2 border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
-                    Course Code
-                  </label>
-                  <input
-                    type="text"
-                    value={attendanceConfig.courseCode}
-                    onChange={(e) => setAttendanceConfig({ ...attendanceConfig, courseCode: e.target.value })}
-                    placeholder="e.g., CS-101"
-                    className="w-full px-4 py-2 border-2 border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
-                    Exam Date
-                  </label>
-                  <input
-                    type="date"
-                    value={attendanceConfig.examDate}
-                    onChange={(e) => setAttendanceConfig({ ...attendanceConfig, examDate: e.target.value })}
-                    className="w-full px-4 py-2 border-2 border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
-                    Coordinator Name
-                  </label>
-                  <input
-                    type="text"
-                    value={attendanceConfig.coordinatorName}
-                    onChange={(e) => setAttendanceConfig({ ...attendanceConfig, coordinatorName: e.target.value })}
-                    placeholder="e.g., Dr. John Doe"
-                    className="w-full px-4 py-2 border-2 border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
-                    Coordinator Title
-                  </label>
-                  <input
-                    type="text"
-                    value={attendanceConfig.coordinatorTitle}
-                    onChange={(e) => setAttendanceConfig({ ...attendanceConfig, coordinatorTitle: e.target.value })}
-                    placeholder="e.g., Exam Coordinator"
-                    className="w-full px-4 py-2 border-2 border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </div>
-              </div>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setAttendanceConfig(null)}
-                  className="flex-1 px-4 py-2 border-2 border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white font-bold hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleAttendanceDownload}
-                  disabled={attendanceLoading}
-                  className="flex-1 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
-                >
-                  {attendanceLoading ? (
-                    <>
-                      <Loader2 size={16} className="animate-spin" />
-                      Downloading...
-                    </>
-                  ) : (
-                    <>
-                      <Download size={16} />
-                      Download
-                    </>
-                  )}
-                </button>
-              </div>
             </motion.div>
           </motion.div>
         )}

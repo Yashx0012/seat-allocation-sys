@@ -65,6 +65,10 @@ def process_seating_data(json_data):
     """Returns matrix of cell dicts: {'text': str, 'bg': color_or_None}"""
     seating_rows = json_data.get('seating', [])
     metadata = json_data.get('metadata', {})
+    
+    # Debug logging
+    print(f"📊 Processing seating data - metadata: {metadata}")
+    
     num_rows = metadata.get('rows', 0)
     num_cols = metadata.get('cols', 0)
 
@@ -90,17 +94,16 @@ def process_seating_data(json_data):
                 content = seat.get('display', 'BROKEN')
                 bg = seat.get('color', '#FF0000')
             elif seat.get('is_unallocated'):
-                content = seat.get('display','UNALLOC')
-                bg = seat.get('color','#F3F4F6')
+                content = seat.get('display', 'UNALLOC')
+                bg = seat.get('color', '#F3F4F6')
             else:
                 roll = seat.get('roll_number', '')
                 pset = seat.get('paper_set', '')
-                content = f"{roll}\nSET {pset}"
+                content = f"{roll}\nSET {pset}" if roll else ''
                 bg = seat.get('color')
                 
             matrix[r][c] = {'text': content, 'bg': bg}
     return matrix
-
 def format_cell_content(raw, style):
     if not raw.strip():
         return ''
@@ -164,8 +167,18 @@ def create_seating_pdf(filename="algo/pdf_gen/seat_plan_generated/seating_plan.p
     metadata = data.get('metadata', {})
     num_cols = metadata.get('cols', 0) or (len(seating_matrix[0]) if seating_matrix else 0)
     num_rows = metadata.get('rows', 0) or len(seating_matrix)
-    block_width = metadata.get('block_width', 1)
-    num_blocks = metadata.get('blocks', 1)
+    
+    # ✅ FIX 1: Get block_width and CALCULATE num_blocks properly
+    block_width = metadata.get('block_width', 2)  # Default to 2 if not specified
+    
+    # ✅ FIX 2: Calculate num_blocks from block_width and num_cols
+    if block_width and block_width > 0 and num_cols > 0:
+        import math
+        num_blocks = math.ceil(num_cols / block_width)
+    else:
+        num_blocks = metadata.get('blocks', 1)
+    
+    print(f"📊 PDF Generation - Cols: {num_cols}, Block Width: {block_width}, Num Blocks: {num_blocks}")
 
     doc = SimpleDocTemplate(
         filename,
@@ -237,11 +250,12 @@ def create_seating_pdf(filename="algo/pdf_gen/seat_plan_generated/seating_plan.p
     story.append(br_table)
     story.append(Spacer(0, 0.4 * cm))
 
-    # Rest of your existing table code stays the same
+    # Build the seating table with proper block separation
     if num_cols > 0 and num_rows > 0:
         table_content = []
         style_cmds = []
 
+        # ✅ FIX 3: Create block header row with proper calculation
         block_header_row = [''] * num_cols
         col_index = 0
         for block_idx in range(num_blocks):
@@ -253,23 +267,27 @@ def create_seating_pdf(filename="algo/pdf_gen/seat_plan_generated/seating_plan.p
 
         table_content.append(block_header_row)
 
+        # ✅ FIX 4: Add SPAN and background for block headers
         col_index = 0
         for block_idx in range(num_blocks):
             start_col = col_index
             end_col = min(col_index + block_width, num_cols) - 1
-            if start_col <= end_col:
+            if start_col <= end_col and start_col < num_cols:
                 style_cmds.append(('SPAN', (start_col, 0), (end_col, 0)))
-                style_cmds.append(('BACKGROUND', (start_col, 0), (end_col, 0), colors.HexColor("#E0E0E0")))
+                style_cmds.append(('BACKGROUND', (start_col, 0), (end_col, 0), colors.HexColor("#D0D0D0")))
+                style_cmds.append(('BOX', (start_col, 0), (end_col, 0), 2.5, colors.black))
             col_index = end_col + 1
 
+        # Add seating data rows
         for row in seating_matrix:
             table_content.append([format_cell_content(cell['text'], cell_style) for cell in row])
 
         col_width = content_width / num_cols + 6
         table = Table(table_content, colWidths=[col_width] * num_cols)
 
+        # Base table styling
         style_cmds.extend([
-            ('GRID', (0, 0), (-1, -1), 2.0, colors.black),
+            ('GRID', (0, 0), (-1, -1), 1.0, colors.black),  # Normal grid
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ('LEFTPADDING', (0, 0), (-1, -1), 2),
@@ -280,11 +298,35 @@ def create_seating_pdf(filename="algo/pdf_gen/seat_plan_generated/seating_plan.p
             ('BOTTOMPADDING', (0, 1), (-1, -1), 7),
         ])
 
+        # ✅ FIX 5: Add THICK BORDERS between blocks (visual separation)
+        if num_blocks > 1 and block_width > 0:
+            col_index = 0
+            for block_idx in range(num_blocks):
+                start_col = col_index
+                end_col = min(col_index + block_width, num_cols) - 1
+                
+                if start_col < num_cols:
+                    # Left border of block (thick)
+                    if start_col > 0:
+                        style_cmds.append(('LINEAFTER', (start_col - 1, 0), (start_col - 1, -1), 3.0, colors.black))
+                    
+                    # Box around entire block
+                    style_cmds.append(('BOX', (start_col, 0), (end_col, -1), 2.5, colors.black))
+                
+                col_index = end_col + 1
+            
+            # Outer box for the entire table
+            style_cmds.append(('BOX', (0, 0), (-1, -1), 3.0, colors.black))
+
+        # Apply cell background colors
         for r_idx, row in enumerate(seating_matrix, start=1):
             for c_idx, cell in enumerate(row):
                 bg = cell.get('bg')
                 if bg:
-                    style_cmds.append(('BACKGROUND', (c_idx, r_idx), (c_idx, r_idx), colors.HexColor(bg)))
+                    try:
+                        style_cmds.append(('BACKGROUND', (c_idx, r_idx), (c_idx, r_idx), colors.HexColor(bg)))
+                    except Exception:
+                        pass  # Skip invalid colors
 
         table.setStyle(TableStyle(style_cmds))
         story.append(table)
@@ -292,3 +334,5 @@ def create_seating_pdf(filename="algo/pdf_gen/seat_plan_generated/seating_plan.p
     doc.build(story, onFirstPage=header_and_footer, onLaterPages=header_and_footer)
     print(f"✅ PDF generated: {filename}")
     return filename
+    
+    

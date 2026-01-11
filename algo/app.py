@@ -905,16 +905,55 @@ def get_pending_students(session_id: int) -> List[Dict]:
 def save_room_allocation(session_id: int, classroom_id: int, seating_data: Dict, 
                         selected_batch_names: List[str] = None) -> Tuple[int, List[Dict]]:
     """
-    Save room allocation - VERIFY students belong to selected batches
+    Save room allocation to DATABASE and CACHE
     
     Args:
+        session_id: Session ID
+        classroom_id: Classroom ID  
+        seating_data: Generated seating data with 'seating' matrix
         selected_batch_names: List of batch names selected for this room (optional)
+    
+    Returns:
+        (allocated_count, pending_students)
     """
     conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
     cur = conn.cursor()
     allocated_students = []
     
     try:
+        # ============================================================================
+        # 1. GET SESSION AND CLASSROOM INFO
+        # ============================================================================
+        
+        # Get plan_id from session
+        cur.execute("""
+            SELECT plan_id, total_students, allocated_count
+            FROM allocation_sessions
+            WHERE session_id = ?
+        """, (session_id,))
+        session_row = cur.fetchone()
+        
+        if not session_row:
+            raise Exception(f"Session {session_id} not found")
+        
+        plan_id = session_row['plan_id']
+        
+        # Get classroom details
+        cur.execute("""
+            SELECT id, name, rows, cols, broken_seats, block_width
+            FROM classrooms
+            WHERE id = ?
+        """, (classroom_id,))
+        classroom_row = cur.fetchone()
+        
+        if not classroom_row:
+            raise Exception(f"Classroom {classroom_id} not found")
+        
+        room_name = classroom_row['name']
+        room_rows = classroom_row['rows']
+        room_cols = classroom_row['cols']
+        
         # Get current step number
         cur.execute("""
             SELECT COALESCE(MAX(step_number), 0) + 1
@@ -923,11 +962,16 @@ def save_room_allocation(session_id: int, classroom_id: int, seating_data: Dict,
         """, (session_id,))
         step_number = cur.fetchone()[0]
         
-        logger.info(f"💾 Saving room allocation: session={session_id}, classroom={classroom_id}, selected_batches={selected_batch_names}")
+        logger.info(f"💾 Saving room allocation: session={session_id}, room={room_name}, selected_batches={selected_batch_names}")
         
-        # Extract allocated students from seating
-        for row in seating_data.get('seating', []):
-            for seat in row:
+        # ============================================================================
+        # 2. PROCESS SEATING AND SAVE TO DATABASE
+        # ============================================================================
+        
+        seating_matrix = seating_data.get('seating', [])
+        
+        for row_idx, row in enumerate(seating_matrix):
+            for col_idx, seat in enumerate(row):
                 if seat and not seat.get('is_broken') and not seat.get('is_unallocated'):
                     enrollment = seat.get('roll_number')
                     
@@ -949,17 +993,18 @@ def save_room_allocation(session_id: int, classroom_id: int, seating_data: Dict,
                     student_row = cur.fetchone()
                     
                     if student_row:
-                        student_id, batch_name = student_row
+                        student_id = student_row['id']
+                        batch_name = student_row['batch_name']
                         
-                        # CRITICAL: Verify student is in selected batches
+                        # Verify student is in selected batches
                         if selected_batch_names and batch_name not in selected_batch_names:
-                            logger.warning(f"⚠️ Skipping {enrollment}: not in selected batches {selected_batch_names}")
+                            logger.warning(f"⚠️ Skipping {enrollment}: not in selected batches")
                             continue
                         
-                        seat_pos = f"{seat.get('row', '')}-{seat.get('col', '')}"
+                        seat_pos = f"{row_idx + 1}-{col_idx + 1}"
                         paper_set = seat.get('paper_set', 'A')
                         
-                        # Insert allocation
+                        # Insert allocation to database
                         cur.execute("""
                             INSERT INTO allocations
                             (session_id, classroom_id, student_id, enrollment,
@@ -967,6 +1012,11 @@ def save_room_allocation(session_id: int, classroom_id: int, seating_data: Dict,
                             VALUES (?, ?, ?, ?, ?, ?, ?)
                         """, (session_id, classroom_id, student_id, enrollment,
                               seat_pos, batch_name, paper_set))
+                        
+                        # ✅ Update seat with position info for cache
+                        seat['position'] = seat_pos
+                        seat['row'] = row_idx + 1
+                        seat['col'] = col_idx + 1
                         
                         allocated_students.append({
                             'enrollment': enrollment,
@@ -997,18 +1047,50 @@ def save_room_allocation(session_id: int, classroom_id: int, seating_data: Dict,
         
         conn.commit()
         
+        # ============================================================================
+        # 3. ✅ CRITICAL: SAVE TO CACHE
+        # ============================================================================
+        
+        input_config = {
+            'rows': room_rows,
+            'cols': room_cols,
+            'block_width': seating_data.get('block_width') or classroom_row['block_width'] or 1,
+            'broken_seats': seating_data.get('broken_seats') or classroom_row['broken_seats'] or '',
+            'session_id': session_id,
+            'classroom_id': classroom_id,
+            'room_no': room_name
+        }
+        
+        # ✅ THIS IS THE CRITICAL LINE - Save to cache with room name!
+        cache_manager.save_or_update(
+            plan_id=plan_id,
+            input_config=input_config,
+            output_data=seating_data,
+            room_no=room_name  # ✅ Pass room name so it's stored under rooms[room_name]
+        )
+        
+        logger.info(f"✅ Saved to CACHE: plan={plan_id}, room={room_name}, students={len(allocated_students)}")
+        
+        # ============================================================================
+        # 4. GET PENDING STUDENTS
+        # ============================================================================
+        
         pending = get_pending_students(session_id)
         
-        logger.info(f"✅ Saved {len(allocated_students)} allocations, {len(pending)} pending")
+        logger.info(f"✅ Allocation complete: {len(allocated_students)} saved, {len(pending)} pending")
         
         return len(allocated_students), pending
         
     except Exception as e:
         logger.error(f"❌ Error saving room allocation: {e}")
+        import traceback
+        traceback.print_exc()
         conn.rollback()
         return 0, []
     finally:
         conn.close()
+
+        
 
 def undo_last_allocation(session_id: int) -> Tuple[bool, str]:
     """
@@ -1245,7 +1327,399 @@ def get_session_stats(session_id: int) -> Dict:
         return {}
     finally:
         conn.close()
+# ============================================
+# DASHBOARD API ENDPOINTS (FIXED - Uses SQLite)
+# ============================================
 
+@app.route('/api/dashboard/stats', methods=['GET'])
+def get_dashboard_stats():
+    """
+    Get all dashboard statistics - using raw SQLite
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        
+        # Get total students count
+        cur.execute("SELECT COUNT(*) FROM students")
+        total_students = cur.fetchone()[0] or 0
+        
+        # Get total classrooms count
+        cur.execute("SELECT COUNT(*) FROM classrooms")
+        total_classrooms = cur.fetchone()[0] or 0
+        
+        # Get allocated seats count (from completed sessions)
+        cur.execute("""
+            SELECT COUNT(*) FROM allocations a
+            JOIN allocation_sessions s ON a.session_id = s.session_id
+            WHERE s.status IN ('active', 'completed')
+        """)
+        allocated_seats = cur.fetchone()[0] or 0
+        
+        # Get completed plans count
+        cur.execute("""
+            SELECT COUNT(*) FROM allocation_sessions 
+            WHERE status = 'completed'
+        """)
+        completed_plans = cur.fetchone()[0] or 0
+        
+        # Get reports/snapshots count
+        reports_count = completed_plans  # Use completed plans as proxy
+        
+        # Calculate weekly changes
+        one_week_ago = (datetime.now() - timedelta(days=7)).isoformat()
+        
+        # Students added this week
+        cur.execute("""
+            SELECT COUNT(*) FROM students 
+            WHERE inserted_at >= ?
+        """, (one_week_ago,))
+        new_students_this_week = cur.fetchone()[0] or 0
+        
+        students_change = 0
+        if total_students > new_students_this_week and new_students_this_week > 0:
+            students_change = round((new_students_this_week / max(total_students - new_students_this_week, 1)) * 100, 1)
+        
+        # Plans completed this week
+        cur.execute("""
+            SELECT COUNT(*) FROM allocation_sessions 
+            WHERE status = 'completed' AND completed_at >= ?
+        """, (one_week_ago,))
+        new_plans_this_week = cur.fetchone()[0] or 0
+        
+        plans_change = 0
+        if completed_plans > 0 and new_plans_this_week > 0:
+            plans_change = round((new_plans_this_week / max(completed_plans, 1)) * 100, 1)
+        
+        # Get active sessions count
+        cur.execute("""
+            SELECT COUNT(*) FROM allocation_sessions 
+            WHERE status = 'active'
+        """)
+        active_sessions = cur.fetchone()[0] or 0
+        
+        conn.close()
+        
+        return jsonify({
+            "success": True,
+            "stats": {
+                "total_students": total_students,
+                "students_change": students_change,
+                "total_classrooms": total_classrooms,
+                "classrooms_change": 0,
+                "allocated_seats": allocated_seats,
+                "allocation_change": plans_change,
+                "completed_plans": completed_plans,
+                "plans_change": plans_change,
+                "reports_generated": reports_count,
+                "reports_change": 0
+            },
+            "summary": {
+                "active_sessions": active_sessions,
+                "pending_allocations": total_students - allocated_seats
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Dashboard stats error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            "success": False, 
+            "error": str(e),
+            "stats": {
+                "total_students": 0,
+                "students_change": 0,
+                "total_classrooms": 0,
+                "classrooms_change": 0,
+                "allocated_seats": 0,
+                "allocation_change": 0,
+                "completed_plans": 0,
+                "plans_change": 0,
+                "reports_generated": 0,
+                "reports_change": 0
+            }
+        }), 500
+
+
+@app.route('/api/dashboard/activity', methods=['GET'])
+def get_dashboard_activity():
+    """
+    Get recent activity logs - using raw SQLite
+    """
+    try:
+        limit = request.args.get('limit', 10, type=int)
+        activities = []
+        
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        
+        # Get recent completed allocations
+        cur.execute("""
+            SELECT plan_id, completed_at, status, allocated_count
+            FROM allocation_sessions 
+            WHERE status = 'completed' AND completed_at IS NOT NULL
+            ORDER BY completed_at DESC 
+            LIMIT 5
+        """)
+        
+        for row in cur.fetchall():
+            time_ago = get_time_ago(row['completed_at'])
+            activities.append({
+                "id": f"alloc_{row['plan_id']}",
+                "time": time_ago,
+                "message": f"Seat allocation completed: {row['plan_id']} ({row['allocated_count']} students)",
+                "type": "success",
+                "timestamp": row['completed_at']
+            })
+        
+        # Get recent batches/uploads
+        cur.execute("""
+            SELECT u.id, u.batch_name, u.created_at, COUNT(s.id) as student_count
+            FROM uploads u
+            LEFT JOIN students s ON u.id = s.upload_id
+            GROUP BY u.id
+            ORDER BY u.created_at DESC 
+            LIMIT 3
+        """)
+        
+        for row in cur.fetchall():
+            time_ago = get_time_ago(row['created_at'])
+            activities.append({
+                "id": f"batch_{row['id']}",
+                "time": time_ago,
+                "message": f"Batch '{row['batch_name']}' uploaded with {row['student_count']} students",
+                "type": "success",
+                "timestamp": row['created_at']
+            })
+        
+        # Get active sessions (in progress)
+        cur.execute("""
+            SELECT plan_id, created_at, allocated_count, total_students
+            FROM allocation_sessions 
+            WHERE status = 'active'
+            ORDER BY created_at DESC 
+            LIMIT 2
+        """)
+        
+        for row in cur.fetchall():
+            time_ago = get_time_ago(row['created_at'])
+            progress = f"{row['allocated_count']}/{row['total_students']}" if row['total_students'] else "0"
+            activities.append({
+                "id": f"session_{row['plan_id']}",
+                "time": time_ago,
+                "message": f"Allocation in progress: {row['plan_id']} ({progress})",
+                "type": "process",
+                "timestamp": row['created_at']
+            })
+        
+        # Get recent classroom additions
+        cur.execute("""
+            SELECT id, name, rows, cols, created_at
+            FROM classrooms
+            ORDER BY created_at DESC 
+            LIMIT 2
+        """)
+        
+        for row in cur.fetchall():
+            time_ago = get_time_ago(row['created_at'])
+            activities.append({
+                "id": f"room_{row['id']}",
+                "time": time_ago,
+                "message": f"Classroom '{row['name']}' added ({row['rows']}x{row['cols']})",
+                "type": "info",
+                "timestamp": row['created_at']
+            })
+        
+        conn.close()
+        
+        # Sort by timestamp and limit
+        activities.sort(key=lambda x: x.get('timestamp') or '', reverse=True)
+        activities = activities[:limit]
+        
+        # Default message if empty
+        if not activities:
+            activities.append({
+                "id": "default_1",
+                "time": "Just now",
+                "message": "System ready - No recent activity",
+                "type": "info",
+                "timestamp": datetime.now().isoformat()
+            })
+        
+        return jsonify({
+            "success": True,
+            "activities": activities,
+            "total_count": len(activities)
+        })
+        
+    except Exception as e:
+        logger.error(f"Dashboard activity error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            "success": True,
+            "activities": [{
+                "id": "error_1",
+                "time": "Now",
+                "message": "System initializing...",
+                "type": "info",
+                "timestamp": datetime.now().isoformat()
+            }],
+            "total_count": 1
+        })
+
+
+@app.route('/api/dashboard/session-info', methods=['GET'])
+def get_session_info():
+    """
+    Get current session and upcoming exam info - using raw SQLite
+    """
+    try:
+        # Calculate current semester
+        now = datetime.now()
+        month = now.month
+        year = now.year
+        
+        if month >= 1 and month <= 5:
+            current_session = f"Spring Semester {year}"
+        elif month >= 6 and month <= 7:
+            current_session = f"Summer Session {year}"
+        else:
+            current_session = f"Fall Semester {year}"
+        
+        next_exam = None
+        total_students = 0
+        allocated_students = 0
+        
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        
+        # Check for active allocation (indicates upcoming exam)
+        cur.execute("""
+            SELECT plan_id, created_at, total_students, allocated_count
+            FROM allocation_sessions 
+            WHERE status = 'active'
+            ORDER BY created_at DESC 
+            LIMIT 1
+        """)
+        row = cur.fetchone()
+        
+        if row:
+            # Estimate exam is 3 days from now
+            exam_date = now + timedelta(days=3)
+            next_exam = {
+                "name": row['plan_id'] or "Upcoming Exam",
+                "date": exam_date.strftime("%b %d"),
+                "days_remaining": 3
+            }
+        
+        # Get total student count
+        cur.execute("SELECT COUNT(*) FROM students")
+        total_students = cur.fetchone()[0] or 0
+        
+        # Get allocated students count (from all active/completed sessions)
+        cur.execute("""
+            SELECT COUNT(DISTINCT a.student_id) FROM allocations a
+            JOIN allocation_sessions s ON a.session_id = s.session_id
+            WHERE s.status IN ('active', 'completed')
+        """)
+        allocated_students = cur.fetchone()[0] or 0
+        
+        conn.close()
+        
+        return jsonify({
+            "success": True,
+            "current_session": current_session,
+            "next_exam": next_exam,
+            "system_status": {
+                "total_students": total_students,
+                "allocated_students": allocated_students,
+                "pending_students": max(0, total_students - allocated_students),
+                "health": "healthy" if total_students > 0 else "empty"
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Session info error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        
+        # Return fallback data
+        now = datetime.now()
+        month = now.month
+        year = now.year
+        
+        if month >= 1 and month <= 5:
+            session = f"Spring Semester {year}"
+        elif month >= 6 and month <= 7:
+            session = f"Summer Session {year}"
+        else:
+            session = f"Fall Semester {year}"
+        
+        return jsonify({
+            "success": True,
+            "current_session": session,
+            "next_exam": None,
+            "system_status": {
+                "total_students": 0,
+                "allocated_students": 0,
+                "pending_students": 0,
+                "health": "empty"
+            }
+        })
+
+
+# Helper function - update if not already correct
+def get_time_ago(dt_input):
+    """Convert datetime string or object to human-readable 'time ago'"""
+    if not dt_input:
+        return "Unknown"
+    
+    try:
+        # Parse if string
+        if isinstance(dt_input, str):
+            # Try different formats
+            for fmt in ["%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S.%f", "%Y-%m-%dT%H:%M:%S.%f"]:
+                try:
+                    dt = datetime.strptime(dt_input.split('.')[0].replace('T', ' '), "%Y-%m-%d %H:%M:%S")
+                    break
+                except:
+                    continue
+            else:
+                return "Unknown"
+        else:
+            dt = dt_input
+        
+        now = datetime.now()
+        diff = now - dt
+        seconds = diff.total_seconds()
+        
+        if seconds < 0:
+            return "Just now"
+        elif seconds < 60:
+            return "Just now"
+        elif seconds < 3600:
+            minutes = int(seconds // 60)
+            return f"{minutes} minute{'s' if minutes > 1 else ''} ago"
+        elif seconds < 86400:
+            hours = int(seconds // 3600)
+            return f"{hours} hour{'s' if hours > 1 else ''} ago"
+        elif seconds < 604800:
+            days = int(seconds // 86400)
+            return f"{days} day{'s' if days > 1 else ''} ago"
+        elif seconds < 2592000:
+            weeks = int(seconds // 604800)
+            return f"{weeks} week{'s' if weeks > 1 else ''} ago"
+        else:
+            return dt.strftime("%b %d, %Y")
+            
+    except Exception as e:
+        logger.warning(f"Time ago parse error: {e}")
+        return "Unknown"
 # ============================================================================
 # AUTH DECORATOR
 # ============================================================================
@@ -1865,117 +2339,73 @@ def get_session_statistics(session_id):
         return jsonify({"error": str(e)}), 500
 
 
-@app.route("/api/sessions/<int:session_id>/finalize", methods=["POST"])
-def finalize_allocation_session(session_id):
-    """
-    Finalize session when complete.
-    
-    CRITICAL FIXES:
-    - Properly marks session as 'completed' so it no longer shows as active
-    - Extracts all rooms with allocated students
-    - Calls cache_manager.finalize_rooms() to prune experimental rooms from cache.json
-    
-    Returns:
-        Success message or error
-    """
+@app.route('/api/sessions/<int:session_id>/finalize', methods=['POST'])
+def finalize_session(session_id):
+    """Finalize session - mark complete and clean cache"""
     try:
-        # Check pending students
-        pending = get_pending_students(session_id)
-        
-        if len(pending) > 0:
-            logger.warning(f"⚠️ Cannot finalize session {session_id}: {len(pending)} students still pending")
-            return jsonify({
-                "error": f"Cannot finalize: {len(pending)} students still pending",
-                "pending_count": len(pending),
-                "pending_students": pending[:10]  # Return first 10 for debugging
-            }), 400
-        
-        # Get session details
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
         
+        # Get session info
         cur.execute("""
-            SELECT plan_id, total_students, allocated_count
+            SELECT plan_id, total_students, allocated_count, status
             FROM allocation_sessions
             WHERE session_id = ?
         """, (session_id,))
         
-        row = cur.fetchone()
+        session = cur.fetchone()
         
-        if not row:
+        if not session:
             conn.close()
             return jsonify({"error": "Session not found"}), 404
         
-        session_data = dict(row)
-        plan_id = session_data['plan_id']
-        total_students = session_data['total_students']
-        allocated_count = session_data['allocated_count']
-        
-        # Verify all students are allocated
-        if allocated_count < total_students:
+        if session['status'] != 'active':
             conn.close()
-            shortage = total_students - allocated_count
-            return jsonify({
-                "error": f"Allocation incomplete: {shortage} students not allocated",
-                "total_students": total_students,
-                "allocated_count": allocated_count
-            }), 400
+            return jsonify({"error": f"Session is already {session['status']}"}), 400
         
-        # CRITICAL FIX: Extract all rooms with allocated students
+        plan_id = session['plan_id']
+        
+        # Get list of allocated rooms
         cur.execute("""
             SELECT DISTINCT c.name
             FROM allocations a
-            LEFT JOIN classrooms c ON a.classroom_id = c.id
+            JOIN classrooms c ON a.classroom_id = c.id
             WHERE a.session_id = ?
-            AND c.name IS NOT NULL
-            ORDER BY c.name
         """, (session_id,))
         
-        allocated_room_rows = cur.fetchall()
-        finalized_room_list = [row['name'] for row in allocated_room_rows] if allocated_room_rows else []
+        allocated_rooms = [row['name'] for row in cur.fetchall()]
         
-        logger.info(f"📋 Finalized rooms for session {session_id}: {finalized_room_list}")
+        logger.info(f"🏁 Finalizing session {session_id}, rooms: {allocated_rooms}")
         
-        # Update status to 'completed' AND set completed_at
-        now = datetime.now().isoformat()
-        
+        # Update session status
         cur.execute("""
             UPDATE allocation_sessions
             SET status = 'completed',
-                completed_at = ?,
                 last_activity = ?
             WHERE session_id = ?
-        """, (now, now, session_id))
+        """, (datetime.now().isoformat(), session_id))
         
         conn.commit()
         conn.close()
         
-        # CRITICAL FIX: Prune cache to remove experimental/unused rooms
-        if finalized_room_list and plan_id:
-            try:
-                cache_manager.finalize_rooms(plan_id, finalized_room_list)
-                logger.info(f"✅ Cache pruned for plan {plan_id}: kept rooms {finalized_room_list}")
-            except Exception as cache_error:
-                logger.warning(f"⚠️ Cache pruning failed for plan {plan_id}: {cache_error}")
-                # Don't fail the finalize if cache pruning fails - non-critical operation
-        
-        logger.info(f"🏁 ✅ Session {session_id} finalized successfully (plan_id: {plan_id})")
+        # ✅ CRITICAL: Finalize cache - remove experimental rooms
+        if allocated_rooms:
+            cache_manager.finalize_rooms(plan_id, allocated_rooms)
+            logger.info(f"✅ Cache finalized with rooms: {allocated_rooms}")
         
         return jsonify({
             "success": True,
-            "message": "Session completed successfully",
-            "session_id": session_id,
+            "message": "Session finalized successfully",
             "plan_id": plan_id,
-            "total_students": total_students,
-            "allocated_count": allocated_count,
-            "finalized_rooms": finalized_room_list
+            "rooms": allocated_rooms
         })
         
     except Exception as e:
-        logger.error(f"Finalization error for session {session_id}: {e}")
+        logger.error(f"❌ Finalize error: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
-
 
 @app.route("/api/sessions/<int:session_id>/pending", methods=["GET"])
 def get_session_pending(session_id):
@@ -2999,72 +3429,71 @@ def generate_pdf():
         if not data:
             return jsonify({"error": "No data provided"}), 400
         
-        seating_payload = None
-        seating_source = "unknown"  # Track WHERE seating came from
-        
-        # ============================================================================
-        # LAYER 1: Get Seating Data - Check cache FIRST (avoid algorithm re-run)
-        # ============================================================================
+        # Get identifiers - support both naming conventions
         plan_id = data.get('plan_id') or data.get('snapshot_id')
-        room_no = data.get('room_no')
+        room_name = data.get('room_name') or data.get('room_no')  # Support both!
         
+        seating_payload = None
+        
+        logger.info(f"📄 PDF Request - plan_id: {plan_id}, room_name: {room_name}")
+        
+        # ============================================================================
+        # LAYER 1: Get Seating Data from Cache
+        # ============================================================================
         if plan_id:
-            logger.info(f"🔍 [L1-CACHE] Checking cache for plan: {plan_id}" + (f", room: {room_no}" if room_no else ""))
-            cached_seating = get_seating_from_cache(plan_id, room_no)
+            logger.info(f"🔍 Loading from cache: {plan_id}" + (f", room: {room_name}" if room_name else " (all rooms)"))
             
-            if cached_seating and cached_seating.get('seating'):
-                seating_payload = {
-                    'seating': cached_seating['seating'],
-                    'metadata': cached_seating['metadata'],
-                    'batches': cached_seating.get('batches', {})
-                }
-                seating_source = "cache"
-                logger.info(f"⚡ [L1-CACHE HIT] Seating loaded from cache (room: {cached_seating.get('room_no', 'N/A')})")
-        
-        # Fallback: Try session_id
-        if not seating_payload:
-            session_id = data.get('session_id')
-            if session_id:
-                logger.info(f"🔍 [L1-DB] Retrieving seating for session: {session_id}")
-                db_seating = get_seating_from_database(session_id)
+            if room_name:
+                # Get specific room
+                cached_seating = get_seating_from_cache(plan_id, room_name)
                 
-                if db_seating and db_seating.get('seating'):
-                    seating_payload = db_seating
-                    seating_source = db_seating.get('source', 'database')
+                if cached_seating and cached_seating.get('seating'):
+                    seating_payload = cached_seating
+                    logger.info(f"✅ Loaded room '{room_name}' from cache")
+                else:
+                    logger.error(f"❌ Room '{room_name}' not found in cache")
                     
-                    if seating_source == 'cache':
-                        logger.info(f"⚡ [L1-CACHE HIT via Session] Seating from cache")
+                    # Debug: Show available rooms
+                    snapshot = cache_manager.load_snapshot(plan_id)
+                    if snapshot:
+                        available = list(snapshot.get('rooms', {}).keys())
+                        logger.info(f"📁 Available rooms: {available}")
+                        return jsonify({
+                            "error": f"Room '{room_name}' not found",
+                            "available_rooms": available
+                        }), 404
                     else:
-                        logger.info(f"📊 [L1-DB] Seating built from database (slower)")
-        
-        # Fallback: Use provided seating data
-        if not seating_payload:
-            if 'seating' in data:
-                seating_payload = data
-                seating_source = "request"
-                logger.info("📄 [L1-REQUEST] Using seating from request")
+                        return jsonify({"error": "Plan not found in cache"}), 404
             else:
-                return jsonify({
-                    "error": "No seating data available",
-                    "hint": "Provide plan_id, session_id, or seating data"
-                }), 400
-
-        # Validate
+                # Get first room or all rooms
+                cached_seating = get_seating_from_cache(plan_id)
+                
+                if cached_seating:
+                    seating_payload = cached_seating
+                    logger.info(f"✅ Loaded default room from cache")
+        
+        # Fallback: Direct seating data in request
+        if not seating_payload and 'seating' in data:
+            seating_payload = {
+                'seating': data['seating'],
+                'metadata': data.get('metadata', {}),
+                'batches': data.get('batches', {})
+            }
+            logger.info("📄 Using seating from request payload")
+        
         if not seating_payload or not seating_payload.get('seating'):
-            return jsonify({"error": "No seating data available"}), 400
-
+            return jsonify({
+                "error": "No seating data available",
+                "hint": "Provide plan_id with room_name, or seating data directly"
+            }), 400
+        
+        # ============================================================================
+        # LAYER 2: Generate PDF
+        # ============================================================================
         user_id = data.get('user_id', 'test_user')
         template_name = data.get('template_name', 'default')
         
-        # ============================================================================
-        # LAYER 2: PDF Generation - Let pdf_generation.py handle caching
-        # ============================================================================
-        logger.info(f"📋 [L1→L2] Passing to PDF generation: seating_source={seating_source}, user={user_id}, template={template_name}")
-        
         try:
-            # This function handles PDF caching internally via content hash
-            # If same seating + template → reuses PDF file (very fast)
-            # If different seating or template → generates new PDF
             pdf_path = get_or_create_seating_pdf(
                 seating_payload,
                 user_id=user_id,
@@ -3072,18 +3501,23 @@ def generate_pdf():
             )
         except Exception as pdf_err:
             logger.error(f"❌ PDF generation failed: {str(pdf_err)}")
+            import traceback
+            traceback.print_exc()
             return jsonify({"error": f"PDF generation failed: {str(pdf_err)}"}), 500
         
-        # Verify PDF exists
         if not os.path.exists(pdf_path):
             return jsonify({"error": "PDF file not created"}), 500
         
-        logger.info(f"✅ PDF ready: {pdf_path} (seating_source={seating_source})")
+        # Generate filename
+        room_suffix = f"_{room_name.replace(' ', '_')}" if room_name else ""
+        download_name = f"seating_plan{room_suffix}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        
+        logger.info(f"✅ PDF generated: {pdf_path}")
         
         return send_file(
             pdf_path,
             as_attachment=True,
-            download_name=f"seating_plan_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+            download_name=download_name,
             mimetype='application/pdf'
         )
         
@@ -3092,7 +3526,6 @@ def generate_pdf():
         import traceback
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
-
 
 @app.route('/api/generate-pdf/batch', methods=['POST'])
 def generate_pdf_batch():
@@ -3240,42 +3673,38 @@ def get_all_allocations():
 @app.route('/api/plan-batches/<plan_id>', methods=['GET'])
 def get_plan_batches(plan_id):
     """
-    Get batch information for a plan (for attendance sheets).
+    Get batch information for ALL rooms in a plan.
+    Returns the complete rooms structure for the frontend.
     """
     try:
         cache_data = cache_manager.load_snapshot(plan_id)
         if not cache_data:
             return jsonify({"error": "Plan not found"}), 404
         
-        # 1. Identify which room we are looking for
-        room_no = cache_data.get('metadata', {}).get('room_no') or \
-                  cache_data.get('inputs', {}).get('room_no')
-        
-        # 2. Extract the batches specifically for that room
-        # Based on your JSON structure: cache_data['rooms']['M102']['batches']
+        # ✅ Return ALL rooms, not just one
         all_rooms = cache_data.get('rooms', {})
-        batch_list = {}
         
-        if room_no in all_rooms:
-            batch_list = all_rooms[room_no].get('batches', {})
-        elif all_rooms:
-            # Fallback: if room_no mismatch, grab batches from the first room available
-            first_room = list(all_rooms.values())[0]
-            batch_list = first_room.get('batches', {})
-
-        # 3. Return a flattened structure the frontend understands
+        # Log for debugging
+        logger.info(f"📋 Plan {plan_id} has {len(all_rooms)} rooms: {list(all_rooms.keys())}")
+        
+        for room_name, room_data in all_rooms.items():
+            batches = room_data.get('batches', {})
+            student_count = sum(len(b.get('students', [])) for b in batches.values())
+            logger.info(f"   🏠 Room '{room_name}': {len(batches)} batches, {student_count} students")
+        
+        # ✅ Return the complete structure
         return jsonify({
             "plan_id": plan_id,
-            "batches": batch_list,
-            "room_no": room_no,
-            "inputs": cache_data.get('inputs', {}),
-            "metadata": cache_data.get('metadata', {})
+            "rooms": all_rooms,  # ✅ ALL rooms with their batches
+            "metadata": cache_data.get('metadata', {}),
+            "inputs": cache_data.get('inputs', {})
         })
         
     except Exception as e:
         logger.error(f"Get plan batches error: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
-    
 # ============================================================================
 # GET: Retrieve user's template configuration
 # ============================================================================
@@ -3818,50 +4247,128 @@ def list_templates():
 
 @app.route('/api/export-attendance', methods=['POST'])
 def export_attendance():
+    """Export attendance sheet with correct metadata field mapping."""
     try:
         data = request.get_json()
         plan_id = data.get('plan_id')
-        batch_name = data.get('batch_name')
+        batch_or_room = data.get('batch_name')
         frontend_metadata = data.get('metadata', {})
-        # Use room_no from frontend metadata to find the right folder in cache
-        room_no = frontend_metadata.get('room_no', 'N/A')
+        room_no = frontend_metadata.get('room_no') or frontend_metadata.get('room_name')
+
+        logger.info(f"📋 Attendance request: plan={plan_id}, batch_or_room={batch_or_room}, room_no={room_no}")
+        logger.info(f"📋 Frontend metadata received: {frontend_metadata}")
 
         # Load cached seating plan
         cache_data = cache_manager.load_snapshot(plan_id)
         if not cache_data:
             return jsonify({"error": "Seating plan cache not found"}), 404
 
-        # FIX: Navigate the nested rooms structure
-        # Structure is cache_data['rooms'][room_no]['batches'][batch_name]
-        room_data = cache_data.get('rooms', {}).get(room_no)
+        rooms = cache_data.get('rooms', {})
         
-        # Fallback: If room_no doesn't match, search all rooms for the batch
-        if not room_data:
-            for r_name, r_content in cache_data.get('rooms', {}).items():
-                if batch_name in r_content.get('batches', {}):
-                    room_data = r_content
+        # Find the room and batch data
+        room_data = None
+        target_room_name = None
+        target_batch_name = None
+        all_students = []
+        batch_info = {}
+        
+        # Case 1: batch_or_room is a room name
+        if batch_or_room in rooms:
+            target_room_name = batch_or_room
+            room_data = rooms[batch_or_room]
+            
+            for b_name, b_data in room_data.get('batches', {}).items():
+                students = b_data.get('students', [])
+                all_students.extend(students)
+                if not batch_info:
+                    batch_info = b_data.get('info', {})
+            
+            target_batch_name = target_room_name
+            logger.info(f"✅ Found room '{target_room_name}' with {len(all_students)} students")
+        
+        # Case 2: room_no specified, batch_or_room is a batch name
+        elif room_no and room_no in rooms:
+            target_room_name = room_no
+            room_data = rooms[room_no]
+            target_batch_name = batch_or_room
+            
+            b_data = room_data.get('batches', {}).get(target_batch_name)
+            if b_data:
+                all_students = b_data.get('students', [])
+                batch_info = b_data.get('info', {})
+            else:
+                # Search all rooms for the batch
+                for r_name, r_data in rooms.items():
+                    if target_batch_name in r_data.get('batches', {}):
+                        target_room_name = r_name
+                        room_data = r_data
+                        b_data = r_data['batches'][target_batch_name]
+                        all_students = b_data.get('students', [])
+                        batch_info = b_data.get('info', {})
+                        break
+        
+        # Case 3: Search all rooms
+        else:
+            for r_name, r_data in rooms.items():
+                if batch_or_room in r_data.get('batches', {}):
+                    target_room_name = r_name
+                    room_data = r_data
+                    target_batch_name = batch_or_room
+                    b_data = r_data['batches'][batch_or_room]
+                    all_students = b_data.get('students', [])
+                    batch_info = b_data.get('info', {})
                     break
-
-        if not room_data:
-            return jsonify({"error": f"Room data for {room_no} not found"}), 404
-
-        batch_data = room_data.get('batches', {}).get(batch_name)
-        if not batch_data:
-            return jsonify({"error": f"Batch '{batch_name}' not found"}), 404
-
-        # Generate attendance PDF - ✅ Pass frontend_metadata
-        temp_filename = f"temp_{plan_id}_{batch_name.replace(' ', '_')}_{int(time.time())}.pdf"
         
-        print(f"📋 Generating attendance with metadata: {frontend_metadata}")  # Debug
+        if not all_students:
+            return jsonify({
+                "error": f"No students found for '{batch_or_room}'",
+                "available_rooms": list(rooms.keys())
+            }), 404
+
+        # ============================================================================
+        # ✅ FIXED: Map metadata to EXACT field names that create_attendance_pdf expects
+        # ============================================================================
+        complete_metadata = {
+            # PDF expects 'exam_title', not 'exam_name'
+            'exam_title': frontend_metadata.get('exam_title') or frontend_metadata.get('exam_name') or 'EXAMINATION-ATTENDANCE SHEET',
+            
+            # PDF expects 'course_name'
+            'course_name': frontend_metadata.get('course_name') or frontend_metadata.get('department') or 'N/A',
+            
+            # PDF expects 'course_code'
+            'course_code': frontend_metadata.get('course_code') or 'N/A',
+            
+            # PDF expects 'date', not 'exam_date'
+            'date': frontend_metadata.get('date') or frontend_metadata.get('exam_date') or '',
+            
+            # PDF expects 'time'
+            'time': frontend_metadata.get('time') or '',
+            
+            # PDF expects 'year'
+            'year': frontend_metadata.get('year') or str(datetime.now().year),
+            
+            # PDF expects 'room_no'
+            'room_no': target_room_name or room_no or 'N/A',
+        }
+
+        logger.info(f"📋 Complete metadata for PDF: {complete_metadata}")
+        logger.info(f"📋 Generating attendance: room={target_room_name}, batch={target_batch_name}, students={len(all_students)}")
+
+        # Generate PDF
+        timestamp = int(time.time())
+        safe_name = (target_batch_name or target_room_name or 'attendance').replace(' ', '_').replace('/', '-')
+        temp_filename = f"temp_attendance_{safe_name}_{timestamp}.pdf"
         
+        # ✅ Call with correct positional arguments
         create_attendance_pdf(
-            temp_filename,
-            batch_data['students'],
-            batch_name,
-            frontend_metadata,  # ✅ Pass the metadata here
-            batch_data['info']
+            temp_filename,                                    # filename
+            all_students,                                     # student_list
+            target_batch_name or target_room_name or 'All',   # batch_label
+            complete_metadata,                                # metadata
+            batch_info                                        # extracted_info
         )
 
+        # Read and send
         return_data = io.BytesIO()
         with open(temp_filename, 'rb') as f:
             return_data.write(f.read())
@@ -3870,17 +4377,21 @@ def export_attendance():
         if os.path.exists(temp_filename):
             os.remove(temp_filename)
 
-        logger.info(f"📋 Generated attendance sheet for {batch_name} in Room {room_no}")
+        download_name = f"Attendance_{safe_name}_{complete_metadata['course_code']}_{timestamp}.pdf"
+        
+        logger.info(f"✅ Attendance PDF generated: {download_name}")
 
         return send_file(
             return_data,
             mimetype='application/pdf',
             as_attachment=True,
-            download_name=f"Attendance_{batch_name}_{frontend_metadata.get('course_code', '')}_{int(time.time())}.pdf"
+            download_name=download_name
         )
 
     except Exception as e:
-        logger.error(f"Export attendance error: {str(e)}")
+        logger.error(f"❌ Export attendance error: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
     
 # ============================================================================

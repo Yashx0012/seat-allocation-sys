@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Users, 
@@ -8,23 +8,35 @@ import {
   Upload, 
   CheckCircle,
   ArrowUpRight,
+  ArrowDownRight,
   Terminal,
   AlertCircle,
-  Database
+  Database,
+  RefreshCw,
+  Loader2,
+  Calendar,
+  Clock,
+  Activity,
+  FileText
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import SplitText from '../components/SplitText';
 
 // StatCard Component with counter animation
-const StatCard = ({ stat, index }) => {
+const StatCard = ({ stat, index, loading }) => {
   const [count, setCount] = useState(0);
   const [isAnimating, setIsAnimating] = useState(true);
 
   useEffect(() => {
+    if (loading) {
+      setCount('--');
+      return;
+    }
+
     const duration = 1500;
     const steps = 60;
     const interval = duration / steps;
-    const targetValue = parseInt(stat.value.replace(/,/g, ''));
+    const targetValue = parseInt(String(stat.value).replace(/,/g, ''));
     
     if (isNaN(targetValue)) {
       setCount(stat.value);
@@ -44,14 +56,15 @@ const StatCard = ({ stat, index }) => {
     }, interval);
 
     return () => clearInterval(timer);
-  }, [stat.value]);
+  }, [stat.value, loading]);
 
-  // Animation variants
   const cardStyle = {
     opacity: 0,
     y: 20,
     animation: `fadeInUp 0.5s ease-out ${index * 0.1}s forwards`
   };
+
+  const isPositiveChange = stat.change >= 0;
 
   return (
     <div
@@ -68,15 +81,33 @@ const StatCard = ({ stat, index }) => {
           <div className="p-2 rounded-xl bg-gray-100 dark:bg-gray-700 border border-[#c0c0c0] dark:border-[#8a8a8a]">
             <stat.icon className={`w-6 h-6 ${stat.color}`} />
           </div>
-          <div className="flex items-center gap-1 text-xs font-mono text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded-full">
-            <ArrowUpRight className="w-3 h-3" />
-            <span>+2.4%</span>
-          </div>
+          
+          {/* Dynamic change indicator */}
+          {stat.change !== undefined && stat.change !== 0 && (
+            <div className={`flex items-center gap-1 text-xs font-mono px-2 py-1 rounded-full ${
+              isPositiveChange 
+                ? 'text-emerald-500 bg-emerald-500/10' 
+                : 'text-red-500 bg-red-500/10'
+            }`}>
+              {isPositiveChange ? (
+                <ArrowUpRight className="w-3 h-3" />
+              ) : (
+                <ArrowDownRight className="w-3 h-3" />
+              )}
+              <span>{isPositiveChange ? '+' : ''}{stat.change}%</span>
+            </div>
+          )}
+          
+          {loading && (
+            <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
+          )}
         </div>
         
         <div className="space-y-1">
           <div className="text-4xl font-black tracking-tight text-gray-900 dark:text-gray-100 font-mono stat-number">
-            {count}
+            {loading ? (
+              <span className="animate-pulse">---</span>
+            ) : count}
           </div>
           <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">{stat.label}</p>
         </div>
@@ -89,33 +120,199 @@ const DashboardPage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const stats = [
-    { label: 'Total Students', value: '1,245', icon: Users, color: 'text-orange-500 dark:text-orange-400' },
-    { label: 'Classrooms', value: '24', icon: Layout, color: 'text-amber-500 dark:text-amber-400' },
-    { label: 'Allocated Classrooms', value: '48', icon: MapPin, color: 'text-orange-600 dark:text-orange-500' },
-    { label: 'Reports', value: '156', icon: Download, color: 'text-amber-600 dark:text-amber-500' }
-  ];
+  // Dynamic state
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [stats, setStats] = useState([]);
+  const [activityLog, setActivityLog] = useState([]);
+  const [sessionInfo, setSessionInfo] = useState({
+    currentSession: 'Loading...',
+    nextExam: null
+  });
+  const [lastRefresh, setLastRefresh] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
 
-  // UPDATED: Added Database Manager to quick actions
-  const quickActions = [
-    { label: 'Create Plan', page: 'create-plan', icon: Upload, color: 'bg-orange-500 dark:bg-orange-600' },
-    { label: 'Database Manager', page: 'database', icon: Database, color: 'bg-purple-500 dark:bg-purple-600' }, // NEW
-    { label: 'Template Editor', page: 'template-editor', icon: Layout, color: 'bg-amber-500 dark:bg-amber-600' },
-    { label: 'Classroom Layout', page: 'classroom', icon: MapPin, color: 'bg-orange-600 dark:bg-orange-700' }
-  ];
-
-  const activityLog = [
-    { id: 1, time: '2 hours ago', message: 'Seat allocation completed for Classroom A', type: 'success' },
-    { id: 2, time: '5 hours ago', message: 'Student data uploaded successfully', type: 'success' },
-    { id: 3, time: '1 day ago', message: 'PDF report generated', type: 'success' },
-    { id: 4, time: '2 days ago', message: 'System synchronized with main database', type: 'info' },
-    { id: 5, time: '3 days ago', message: 'Batch CS-2024 allocation initiated', type: 'process' }
-  ];
-
+  // Download modal state
   const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [downloadStatus, setDownloadStatus] = useState('');
   const [downloading, setDownloading] = useState(false);
 
+  // Get greeting based on time of day
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good Morning';
+    if (hour < 17) return 'Good Afternoon';
+    return 'Good Evening';
+  };
+
+  // Fetch dashboard stats
+  const fetchStats = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/dashboard/stats', {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch stats');
+      }
+      
+      if (data.success) {
+        const statsData = data.stats;
+        setStats([
+          { 
+            label: 'Total Students', 
+            value: statsData.total_students || 0, 
+            change: statsData.students_change || 0,
+            icon: Users, 
+            color: 'text-orange-500 dark:text-orange-400' 
+          },
+          { 
+            label: 'Classrooms', 
+            value: statsData.total_classrooms || 0, 
+            change: statsData.classrooms_change || 0,
+            icon: Layout, 
+            color: 'text-amber-500 dark:text-amber-400' 
+          },
+          { 
+            label: 'Allocated Seats', 
+            value: statsData.allocated_seats || 0, 
+            change: statsData.allocation_change || 0,
+            icon: MapPin, 
+            color: 'text-orange-600 dark:text-orange-500' 
+          },
+          { 
+            label: 'Completed Plans', 
+            value: statsData.completed_plans || 0, 
+            change: statsData.plans_change || 0,
+            icon: FileText, 
+            color: 'text-amber-600 dark:text-amber-500' 
+          }
+        ]);
+      }
+    } catch (err) {
+      console.error('Stats fetch error:', err);
+      // Set default stats on error
+      setStats([
+        { label: 'Total Students', value: 0, change: 0, icon: Users, color: 'text-orange-500 dark:text-orange-400' },
+        { label: 'Classrooms', value: 0, change: 0, icon: Layout, color: 'text-amber-500 dark:text-amber-400' },
+        { label: 'Allocated Seats', value: 0, change: 0, icon: MapPin, color: 'text-orange-600 dark:text-orange-500' },
+        { label: 'Completed Plans', value: 0, change: 0, icon: FileText, color: 'text-amber-600 dark:text-amber-500' }
+      ]);
+    }
+  }, []);
+
+  // Fetch activity log
+  const fetchActivity = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/dashboard/activity?limit=10', {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch activity');
+      }
+      
+      if (data.success && Array.isArray(data.activities)) {
+        setActivityLog(data.activities);
+      }
+    } catch (err) {
+      console.error('Activity fetch error:', err);
+      setActivityLog([{
+        id: 'error_1',
+        time: 'Now',
+        message: 'Could not load activity log',
+        type: 'warning'
+      }]);
+    }
+  }, []);
+
+  // Fetch session info
+  const fetchSessionInfo = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/dashboard/session-info', {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch session info');
+      }
+      
+      if (data.success) {
+        setSessionInfo({
+          currentSession: data.current_session || 'No Active Session',
+          nextExam: data.next_exam
+        });
+      }
+    } catch (err) {
+      console.error('Session info fetch error:', err);
+      // Calculate session locally as fallback
+      const now = new Date();
+      const month = now.getMonth() + 1;
+      const year = now.getFullYear();
+      let session = 'Fall Semester ' + year;
+      if (month >= 1 && month <= 5) session = 'Spring Semester ' + year;
+      else if (month >= 6 && month <= 7) session = 'Summer Session ' + year;
+      
+      setSessionInfo({
+        currentSession: session,
+        nextExam: null
+      });
+    }
+  }, []);
+
+  // Fetch all dashboard data
+  const fetchDashboardData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      await Promise.all([
+        fetchStats(),
+        fetchActivity(),
+        fetchSessionInfo()
+      ]);
+      setLastRefresh(new Date());
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchStats, fetchActivity, fetchSessionInfo]);
+
+  // Manual refresh
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchDashboardData();
+    setRefreshing(false);
+  };
+
+  // Initial load
+  useEffect(() => {
+    fetchDashboardData();
+    
+    // Auto-refresh every 60 seconds
+    const interval = setInterval(fetchDashboardData, 60000);
+    return () => clearInterval(interval);
+  }, [fetchDashboardData]);
+
+  // Quick actions config
+  const quickActions = [
+    { label: 'Create Plan', page: 'create-plan', icon: Upload, color: 'bg-orange-500 dark:bg-orange-600' },
+    { label: 'Database Manager', page: 'database', icon: Database, color: 'bg-purple-500 dark:bg-purple-600' },
+    { label: 'Template Editor', page: 'template-editor', icon: Layout, color: 'bg-amber-500 dark:bg-amber-600' },
+    { label: 'Classroom Layout', page: 'classroom', icon: MapPin, color: 'bg-orange-600 dark:bg-orange-700' }
+  ];
+
+  // Handle download
   const handleDownload = async () => {
     setShowDownloadModal(true);
     setDownloading(true);
@@ -140,6 +337,17 @@ const DashboardPage = () => {
     }
   };
 
+  // Get activity icon
+  const getActivityIcon = (type) => {
+    switch (type) {
+      case 'success': return '✓';
+      case 'warning': return '⚠';
+      case 'process': return '⚙';
+      case 'info': return 'ℹ';
+      default: return '>';
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[#050505] py-8 px-4 transition-colors duration-300">
       <div className="max-w-7xl mx-auto space-y-8">
@@ -149,39 +357,89 @@ const DashboardPage = () => {
           <div>
             <div className="flex items-center gap-2 mb-2">
               <div className="relative w-3 h-3">
-                <div className="absolute inset-0 bg-emerald-500 rounded-full animate-ping opacity-75"></div>
-                <div className="relative w-3 h-3 bg-emerald-500 rounded-full border border-emerald-400"></div>
+                <div className={`absolute inset-0 ${error ? 'bg-red-500' : 'bg-emerald-500'} rounded-full animate-ping opacity-75`}></div>
+                <div className={`relative w-3 h-3 ${error ? 'bg-red-500 border-red-400' : 'bg-emerald-500 border-emerald-400'} rounded-full border`}></div>
               </div>
-              <span className="text-xs font-mono text-emerald-500 tracking-wider uppercase">Live Connection</span>
+              <span className={`text-xs font-mono ${error ? 'text-red-500' : 'text-emerald-500'} tracking-wider uppercase`}>
+                {loading ? 'Connecting...' : error ? 'Connection Error' : 'Live Connection'}
+              </span>
+              
+              {/* Refresh button */}
+              <button
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className="ml-2 p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
+                title="Refresh dashboard"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 text-gray-500 ${refreshing ? 'animate-spin' : ''}`} />
+              </button>
             </div>
+            
             <SplitText
-              text={`Good Morning,\n${user?.name || 'Administrator'}`}
+              text={`${getGreeting()},\n${user?.name || 'Administrator'}`}
               className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-gray-900 via-gray-700 to-gray-500 dark:from-gray-100 dark:via-gray-300 dark:to-gray-500 bg-clip-text text-transparent"
               delay={45}
               duration={0.6}
               ease="ease-out"
               splitType="chars"
-              onLetterAnimationComplete={() => {}}
             />
+            
+            {/* Last refresh time */}
+            {lastRefresh && (
+              <p className="text-xs text-gray-500 mt-2 font-mono">
+                Last updated: {lastRefresh.toLocaleTimeString()}
+              </p>
+            )}
           </div>
           
           <div className="flex gap-4">
             <div className="text-right hidden md:block">
               <div className="micro-label mb-1">Current Session</div>
-              <div className="font-mono text-xl text-gray-900 dark:text-gray-100">Fall Semester 2025</div>
+              <div className="font-mono text-xl text-gray-900 dark:text-gray-100">
+                {sessionInfo.currentSession}
+              </div>
             </div>
             <div className="w-px bg-gray-200 dark:bg-gray-700 h-12 hidden md:block"></div>
             <div className="text-right">
               <div className="micro-label mb-1">Next Exam</div>
-              <div className="font-mono text-xl text-orange-600 dark:text-orange-400"></div>
+              <div className="font-mono text-xl text-orange-600 dark:text-orange-400">
+                {sessionInfo.nextExam ? (
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4" />
+                    <span>{sessionInfo.nextExam.date}</span>
+                    <span className="text-sm text-gray-500">
+                      ({sessionInfo.nextExam.days_remaining}d)
+                    </span>
+                  </div>
+                ) : (
+                  <span className="text-gray-400">No upcoming</span>
+                )}
+              </div>
             </div>
           </div>
         </div>
 
+        {/* Error Banner */}
+        {error && (
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="text-red-700 dark:text-red-300 font-medium">Failed to load dashboard data</p>
+              <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
+            </div>
+            <button
+              onClick={handleRefresh}
+              className="px-3 py-1 bg-red-100 dark:bg-red-800 text-red-700 dark:text-red-300 rounded-md text-sm hover:bg-red-200 dark:hover:bg-red-700 transition-colors"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {stats.map((stat, i) => (
-            <StatCard key={stat.label} stat={stat} index={i} />
+            <StatCard key={stat.label} stat={stat} index={i} loading={loading} />
           ))}
         </div>
 
@@ -204,39 +462,65 @@ const DashboardPage = () => {
           </div>
         </div>
 
-        {/* Activity and Chart Section */}
+        {/* Activity Section */}
         <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
           
           {/* Terminal Log */}
           <div className="glass-card p-6 border border-[#c0c0c0] dark:border-[#8a8a8a] shadow-[0_0_28px_rgba(192,192,192,0.2)] dark:shadow-[0_0_28px_rgba(138,138,138,0.24)] flex flex-col min-h-[400px]">
-            <div className="flex items-center gap-2 mb-6 pb-4 border-b border-[#c0c0c0] dark:border-[#8a8a8a]">
-              <Terminal className="w-5 h-5 text-gray-500 dark:text-gray-400" />
-              <h2 className="text-xl font-bold tracking-widest uppercase text-gray-900 dark:text-gray-100">System Log</h2>
+            <div className="flex items-center justify-between mb-6 pb-4 border-b border-[#c0c0c0] dark:border-[#8a8a8a]">
+              <div className="flex items-center gap-2">
+                <Terminal className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                <h2 className="text-xl font-bold tracking-widest uppercase text-gray-900 dark:text-gray-100">System Log</h2>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500 font-mono">
+                  {activityLog.length} events
+                </span>
+                <button
+                  onClick={fetchActivity}
+                  className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
+                  title="Refresh activity"
+                >
+                  <RefreshCw className="w-4 h-4 text-gray-400" />
+                </button>
+              </div>
             </div>
             
             <div className="flex-1 overflow-y-auto pr-2 space-y-4 font-mono text-xl">
-              {activityLog.map((log, i) => (
-                <div
-                  key={log.id}
-                  className="flex gap-3 group animate-fadeIn"
-                  style={{ animationDelay: `${i * 0.1}s` }}
-                >
-                  <div className="w-28 text-base text-gray-500 dark:text-gray-400 pt-1 shrink-0 flex-none">{log.time}</div>
-                  <div className="flex flex-col flex-1 min-w-0">
-                    <span className={`text-lg break-words ${
-                      log.type === 'warning' ? 'text-amber-500' :
-                      log.type === 'success' ? 'text-emerald-500' :
-                      log.type === 'process' ? 'text-orange-500' :
-                      'text-gray-700 dark:text-gray-300'
-                    }`}>
-                      {log.type === 'warning' ? '⚠ ' : 
-                       log.type === 'success' ? '✓ ' :
-                       log.type === 'process' ? '⚙ ' : '> '}
-                      {log.message}
-                    </span>
-                  </div>
+              {loading ? (
+                <div className="flex items-center justify-center h-full">
+                  <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
                 </div>
-              ))}
+              ) : activityLog.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-gray-500">
+                  <Activity className="w-12 h-12 mb-2 opacity-50" />
+                  <p>No recent activity</p>
+                </div>
+              ) : (
+                activityLog.map((log, i) => (
+                  <div
+                    key={log.id}
+                    className="flex gap-3 group animate-fadeIn"
+                    style={{ animationDelay: `${i * 0.1}s` }}
+                  >
+                    <div className="w-28 text-base text-gray-500 dark:text-gray-400 pt-1 shrink-0 flex-none">
+                      {log.time}
+                    </div>
+                    <div className="flex flex-col flex-1 min-w-0">
+                      <span className={`text-lg break-words ${
+                        log.type === 'warning' ? 'text-amber-500' :
+                        log.type === 'success' ? 'text-emerald-500' :
+                        log.type === 'process' ? 'text-orange-500' :
+                        log.type === 'error' ? 'text-red-500' :
+                        'text-gray-700 dark:text-gray-300'
+                      }`}>
+                        {getActivityIcon(log.type)} {log.message}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -278,22 +562,36 @@ const DashboardPage = () => {
         }
 
         @keyframes fadeIn {
-          from {
-            opacity: 0;
-          }
-          to {
-            opacity: 1;
-          }
+          from { opacity: 0; }
+          to { opacity: 1; }
         }
 
         .animate-fadeIn {
           animation: fadeIn 0.3s ease-out forwards;
           opacity: 0;
         }
+
+        .micro-label {
+          font-size: 0.75rem;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          color: #6b7280;
+        }
+
         :global(.dark) .stat-number {
           color: #c0c0c0 !important;
           text-shadow: 0 0 10px rgba(192,192,192,0.95);
           transition: text-shadow 0.3s ease, color 0.3s ease;
+        }
+
+        .glass-card {
+          background: rgba(255, 255, 255, 0.9);
+          backdrop-filter: blur(10px);
+          border-radius: 12px;
+        }
+
+        .dark .glass-card {
+          background: rgba(17, 24, 39, 0.9);
         }
       `}</style>
     </div>
