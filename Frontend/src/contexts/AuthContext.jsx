@@ -2,8 +2,8 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 
 const AuthContext = createContext();
 
-// API base URL - Use environment variable if provided, otherwise default to relative path
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || '';
+// API base URL
+const API_BASE_URL = '';
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -155,18 +155,18 @@ const signup = async (userData) => {
       };
     }
 
-    // ✅ Auto-login on successful signup
-    if (data.token && data.user) {
+    // ✅ NEW: Auto-login on successful signup
+    if (data.success && data.data && data.data.token) {
       // Store token and user data
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
-      setUser(data.user);
+      localStorage.setItem('token', data.data.token);
+      localStorage.setItem('user', JSON.stringify(data.data.user));
+      setUser(data.data.user);
 
       console.log('✅ Signup successful - User auto-logged in');
       return { 
         success: true, 
         message: data.message || 'Signup successful. You are now logged in!',
-        user: data.user 
+        user: data.data.user 
       };
     }
 

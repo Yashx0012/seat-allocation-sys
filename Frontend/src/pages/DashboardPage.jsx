@@ -318,10 +318,7 @@ const DashboardPage = () => {
     setDownloading(true);
     setDownloadStatus('Starting download...');
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch('/api/download-report', {
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-      });
+      const res = await fetch('/api/download-report');
       if (!res.ok) throw new Error('No report available');
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);

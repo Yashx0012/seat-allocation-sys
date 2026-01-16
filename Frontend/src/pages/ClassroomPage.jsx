@@ -52,10 +52,7 @@ export default function ClassroomPage({ showToast }) {
   const fetchClassrooms = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch('/api/classrooms', {
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-      });
+      const res = await fetch('/api/classrooms');
       const data = await res.json();
       setClassrooms(data);
       if (selectedRoomId && selectedRoomId !== 'new') {
@@ -122,13 +119,9 @@ export default function ClassroomPage({ showToast }) {
 
     setSaving(true);
     try {
-      const token = localStorage.getItem('token');
       const res = await fetch('/api/classrooms', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          ...(token && { 'Authorization': `Bearer ${token}` })
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(roomData)
       });
 
@@ -156,10 +149,8 @@ export default function ClassroomPage({ showToast }) {
     if (!roomData.id || !window.confirm(`Delete "${roomData.name}"? This action cannot be undone.`)) return;
 
     try {
-      const token = localStorage.getItem('token');
       const res = await fetch(`/api/classrooms/${roomData.id}`, { 
-        method: 'DELETE',
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+        method: 'DELETE' 
       });
 
       const data = await res.json();

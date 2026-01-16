@@ -209,13 +209,9 @@ export const SessionProvider = ({ children }) => {
     }
 
     try {
-      const token = localStorage.getItem('token');
       const response = await fetch(
         `/api/sessions/${session.session_id}/finalize`,
-        { 
-          method: 'POST',
-          headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-        }
+        { method: 'POST' }
       );
 
       if (!response.ok) {

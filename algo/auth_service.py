@@ -1,5 +1,3 @@
-# Authentication service providing JWT-based security and user management.
-# Handles login, signup, role-based access control, and Google OAuth integration.
 import sqlite3
 import os
 import secrets
@@ -38,39 +36,9 @@ GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
 # ============================================================================
 # When a user signs in with Google using these emails, they get ADMIN role
 ADMIN_EMAILS = [
-    # Add admin emails here
+    "your-email@gmail.com",  # ← Add your admin email here
+    "admin@example.com",      # ← Add other admin emails
 ]
-
-def token_required(f):
-    """Decorator to require valid JWT token"""
-    from functools import wraps
-    from flask import request, jsonify
-    
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        token = None
-        if 'Authorization' in request.headers:
-            auth_header = request.headers['Authorization']
-            if auth_header.startswith('Bearer '):
-                token = auth_header.split(" ")[1]
-        
-        if not token:
-            return jsonify({'message': 'Token is missing!'}), 401
-            
-        try:
-            payload = verify_token(token)
-            if not payload:
-                return jsonify({'message': 'Token is invalid or expired!'}), 401
-            
-            # Set user info on request object
-            request.user_id = payload.get('user_id')
-            request.user_role = payload.get('role')
-        except Exception as e:
-            return jsonify({'message': f'Error verifying token: {str(e)}'}), 401
-            
-        return f(*args, **kwargs)
-    
-    return decorated
 
 def init_user_database():
     """Initializes the SQLite database and creates the users table."""
@@ -192,31 +160,6 @@ def get_user_by_email(email: str) -> Optional[Dict]:
         print(f"Auth DB Error: {e}")
     return None
 
-def get_user_by_id(user_id: int) -> Optional[Dict]:
-    """Get user by ID"""
-    try:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        cursor.execute(
-            "SELECT id, username, email, role, full_name, auth_provider FROM users WHERE id = ?", 
-            (user_id,)
-        )
-        user_data = cursor.fetchone()
-        conn.close()
-        
-        if user_data:
-            return {
-                "id": user_data[0],
-                "username": user_data[1],
-                "email": user_data[2],
-                "role": user_data[3],
-                "fullName": user_data[4],
-                "auth_provider": user_data[5]
-            }
-    except Exception as e:
-        print(f"Auth DB Error: {e}")
-    return None
-
 def get_user_by_google_id(google_id: str) -> Optional[Dict]:
     """Get user by Google ID"""
     try:
@@ -325,11 +268,11 @@ def login(email: str, password: str) -> Tuple[bool, Optional[Dict], str]:
     """Login user with email/password"""
     user = get_user_by_email(email)
     if not user:
-        return False, "Invalid email or password.", ""
+        return False, None, "Invalid email or password."
     
     # Check password
     if not user.get('password_hash'):
-        return False, "User registered via Google. Use Google sign-in.", ""
+        return False, None, "User registered via Google. Use Google sign-in."
     
     if bcrypt.checkpw(password.encode('utf-8'), user['password_hash'].encode('utf-8')):
         token = create_auth_token(user['id'], user['role'])
@@ -342,7 +285,7 @@ def login(email: str, password: str) -> Tuple[bool, Optional[Dict], str]:
         }
         return True, user_data, token
     else:
-        return False, "Invalid email or password.", ""
+        return False, None, "Invalid email or password."
 
 def update_user_profile(user_id: int, username: str = None, email: str = None) -> Tuple[bool, str]:
     """Update user profile (username and email only)"""

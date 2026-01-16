@@ -15,35 +15,26 @@ const GoogleLoginComponent = ({ showToast }) => {
         window.google.accounts.id.initialize({
           client_id: process.env.REACT_APP_GOOGLE_CLIENT_ID,
           callback: handleCredentialResponse,
-          ux_mode: 'popup',
-          auto_select: false,
-          // Help diagnose origin issues
-          context: 'signin',
-          itp_support: true,
+          ux_mode: 'popup', // 'popup' or 'redirect'
+          auto_select: false, // Don't auto-select
         });
 
-        // Log configuration for debugging (redacted sensitive parts)
-        console.log('🛠️ GSI Configured:', {
-          clientId: process.env.REACT_APP_GOOGLE_CLIENT_ID?.substring(0, 20) + '...',
-          origin: window.location.origin,
-          apiBase: process.env.REACT_APP_API_BASE_URL || '/'
-        });
-
+        // Render the Google Sign-In button
         window.google.accounts.id.renderButton(
           document.getElementById('google-signin-button'),
           {
-            theme: 'outline',
+            theme: 'outline', // 'outline' or 'filled_blue'
             size: 'large',
             width: '100%',
-            text: 'signin_with',
+            text: 'signin_with', // 'signin_with', 'signup_with', 'signin', 'signup'
             locale: 'en',
           }
         );
 
-        console.log('✅ Google Sign-In button rendered');
+        console.log('✅ Google Sign-In initialized');
       } catch (error) {
         console.error('❌ Google initialization error:', error);
-        showToast('Google Sign-In initialization failed. Check Console for details.', 'error');
+        showToast('Google Sign-In not available', 'error');
       }
     } else {
       console.warn('⚠️ Google API not loaded. Check if script tag is in public/index.html');

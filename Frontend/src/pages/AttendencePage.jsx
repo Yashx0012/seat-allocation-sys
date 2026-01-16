@@ -39,10 +39,7 @@ const AttendancePage = ({ showToast }) => {
   const fetchBatchData = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`/api/plan-batches/${planId}`, {
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-      });
+      const response = await fetch(`/api/plan-batches/${planId}`);
       if (!response.ok) throw new Error("Could not load plan data.");
       
       const data = await response.json();
