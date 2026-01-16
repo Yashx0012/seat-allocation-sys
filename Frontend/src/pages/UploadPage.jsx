@@ -38,7 +38,10 @@ const UploadPage = ({ showToast }) => {
 
   const fetchSessionUploads = async (sessionId) => {
     try {
-      const response = await fetch(`/api/sessions/${sessionId}/uploads`);
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/sessions/${sessionId}/uploads`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
       const data = await response.json();
       
       if (data.success && data.uploads) {
@@ -176,11 +179,15 @@ const UploadPage = ({ showToast }) => {
 
     try {
       const upload_ids = uploadedBatches.map(b => b.upload_id);
+      const token = localStorage.getItem('token');
       
       // Try normal session start
       let response = await fetch('/api/sessions/start', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            ...(token && { 'Authorization': `Bearer ${token}` })
+          },
           body: JSON.stringify({ upload_ids })
       });
 
@@ -191,7 +198,10 @@ const UploadPage = ({ showToast }) => {
           if (window.confirm('An active session exists. Force start new session? (This will expire the old one)')) {
               response = await fetch('/api/sessions/force-new', {
                   method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
+                  headers: { 
+                    'Content-Type': 'application/json',
+                    ...(token && { 'Authorization': `Bearer ${token}` })
+                  },
                   body: JSON.stringify({ upload_ids })
               });
               

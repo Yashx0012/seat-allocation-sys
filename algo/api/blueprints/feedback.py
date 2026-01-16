@@ -1,0 +1,124 @@
+import logging
+import sqlite3
+from datetime import datetime
+from flask import Blueprint, request, jsonify, current_app
+from algo.database.db import get_db_connection
+from algo.auth_service import token_required
+
+feedback_bp = Blueprint('feedback', __name__)
+logger = logging.getLogger(__name__)
+
+@feedback_bp.route("/api/feedback", methods=["POST"])
+@token_required
+def submit_feedback():
+    """
+    Submit user feedback with optional file attachment.
+    """
+    try:
+        issue_type = request.form.get('issueType')
+        raw_priority = request.form.get('priority')
+        description = request.form.get('description')
+        feature_suggestion = request.form.get('featureSuggestion', '')
+        additional_info = request.form.get('additionalInfo', '')
+        
+        # Map frontend labels to database constraints
+        priority_map = {
+            'High Priority': 'high',
+            'Medium Priority': 'medium',
+            'Low Priority': 'low',
+            'Critical': 'critical'
+        }
+        priority = priority_map.get(raw_priority, raw_priority.lower() if raw_priority else 'medium')
+
+        if not all([issue_type, priority, description]):
+            return jsonify({"error": "Missing required fields"}), 400
+        
+        # Handle file upload
+        file_path = None
+        file_name = None
+        if 'file' in request.files:
+            file = request.files['file']
+            if file and file.filename:
+                try:
+                    feedback_folder = current_app.config.get('FEEDBACK_FOLDER')
+                    if not feedback_folder:
+                         from pathlib import Path
+                         feedback_folder = Path(current_app.root_path).parent / "feedback_files"
+                    
+                    feedback_folder.mkdir(exist_ok=True, parents=True)
+                    timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+                    safe_filename = f"{timestamp}_{file.filename}"
+                    target_path = feedback_folder / safe_filename
+                    file.save(str(target_path))
+                    file_path = str(target_path)
+                    file_name = file.filename
+                except Exception as file_error:
+                    logger.error(f"File upload error: {file_error}")
+        
+        user_id = getattr(request, 'user_id', 1)
+        
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        cur.execute("""
+            INSERT INTO feedback (
+                user_id, issue_type, priority, description,
+                feature_suggestion, additional_info, file_path, file_name
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            user_id, issue_type, priority, description,
+            feature_suggestion, additional_info,
+            file_path, file_name
+        ))
+        
+        feedback_id = cur.lastrowid
+        conn.commit()
+        conn.close()
+        
+        logger.info(f"📝 Feedback submitted: ID={feedback_id}, User={user_id}, Priority={priority}")
+        
+        return jsonify({
+            "success": True,
+            "message": "Feedback submitted successfully",
+            "feedback_id": feedback_id
+        }), 201
+        
+    except Exception as e:
+        logger.error(f"Feedback submission error: {str(e)}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@feedback_bp.route("/api/feedback", methods=["GET"])
+@token_required
+def get_user_feedback():
+    """
+    Get feedback submitted by current user.
+    """
+    try:
+        user_id = getattr(request, 'user_id', None)
+        if not user_id:
+            return jsonify({"error": "User not authenticated"}), 401
+        
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        cur.execute("""
+            SELECT id, issue_type, priority, description,
+                   feature_suggestion, additional_info, file_name,
+                   status, created_at, resolved_at, admin_response
+            FROM feedback
+            WHERE user_id = ?
+            ORDER BY created_at DESC
+        """, (user_id,))
+        
+        feedback_list = [dict(row) for row in cur.fetchall()]
+        conn.close()
+        
+        return jsonify({
+            "success": True,
+            "feedback": feedback_list
+        })
+        
+    except Exception as e:
+        logger.error(f"Get feedback error: {str(e)}")
+        return jsonify({"error": str(e)}), 500

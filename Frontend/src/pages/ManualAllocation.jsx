@@ -90,9 +90,13 @@ const ManualAllocation = ({ showToast }) => {
         };
         
         try {
+            const token = localStorage.getItem('token');
             const response = await fetch('/api/manual-generate-seating', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    ...(token && { 'Authorization': `Bearer ${token}` })
+                },
                 body: JSON.stringify(payload)
             });
             const data = await response.json();
@@ -110,9 +114,13 @@ const ManualAllocation = ({ showToast }) => {
     const handleDownloadPdf = async () => {
         setIsPdfGenerating(true);
         try {
+            const token = localStorage.getItem('token');
             const response = await fetch('api/generate-pdf', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    ...(token && { 'Authorization': `Bearer ${token}` })
+                },
                 body: JSON.stringify(seatingData)
             });
             const blob = await response.blob();

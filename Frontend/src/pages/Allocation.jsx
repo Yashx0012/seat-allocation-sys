@@ -77,7 +77,10 @@ const AllocationPage = ({ showToast }) => {
   useEffect(() => {
     const loadSession = async () => {
       try {
-        const res = await fetch('/api/sessions/active');
+        const token = localStorage.getItem('token');
+        const res = await fetch('/api/sessions/active', {
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+        });
         const data = await res.json();
         
         if (data.success && data.session_data) {
@@ -103,7 +106,10 @@ const AllocationPage = ({ showToast }) => {
     
     setLoadingBatches(true);
     try {
-      const res = await fetch(`/api/sessions/${sessionId}/uploads`);
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/sessions/${sessionId}/uploads`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
       const data = await res.json();
       
       if (data.success && Array.isArray(data.uploads)) {
@@ -120,7 +126,10 @@ const AllocationPage = ({ showToast }) => {
 
   // Load classrooms
   useEffect(() => {
-    fetch('/api/classrooms')
+    const token = localStorage.getItem('token');
+    fetch('/api/classrooms', {
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+    })
       .then(res => res.json())
       .then(data => setClassrooms(Array.isArray(data) ? data : []))
       .catch(err => {
@@ -273,9 +282,13 @@ const AllocationPage = ({ showToast }) => {
     
     setLoading(true);
     try {
+      const token = localStorage.getItem('token');
       const res = await fetch("/api/generate-seating", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        },
         body: JSON.stringify(preparePayload())
       });
       const data = await res.json();
@@ -305,11 +318,15 @@ const AllocationPage = ({ showToast }) => {
 
     setLoading(true);
     try {
+      const token = localStorage.getItem('token');
       const res = await fetch(
         `/api/sessions/${session.session_id}/allocate-room`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            ...(token && { 'Authorization': `Bearer ${token}` })
+          },
           body: JSON.stringify({
             classroom_id: parseInt(selectedRoomId, 10),
             room_no: selectedRoomName || 'UnKnown', // <--- ADD THIS LINE
@@ -321,7 +338,9 @@ const AllocationPage = ({ showToast }) => {
       if (!res.ok) throw new Error(data.error || "Allocation failed");
 
       // Refresh session
-      const sessionRes = await fetch('/api/sessions/active');
+      const sessionRes = await fetch('/api/sessions/active', {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
       const sessionData = await sessionRes.json();
       if (sessionData.success) {
         setSession(sessionData.session_data);
@@ -359,14 +378,20 @@ const AllocationPage = ({ showToast }) => {
 
     setUndoing(true);
     try {
+      const token = localStorage.getItem('token');
       const res = await fetch(
         `/api/sessions/${session.session_id}/undo`,
-        { method: 'POST' }
+        { 
+          method: 'POST',
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+        }
       );
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
 
-      const sessionRes = await fetch('/api/sessions/active');
+      const sessionRes = await fetch('/api/sessions/active', {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
       const sessionData = await sessionRes.json();
       if (sessionData.success) {
         setSession(sessionData.session_data);
@@ -410,9 +435,13 @@ const AllocationPage = ({ showToast }) => {
 
     setLoading(true);
     try {
+      const token = localStorage.getItem('token');
       const res = await fetch(
         `/api/sessions/${session.session_id}/finalize`, 
-        { method: 'POST' }
+        { 
+          method: 'POST',
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+        }
       );
       const data = await res.json();
       
@@ -461,7 +490,10 @@ const AllocationPage = ({ showToast }) => {
   const fetchStats = async () => {
     if (!session?.session_id) return;
     try {
-      const res = await fetch(`/api/sessions/${session.session_id}/stats`);
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/sessions/${session.session_id}/stats`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.error);
       setStats(data.stats);
@@ -481,11 +513,15 @@ const AllocationPage = ({ showToast }) => {
     }
     setPdfLoading(true);
     try {
+      const token = localStorage.getItem('token');
       const payload = preparePayload();
       payload.seating = webData.seating;
       const res = await fetch('/api/generate-pdf', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        },
         body: JSON.stringify(payload)
       });
       if (!res.ok) throw new Error('Server failed');

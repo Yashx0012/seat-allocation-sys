@@ -13,7 +13,6 @@ import {
   MessageSquare,
   Info,
   FileEdit,
-  ClipboardList,
   Plus
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -66,8 +65,8 @@ const Navbar = () => {
         transition={{ duration: 0.5, ease: 'easeOut' }}
         className="sticky top-0 z-40 hidden md:block"
       >
-        <div className="w-[95%] max-w-7xl mx-auto pt-4">
-          <div className="glass-card backdrop-blur-md rounded-2xl px-6 h-20 flex items-center justify-between shadow-lg border border-[#c0c0c0] dark:border-[#8a8a8a] font-sans">
+        <div className="w-[95%] max-w-7xl mx-auto pt-4 transition-all duration-500">
+          <div className="bg-white/30 dark:bg-black/20 backdrop-blur-2xl rounded-2xl px-6 h-20 flex items-center justify-between shadow-2xl shadow-black/5 border border-white/40 dark:border-white/10 font-sans">
           {/* Logo */}
           <div
             className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
@@ -182,7 +181,7 @@ const Navbar = () => {
         initial={{ y: -100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.5, ease: 'easeOut' }}
-        className="sticky top-0 z-40 w-full md:hidden bg-white/40 dark:bg-phantom-black/40 border-b border-[#c0c0c0] dark:border-[#8a8a8a] shadow-md font-sans backdrop-blur-md"
+        className="sticky top-0 z-40 w-full md:hidden bg-white/30 dark:bg-phantom-black/20 border-b border-white/20 dark:border-white/10 shadow-xl font-sans backdrop-blur-xl"
       >
         <div className="px-4 h-16 flex items-center justify-between">
           {/* Logo */}
@@ -241,7 +240,7 @@ const Navbar = () => {
           initial={false}
           animate={mobileMenuOpen ? { opacity: 1, height: 'auto' } : { opacity: 0, height: 0 }}
           transition={{ duration: 0.3 }}
-          className="bg-white/40 dark:bg-phantom-black/40 border-t border-gray-200/40 dark:border-gray-700/40 overflow-hidden backdrop-blur-md"
+          className="bg-white/60 dark:bg-phantom-black/40 border-t border-white/10 dark:border-white/5 overflow-hidden backdrop-blur-2xl"
         >
           <div className="px-4 py-4 space-y-2">
             {user ? (

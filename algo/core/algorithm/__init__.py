@@ -1,0 +1,1 @@
+from .seating import SeatingAlgorithm
