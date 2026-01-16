@@ -225,7 +225,7 @@ def generate_seating():
             num_batches=num_batches,
             block_width=int(data.get("block_width", 2)),
             batch_by_column=bool(data.get("batch_by_column", True)),
-            enforce_no_adjacent_batches=bool(data.get("enforce_no_adjacent_batches", False)),
+            randomize_column=bool(data.get("randomize_column", False)),
             broken_seats=broken_seats,
             batch_student_counts=counts,
             batch_roll_numbers=rolls,
@@ -261,6 +261,12 @@ def generate_seating():
         
         # Validate
         ok, errors = algo.validate_constraints()
+        
+        # Merge init_errors into validation errors for visibility
+        if algo.init_errors:
+            errors = algo.init_errors + errors
+            ok = False # Critical initialization errors should invalidate the plan
+            
         web["validation"] = {"is_valid": ok, "errors": errors}
         
         # Cache result
@@ -367,7 +373,7 @@ def manual_generate_seating():
             num_batches=num_batches,
             block_width=int(data.get("block_width", 3)),
             batch_by_column=bool(data.get("batch_by_column", True)),
-            enforce_no_adjacent_batches=bool(data.get("enforce_no_adjacent_batches", False)),
+            randomize_column=bool(data.get("randomize_column", False)),
             broken_seats=broken_seats,
             batch_student_counts=counts,
             batch_roll_numbers={},
@@ -416,7 +422,7 @@ def constraints_status():
             num_batches=int(data.get("num_batches", 3)),
             block_width=int(data.get("block_width", 2)),
             batch_by_column=bool(data.get("batch_by_column", True)),
-            enforce_no_adjacent_batches=bool(data.get("enforce_no_adjacent_batches", False))
+            randomize_column=bool(data.get("randomize_column", False))
         )
         
         algo.generate_seating()

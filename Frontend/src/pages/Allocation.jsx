@@ -5,7 +5,7 @@ import {
   Users, Layout, MapPin, Download, Play, Monitor, 
   Loader2, AlertCircle, RefreshCw, CheckCircle2,
   Trash2, Flame, UserCheck, Undo2, BarChart3,
-  ArrowRight, AlertTriangle, Info, X
+  ArrowRight, AlertTriangle, Info, X, ShieldCheck, XCircle
 } from 'lucide-react';
 
 const Card = ({ className, children, ref }) => <div ref={ref} className={`glass-card ${className}`}>{children}</div>;
@@ -33,6 +33,57 @@ const Input = (props) => (
   />
 );
 
+const ConstraintIndicator = ({ constraints, validation }) => {
+  if (!constraints) return null;
+  
+  return (
+    <div className="flex flex-col gap-2 mt-4">
+      <div className="grid grid-cols-2 gap-2">
+      {constraints.map((c, i) => (
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: i * 0.05 }}
+          key={i} 
+          className={`p-3 rounded-xl border-2 flex items-start gap-3 ${
+            c.satisfied 
+              ? 'bg-emerald-50/50 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-900/30' 
+              : 'bg-red-50/50 dark:bg-red-900/10 border-red-100 dark:border-red-900/30'
+          }`}
+        >
+          <div className={`mt-0.5 p-1.5 rounded-lg ${c.satisfied ? 'bg-emerald-100 dark:bg-emerald-800/40 text-emerald-600' : 'bg-red-100 dark:bg-red-800/40 text-red-600'}`}>
+            {c.satisfied ? <ShieldCheck size={14} /> : <AlertTriangle size={14} />}
+          </div>
+          <div>
+            <div className="text-[10px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-0.5">{c.name}</div>
+            <div className={`text-xs font-bold ${c.satisfied ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400'}`}>
+              {c.satisfied ? 'Constraint Satisfied' : 'Violation Detected'}
+            </div>
+          </div>
+        </motion.div>
+      ))}
+      </div>
+      
+      {validation && !validation.is_valid && validation.errors && validation.errors.length > 0 && (
+        <div className="p-3 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 rounded-lg flex gap-2 items-start mt-2">
+          <XCircle className="text-red-500 shrink-0 mt-0.5" size={18} />
+          <div>
+            <h4 className="text-sm font-black text-red-800 dark:text-red-300 uppercase tracking-tight">Critical Algorithm Warnings</h4>
+            <ul className="mt-1 space-y-1">
+              {validation.errors.map((err, idx) => (
+                <li key={idx} className="text-xs font-bold text-red-700 dark:text-red-400 flex items-center gap-1.5">
+                  <div className="w-1 h-1 bg-red-500 rounded-full" />
+                  {err}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const AllocationPage = ({ showToast }) => {
   const navigate = useNavigate();
 
@@ -52,7 +103,7 @@ const AllocationPage = ({ showToast }) => {
   
   // Layout options
   const [batchByColumn, setBatchByColumn] = useState(true);
-  const [enforceNoAdjacentBatches, setEnforceNoAdjacentBatches] = useState(false);
+  const [randomizeColumn, setRandomizeColumn] = useState(false);
 
   // Batch selection for this room
   const [numBatchesToAllocate, setNumBatchesToAllocate] = useState(1);
@@ -253,7 +304,7 @@ const AllocationPage = ({ showToast }) => {
       broken_seats: parseBrokenSeats(),
       num_batches: selectedBatchesData.length,
       batch_by_column: batchByColumn,
-      enforce_no_adjacent_batches: enforceNoAdjacentBatches,
+      randomize_column: randomizeColumn,
       use_demo_db: true,
       batch_student_counts: batchCounts,
       batch_labels: batchLabels,
@@ -839,12 +890,12 @@ const AllocationPage = ({ showToast }) => {
                 <label className="flex items-center gap-3 text-sm font-bold text-gray-700 dark:text-gray-300 cursor-pointer hover:text-orange-600 dark:hover:text-orange-400 transition-colors">
                   <input 
                     type="checkbox" 
-                    checked={enforceNoAdjacentBatches} 
-                    onChange={e => setEnforceNoAdjacentBatches(e.target.checked)} 
+                    checked={randomizeColumn} 
+                    onChange={e => setRandomizeColumn(e.target.checked)} 
                     className="w-5 h-5 rounded border-2 border-gray-300 text-orange-600 focus:ring-2 focus:ring-orange-500"
                   />
-                  <MapPin size={16} className="text-orange-500" />
-                  Enforce Batch Gap
+                  <RefreshCw size={16} className="text-orange-500" />
+                  Randomize Within Column
                 </label>
               </div>
 
@@ -854,6 +905,14 @@ const AllocationPage = ({ showToast }) => {
                   {resetting ? 'Resetting...' : 'Reset All Data'}
                 </Button>
               </div>
+
+              {/* ALGORITHM STATUS */}
+              {webData && webData.constraints_status && (
+                <ConstraintIndicator 
+                  constraints={webData.constraints_status.constraints} 
+                  validation={webData.validation}
+                />
+              )}
             </div>
 
             {/* BUTTONS FOOTER */}
@@ -984,68 +1043,83 @@ const AllocationPage = ({ showToast }) => {
                 <p className="text-xs mt-2 text-gray-400">Select classroom and batches, then click Generate</p>
               </div>
             ) : (
-              <div className="flex-1 bg-gray-50 dark:bg-gray-950 p-10 overflow-auto custom-scrollbar relative z-10 rounded-xl">
-                {Array.isArray(webData.seating) && (
-                  <div className="grid gap-3 mx-auto" style={{ gridTemplateColumns: `repeat(${cols}, minmax(120px, 1fr))`, width: 'fit-content' }}>
-                    {webData.seating.map((row, rIdx) => 
-                      Array.isArray(row) && row.map((seat, cIdx) => {
-                        const seatIndex = rIdx * cols + cIdx + 1;
-                        const isBroken = seat?.is_broken;
-                        const isAllocated = !isBroken && !seat?.is_unallocated;
-                        const deskRow = rIdx + 1;
-                        const deskCol = cIdx + 1;
-                        return (
-                          <motion.div
-                            key={`${rIdx}-${cIdx}`}
-                            initial={{ opacity: 0, scale: 0.85, y: 20 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            transition={{ delay: (rIdx * cols + cIdx) * 0.003, type: "spring", stiffness: 300, damping: 24 }}
-                            className={`relative flex flex-col items-center justify-between p-3 transition-all duration-200 border-2 rounded-xl bg-white dark:bg-gray-900 shadow-sm hover:shadow-md min-h-[120px] group cursor-pointer ${
-                              isBroken 
-                                ? 'border-red-200 bg-red-50/20 dark:bg-red-900/10' 
-                                : isAllocated 
-                                  ? 'border-gray-200 dark:border-gray-800 hover:border-orange-400 hover:scale-[1.02]' 
-                                  : 'border-dashed border-gray-200 dark:border-gray-800 opacity-40'
-                            }`}
-                          >
-                            {isAllocated && (
-                              <div className="absolute top-0 inset-x-0 h-1.5 rounded-t-xl" style={{ backgroundColor: seat.color }} />
-                            )}
-                            {isAllocated ? (
-                              <>
-                                <span className="text-[9px] font-extrabold text-gray-400 dark:text-gray-500 uppercase tracking-tighter">
-                                  {seat.batch_label || `B-${seat.batch}`}
-                                </span>
-                                <span className="text-lg font-black text-gray-900 dark:text-white leading-none my-2 group-hover:text-orange-600 transition-colors">
-                                  {seat.roll_number}
-                                </span>
-                                <div className="w-full flex justify-between items-center gap-1.5 pt-2 border-t border-gray-100 dark:border-gray-800 mt-auto">
-                                  <div className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
-                                    <span className="text-[8px] font-mono font-bold text-gray-600 dark:text-gray-400">SET: {seat.paper_set || 'A'}</span>
-                                  </div>
-                                  <div className="px-1.5 py-0.5 rounded bg-orange-50 dark:bg-orange-900/30 border border-orange-200 dark:border-orange-700">
-                                    <span className="text-[8px] font-mono font-bold text-orange-600 dark:text-orange-400">
-                                      {deskRow}-{deskCol}
-                                    </span>
-                                  </div>
-                                </div>
-                              </>
-                            ) : isBroken ? (
-                              <div className="flex flex-col items-center justify-center h-full">
-                                <AlertCircle className="w-5 h-5 text-red-400 mb-1" />
-                                <span className="text-[10px] font-bold text-red-500 uppercase">Broken</span>
-                              </div>
-                            ) : (
-                              <div className="flex items-center justify-center h-full">
-                                <span className="text-xs font-mono text-gray-300 dark:text-gray-700">{seatIndex}</span>
-                              </div>
-                            )}
-                          </motion.div>
-                        );
-                      })
-                    )}
-                  </div>
-                )}
+              <div className="flex-1 bg-gray-50 dark:bg-gray-950 p-6 md:p-10 overflow-auto custom-scrollbar relative z-10 rounded-xl">
+                {Array.isArray(webData.seating) && (() => {
+                  const bw = webData?.metadata?.block_width || blockWidth;
+                  const columnStyles = [];
+                  for(let i = 0; i < cols; i++) {
+                    columnStyles.push('minmax(160px, 1fr)');
+                    if ((i + 1) % bw === 0 && (i + 1) !== cols) {
+                      columnStyles.push('40px'); // Aisle gap
+                    }
+                  }
+                  
+                  return (
+                    <div className="grid gap-3 mx-auto" style={{ gridTemplateColumns: columnStyles.join(' '), width: 'fit-content' }}>
+                      {webData.seating.map((row, rIdx) => 
+                        Array.isArray(row) && row.map((seat, cIdx) => (
+                          <React.Fragment key={`${rIdx}-${cIdx}`}>
+                            {(() => {
+                              const seatIndex = rIdx * cols + cIdx + 1;
+                              const isBroken = seat?.is_broken;
+                              const isAllocated = !isBroken && !seat?.is_unallocated;
+                              const deskRow = rIdx + 1;
+                              const deskCol = cIdx + 1;
+                              return (
+                                <motion.div
+                                  initial={{ opacity: 0, scale: 0.85, y: 20 }}
+                                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                                  transition={{ delay: (rIdx * cols + cIdx) * 0.003, type: "spring", stiffness: 300, damping: 24 }}
+                                  className={`relative flex flex-col items-center justify-between p-4 transition-all duration-200 border-2 rounded-xl bg-white dark:bg-gray-900 shadow-sm hover:shadow-md min-h-[140px] w-full group cursor-pointer ${
+                                    isBroken 
+                                      ? 'border-red-200 bg-red-50/20 dark:bg-red-900/10' 
+                                      : isAllocated 
+                                        ? 'border-gray-200 dark:border-gray-800 hover:border-orange-400 hover:scale-[1.02]' 
+                                        : 'border-dashed border-gray-200 dark:border-gray-800 opacity-40'
+                                  }`}
+                                >
+                                  {isAllocated && (
+                                    <div className="absolute top-0 inset-x-0 h-1.5 rounded-t-xl" style={{ backgroundColor: seat.color }} />
+                                  )}
+                                  {isAllocated ? (
+                                    <>
+                                      <span className="text-[11px] font-extrabold text-gray-400 dark:text-gray-500 uppercase tracking-tighter">
+                                        {seat.batch_label || `B-${seat.batch}`}
+                                      </span>
+                                      <span className="text-lg font-black text-gray-900 dark:text-white leading-tight my-3 group-hover:text-orange-600 transition-colors text-center whitespace-nowrap w-full px-1">
+                                        {seat.roll_number}
+                                      </span>
+                                      <div className="w-full flex justify-between items-center gap-1.5 pt-2 border-t border-gray-100 dark:border-gray-800 mt-auto">
+                                        <div className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+                                          <span className="text-xs font-mono font-extrabold text-gray-600 dark:text-gray-400 uppercase">SET: {seat.paper_set || 'A'}</span>
+                                        </div>
+                                        <div className="px-1.5 py-0.5 rounded bg-orange-50 dark:bg-orange-900/30 border border-orange-200 dark:border-orange-700">
+                                          <span className="text-[10px] font-mono font-bold text-orange-600 dark:text-orange-400">
+                                            {deskRow}-{deskCol}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </>
+                                  ) : isBroken ? (
+                                    <div className="flex flex-col items-center justify-center h-full">
+                                      <AlertCircle className="w-5 h-5 text-red-400 mb-1" />
+                                      <span className="text-[10px] font-bold text-red-500 uppercase">Broken</span>
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center justify-center h-full">
+                                      <span className="text-xs font-mono text-gray-300 dark:text-gray-700">{seatIndex}</span>
+                                    </div>
+                                  )}
+                                </motion.div>
+                              );
+                            })()}
+                            {(cIdx + 1) % bw === 0 && (cIdx + 1) !== cols && <div key={`spacer-${rIdx}-${cIdx}`} className="w-10" />}
+                          </React.Fragment>
+                        ))
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             )}
           </Card>

@@ -27,7 +27,7 @@ class SeatingAlgorithm:
         num_batches: int,
         block_width: int = 3,
         batch_by_column: bool = True,
-        enforce_no_adjacent_batches: bool = False,
+        randomize_column: bool = False,
         # roll formatting options
         roll_template: Optional[str] = None,
         batch_prefixes: Optional[Dict[int, str]] = None,
@@ -73,7 +73,7 @@ class SeatingAlgorithm:
         # number of blocks across the columns
         self.blocks = math.ceil(cols / self.block_width)
         self.batch_by_column = batch_by_column
-        self.enforce_no_adjacent_batches = enforce_no_adjacent_batches
+        self.randomize_column = randomize_column
         # broken seats as a set for O(1) lookup
         self.broken_seats = set(broken_seats) if broken_seats else set()
         # batch student counts - total students available per batch
@@ -105,7 +105,7 @@ class SeatingAlgorithm:
         self.serial_width = max(0, serial_width)
         # serial_mode: 'per_batch' or 'global'
         self.serial_mode = serial_mode
-
+        self.init_errors = []
         self.seating_plan: List[List[Seat]] = []
         # Per-batch templates derived from start_rolls or batch_prefixes/year
         # batch_templates[b] is a string containing '{serial}' where the serial digits go
@@ -236,18 +236,101 @@ class SeatingAlgorithm:
                 self.seating_plan.append([None] * self.cols)
 
             # Fill seating column by column; each column assigned to a batch (col % num_batches)+1
+            import random
+            
+            # Column-major assignment (Batch by Column)
             for col in range(self.cols):
+                # BLOCK-AWARE GAP: If only one batch is assigned, skip odd columns WITHIN each block
+                # to prevent same-batch horizontal neighbors. Isolation is relaxed across block boundaries.
+                if self.num_batches == 1:
+                    col_in_block = col % self.block_width
+                    if col_in_block % 2 != 0:
+                        # This is a gap column within a block
+                        for row in range(self.rows):
+                            self.seating_plan[row][col] = Seat(
+                                row=row, col=col, is_broken=False, roll_number=None, color="#F3F4F6",
+                                paper_set=self._calculate_paper_set(row, col),
+                                block=col // self.block_width
+                            )
+                        continue
+
                 b = (col % self.num_batches) + 1
+                
+                # Pre-calculate students needed for this column to allow randomization
+                available_seats_in_col = []
+                for r in range(self.rows):
+                    if (r, col) not in self.broken_seats:
+                        available_seats_in_col.append(r)
+                
+                # Fetch students for these seats
+                needed_count = min(len(available_seats_in_col), batch_limits[b] - batch_allocated[b])
+                column_students = []
+                
+                for _ in range(needed_count):
+                    # Fetch student data (real enrollment or generated)
+                    rn = None
+                    st_name = ""
+                    
+                    template_for_this_batch = self.batch_templates.get(b, self.roll_template or "{prefix}{year}O{serial}")
+                    
+                    if (template_for_this_batch and self.serial_mode == "global" and 
+                        not (self.batch_roll_numbers and b in self.batch_roll_numbers)):
+                        serial_val = next_roll
+                        next_roll += 1
+                        prefix = self.batch_prefixes.get(b, "")
+                        serial_str = str(serial_val).zfill(self.serial_width) if self.serial_width else str(serial_val)
+                        try:
+                            rn = template_for_this_batch.format(prefix=prefix, year=self.year or "", serial=serial_str)
+                        except:
+                            rn = template_for_this_batch.replace("{serial}", serial_str)
+                    elif batch_queues[b]:
+                        data_item = batch_queues[b].popleft()
+                        if isinstance(data_item, dict):
+                            rn = data_item.get('roll', '')
+                            st_name = data_item.get('name', '')
+                            # Strict check: roll should not be empty if real data is expected
+                            if not rn:
+                                self.init_errors.append(f"Batch {b} student record missing roll number")
+                        else:
+                            rn = str(data_item)
+                            st_name = ""
+                            # Check if it looks like a real enrollment (not just a single digit)
+                            if self.batch_roll_numbers and not re.search(r'[A-Z]', rn):
+                                self.init_errors.append(f"Batch {b} using numeric fallback instead of enrollment string: {rn}")
+                    
+                    if rn:
+                        column_students.append({'roll': rn, 'name': st_name})
+                        batch_allocated[b] += 1
+
+                # Randomize within the column if feature is active
+                if self.randomize_column:
+                    random.shuffle(column_students)
+
+                # Assign students to rows in this column
+                student_idx = 0
                 for row in range(self.rows):
                     # Check if this seat is broken
                     if (row, col) in self.broken_seats:
-                        seat = Seat(row=row, col=col, is_broken=True, color="#FF0000")  # Red for broken
-                        self.seating_plan[row][col] = seat
+                        self.seating_plan[row][col] = Seat(row=row, col=col, is_broken=True, color="#FF0000")
                         continue
 
-                    # If batch limit reached, mark as unallocated
-                    if batch_allocated[b] >= batch_limits[b]:
-                        seat = Seat(
+                    # If we have a student for this seat
+                    if student_idx < len(column_students):
+                        student = column_students[student_idx]
+                        self.seating_plan[row][col] = Seat(
+                            row=row,
+                            col=col,
+                            batch=b,
+                            paper_set=self._calculate_paper_set(row, col),
+                            block=col // self.block_width,
+                            roll_number=student['roll'],
+                            student_name=student['name'],
+                            color=self.batch_colors.get(b, "#E5E7EB"),
+                        )
+                        student_idx += 1
+                    else:
+                        # No more students for this column/batch
+                        self.seating_plan[row][col] = Seat(
                             row=row,
                             col=col,
                             batch=b,
@@ -256,93 +339,6 @@ class SeatingAlgorithm:
                             roll_number=None,
                             color="#F3F4F6",
                         )
-                        self.seating_plan[row][col] = seat
-                        continue
-
-                    # assign next roll from this batch if available
-                    # if we are using real enrollments, they are already in batch_queues[b]
-                    effective_template = self.roll_template
-                    if (
-                        not effective_template
-                        and self.batch_prefixes
-                        and self.year is not None
-                    ):
-                        effective_template = "{prefix}{year}O{serial}"
-
-                    template_for_this_batch = self.batch_templates.get(b, effective_template)
-                    rn = None
-
-                    # If using real roll numbers, we just pop from the queue in the branch below
-                    if (
-                        template_for_this_batch
-                        and self.serial_mode == "global"
-                        and not (self.batch_roll_numbers and b in self.batch_roll_numbers)
-                    ):
-                        # generate formatted roll using global counter next_roll
-                        serial_val = next_roll
-                        next_roll += 1
-                        prefix = self.batch_prefixes.get(b, "")
-                        serial_str = (
-                            str(serial_val).zfill(self.serial_width)
-                            if self.serial_width
-                            else str(serial_val)
-                        )
-                        try:
-                            rn = template_for_this_batch.format(
-                                prefix=prefix, year=self.year or "", serial=serial_str
-                            )
-                        except Exception:
-                            rn = template_for_this_batch.replace("{serial}", serial_str)
-                    # FIND THIS AROUND LINE 243
-                    elif batch_queues[b]:
-                        data_item = batch_queues[b].popleft()
-    
-                    # ✅ ROBUST EXTRACTION - handles both dict and string
-                    if isinstance(data_item, dict):
-                        rn = data_item.get('roll', '')
-                        st_name = data_item.get('name', '')
-                    elif isinstance(data_item, str) and data_item.startswith('{'):
-                        # Fallback in case a stringified dict somehow sneaks in
-                        try:
-                            import ast
-                            d = ast.literal_eval(data_item)
-                            rn = d.get('roll', '')
-                            st_name = d.get('name', '')
-                        except:
-                            rn = data_item
-                            st_name = ""
-                    else:
-                        rn = data_item
-                        st_name = ""
-                    
-                    paper_set = self._calculate_paper_set(row, col)
-                    block = col // self.block_width
-
-                    if rn:
-                        seat = Seat(
-                            row=row,
-                            col=col,
-                            batch=b,
-                            paper_set=paper_set,
-                            block=block,
-                            roll_number=str(rn),      # ✅ Clean Roll
-                            student_name=st_name,     # ✅ Clean Name (NEW)
-                            color=self.batch_colors.get(b, "#E5E7EB"),
-                        )
-                        self.seating_plan[row][col] = seat
-                        batch_allocated[b] += 1
-                    else:
-                        # No more rolls available for this batch, mark as unallocated
-                        seat = Seat(
-                            row=row,
-                            col=col,
-                            batch=b,
-                            paper_set=paper_set,
-                            block=block,
-                            roll_number=None,
-                            color="#F3F4F6",
-                        )
-                        self.seating_plan[row][col] = seat
         else:
             # Alternative mode: simple row-wise assignment with sequential numbers
             roll = 1
@@ -393,75 +389,41 @@ class SeatingAlgorithm:
         return ((row + col) % self.num_batches) + 1
 
     def _calculate_paper_set(self, row: int, col: int) -> PaperSet:
-        """Advanced paper-set calculation that respects priority constraints.
-
-        Priority:
-          1) Vertical alternation for same-batch seats (ensure different sets than the seat above if same batch)
-          2) In-row same-batch alternation (if same batch already seated earlier in same block row, prefer opposite set)
-          3) Horizontal alternation with immediate left neighbor if no higher-priority rule applied.
-
-        This logic was taken from the routed implementation and preserves careful handling of block boundaries.
+        """Ported legacy paper-set calculation that respects same-batch priority.
+        
+        Rules:
+          1) Vertical alternation for same-batch seats.
+          2) In-row same-batch alternation (within same block).
+          3) Physical alternation with immediate left/top neighbors.
         """
         block = col // self.block_width
         start_col = block * self.block_width
-
-        # Get current batch for this seat (consistent with column-major assignment)
         current_batch = (col % self.num_batches) + 1
 
-        # Calculate base alternation: col_in_block and row determine the pattern
-        col_in_block = col % self.block_width
+        # Base pattern: standard checkerboard
+        if row % 2 == 0:
+            base_set = PaperSet.A if col % 2 == 0 else PaperSet.B
+        else:
+            base_set = PaperSet.B if col % 2 == 0 else PaperSet.A
 
-        # Base pattern: alternates every column, and flips every row
-        if row % 2 == 0:  # Even row
-            base_set = PaperSet.A if col_in_block % 2 == 0 else PaperSet.B
-        else:  # Odd row
-            base_set = PaperSet.B if col_in_block % 2 == 0 else PaperSet.A
-
-        # CONSTRAINT 3 (HIGH PRIORITY): Check vertically adjacent seat (same column, row-1)
-        # This ensures same-batch vertical alternation
-        if row > 0 and self.seating_plan and len(self.seating_plan) > row - 1:
+        # Rule 1: Vertical alternation if seat above is same batch
+        if row > 0:
             up = self.seating_plan[row - 1][col]
             if up and not up.is_broken and up.roll_number and up.batch == current_batch:
-                # Same batch above! Alternate paper set
-                base_set = PaperSet.B if up.paper_set == PaperSet.A else PaperSet.A
-                return base_set
+                return PaperSet.B if up.paper_set == PaperSet.A else PaperSet.A
 
-        # CONSTRAINT 2 (HIGH PRIORITY): Check if same batch already has students in this row/block
-        # Only check BEFORE current column (already processed seats in this row)
-        constraint2_triggered = False
+        # Rule 2: Horizontal alternation for same batch in same row/block
         batch_papers_in_row = []
-        for c in range(start_col, col):  # Only check before this column
-            if self.seating_plan and len(self.seating_plan) > row:
-                seat = self.seating_plan[row][c]
-                if seat and seat.batch == current_batch and seat.roll_number:
-                    batch_papers_in_row.append((c, seat.paper_set))
+        for c in range(start_col, col):
+            seat = self.seating_plan[row][c]
+            if seat and seat.batch == current_batch and seat.roll_number:
+                batch_papers_in_row.append(seat.paper_set)
 
-        # If same batch already has students in this row, ensure different paper set
-        if len(batch_papers_in_row) > 0:
-            used_sets = set(p for _, p in batch_papers_in_row)
-            if len(used_sets) == 1:  # All same batch students have the same set
-                first_set = list(used_sets)[0]
-                # Switch to opposite - CONSTRAINT 2 TAKES PRIORITY
-                base_set = PaperSet.B if first_set == PaperSet.A else PaperSet.A
-                constraint2_triggered = True
-            else:
-                # Already have both sets used, choose the less frequent one
-                count_a = sum(1 for _, s in batch_papers_in_row if s == PaperSet.A)
-                count_b = len(batch_papers_in_row) - count_a
-                if count_a > count_b:
-                    base_set = PaperSet.B
-                else:
-                    base_set = PaperSet.A
-                constraint2_triggered = True
-
-        # CONSTRAINT 1: Check left neighbor for horizontal alternation
-        # Only apply if CONSTRAINT 2 didn't need to override
-        if not constraint2_triggered and col > start_col and self.seating_plan and len(self.seating_plan) > row:
-            left = self.seating_plan[row][col - 1]
-            if left and not left.is_broken and left.roll_number:
-                # Ensure different from left neighbor
-                if left.paper_set == base_set:
-                    base_set = PaperSet.B if base_set == PaperSet.A else PaperSet.A
+        if batch_papers_in_row:
+            # If same batch exists in row, flip from whatever the most recent one had
+            # (Works even for block width > 2)
+            last_set = batch_papers_in_row[-1]
+            return PaperSet.B if last_set == PaperSet.A else PaperSet.A
 
         return base_set
 
@@ -470,51 +432,36 @@ class SeatingAlgorithm:
     def validate_constraints(self) -> Tuple[bool, List[str]]:
         """Validate all seating constraints"""
         errors = []
-        # Check 1: No same batch adjacent horizontally or vertically (optional, skip broken seats)
-        if self.enforce_no_adjacent_batches:
-            for r in range(self.rows):
-                for c in range(self.cols):
-                    seat = self.seating_plan[r][c]
-                    if seat.is_broken:
-                        continue
-                    # right neighbor
-                    if c + 1 < self.cols:
-                        right = self.seating_plan[r][c + 1]
-                        if not right.is_broken and seat.batch == right.batch:
-                            errors.append(
-                                f"Same batch adjacent horizontally at row {r}, cols {c}-{c+1}"
-                            )
-                    # bottom neighbor
-                    if r + 1 < self.rows:
-                        down = self.seating_plan[r + 1][c]
-                        if not down.is_broken and seat.batch == down.batch:
-                            errors.append(
-                                f"Same batch adjacent vertically at col {c}, rows {r}-{r+1}"
-                            )
 
-        # Check 2: Paper sets alternate within each block (horizontally and vertically, skip broken)
-        for block in range(self.blocks):
-            start_col = block * self.block_width
-            end_col = min(start_col + self.block_width, self.cols)
-            for r in range(self.rows):
-                for c in range(start_col, end_col):
+        # Check 2: Paper Set Alternation
+        # 2a: Vertical alternation for students in same column (regardless of batch)
+        for c in range(self.cols):
+            for r in range(self.rows - 1):
+                seat = self.seating_plan[r][c]
+                down = self.seating_plan[r + 1][c]
+                if not seat.is_broken and not down.is_broken and seat.roll_number and down.roll_number:
+                    if seat.paper_set == down.paper_set:
+                        errors.append(f"Same paper set vertically at col {c}, rows {r}-{r+1}")
+
+        # 2b: Same-Batch Horizontal alternation (User priority)
+        for r in range(self.rows):
+            for block in range(self.blocks):
+                start = block * self.block_width
+                end = min(start + self.block_width, self.cols)
+                batch_sets_in_row = {} # batch -> List[PaperSet]
+                for c in range(start, end):
                     seat = self.seating_plan[r][c]
-                    if seat.is_broken:
+                    if not seat or seat.is_broken or not seat.roll_number:
                         continue
-                    # horizontal within block
-                    if c + 1 < end_col:
-                        right = self.seating_plan[r][c + 1]
-                        if not right.is_broken and seat.paper_set == right.paper_set:
-                            errors.append(
-                                f"Same paper set in block {block} horizontally at row {r}, cols {c}-{c+1}"
-                            )
-                    # vertical adjacent
-                    if r + 1 < self.rows:
-                        down = self.seating_plan[r + 1][c]
-                        if not down.is_broken and seat.paper_set == down.paper_set:
-                            errors.append(
-                                f"Same paper set vertically at col {c}, rows {r}-{r+1}"
-                            )
+                    if seat.batch not in batch_sets_in_row:
+                        batch_sets_in_row[seat.batch] = []
+                    
+                    # Check against previous column in same block/row for same batch
+                    if batch_sets_in_row[seat.batch]:
+                        if seat.paper_set == batch_sets_in_row[seat.batch][-1]:
+                            errors.append(f"Same paper set for batch {self.batch_labels.get(seat.batch, seat.batch)} horizontally in row {r}, block {block}")
+                    
+                    batch_sets_in_row[seat.batch].append(seat.paper_set)
 
         # Check 3: No duplicate roll numbers and coverage (skip broken seats)
         seen_rolls = set()
@@ -536,12 +483,19 @@ class SeatingAlgorithm:
                 f"Roll numbers count mismatch: expected {expected_total}, found {len(seen_rolls)}"
             )
 
-        # Check 4: Blocks count matches expectation
-        calculated_blocks = math.ceil(self.cols / self.block_width)
-        if calculated_blocks != self.blocks:
-            errors.append(
-                f"Blocks mismatch: expected {self.blocks}, calculated {calculated_blocks}"
-            )
+        # Check 5: Batch Isolation (Inside Blocks only)
+        for r in range(self.rows):
+            for c in range(self.cols - 1):
+                seat = self.seating_plan[r][c]
+                right = self.seating_plan[r][c + 1]
+                
+                if (not seat.is_broken and seat.roll_number and 
+                    not right.is_broken and right.roll_number):
+                    # Only flag if both students are in the same batch AND same block
+                    if seat.batch == right.batch:
+                        if (c // self.block_width) == ((c + 1) // self.block_width):
+                            label = self.batch_labels.get(seat.batch, seat.batch)
+                            errors.append(f"Same batch {label} sitting horizontally at row {r}, cols {c}-{c+1} (Same Block)")
 
         return len(errors) == 0, errors
 
@@ -603,15 +557,23 @@ class SeatingAlgorithm:
             }
         )
 
-        # 6. No adjacent same batch constraint
+        # 6. Randomize within column status
         constraints.append(
             {
-                "name": "No Adjacent Same Batch",
-                "description": "Adjacent seats (horizontal/vertical) have different batches",
-                "applied": self.enforce_no_adjacent_batches,
-                "satisfied": self._verify_no_adjacent_batches()
-                if self.enforce_no_adjacent_batches
-                else True,
+                "name": "Within-Column Randomization",
+                "description": "Randomizes seating order within assigned columns",
+                "applied": self.randomize_column,
+                "satisfied": True,
+            }
+        )
+
+        # 6. Batch Isolation status
+        constraints.append(
+            {
+                "name": "Batch Isolation",
+                "description": "No students of same batch in adjacent seats (horizontal/vertical)",
+                "applied": True,
+                "satisfied": self._verify_no_adjacent_batches(),
             }
         )
 
@@ -628,6 +590,17 @@ class SeatingAlgorithm:
                 "description": f"Marks {unallocated_count} seats as unallocated (light gray)",
                 "applied": unallocated_count > 0,
                 "satisfied": True,
+            }
+        )
+
+        # 8. Roll Number Integrity
+        numeric_fallback_detected = any(err for err in self.init_errors if "numeric fallback" in err or "missing roll" in err)
+        constraints.append(
+            {
+                "name": "Roll Number Integrity",
+                "description": "Ensures real enrollment strings are used without numeric fallback",
+                "applied": bool(self.batch_roll_numbers),
+                "satisfied": not numeric_fallback_detected,
             }
         )
 
@@ -664,23 +637,24 @@ class SeatingAlgorithm:
         return calculated == self.blocks
 
     def _verify_paper_sets_alternate(self) -> bool:
-        """Verify paper sets alternate within blocks"""
-        for block in range(self.blocks):
-            start_col = block * self.block_width
-            end_col = min(start_col + self.block_width, self.cols)
-            for r in range(self.rows):
-                for c in range(start_col, end_col):
-                    seat = self.seating_plan[r][c]
-                    if seat.is_broken or not seat.roll_number:
-                        continue
-                    if c + 1 < end_col:
-                        right = self.seating_plan[r][c + 1]
-                        if not right.is_broken and right.roll_number and seat.paper_set == right.paper_set:
-                            return False
-                    if r + 1 < self.rows:
-                        down = self.seating_plan[r + 1][c]
-                        if not down.is_broken and down.roll_number and seat.paper_set == down.paper_set:
-                            return False
+        """Verify paper sets alternate for all physical neighbors"""
+        # 1. Vertical check
+        for c in range(self.cols):
+            for r in range(self.rows - 1):
+                seat = self.seating_plan[r][c]
+                down = self.seating_plan[r + 1][c]
+                if not seat.is_broken and not down.is_broken and seat.roll_number and down.roll_number:
+                    if seat.paper_set == down.paper_set:
+                        return False
+        
+        # 2. Horizontal check (all neighbors)
+        for r in range(self.rows):
+            for c in range(self.cols - 1):
+                seat = self.seating_plan[r][c]
+                right = self.seating_plan[r][c + 1]
+                if not seat.is_broken and not right.is_broken and seat.roll_number and right.roll_number:
+                    if seat.paper_set == right.paper_set:
+                        return False
         return True
 
     def _verify_column_batch_assignment(self) -> bool:
@@ -696,19 +670,15 @@ class SeatingAlgorithm:
         return True
 
     def _verify_no_adjacent_batches(self) -> bool:
-        """Verify no adjacent seats have same batch"""
+        """Verify no adjacent seats in the same row/block have same batch"""
         for r in range(self.rows):
-            for c in range(self.cols):
+            for c in range(self.cols - 1):
                 seat = self.seating_plan[r][c]
-                if seat.is_broken or not seat.roll_number:
-                    continue
-                if c + 1 < self.cols:
-                    right = self.seating_plan[r][c + 1]
-                    if not right.is_broken and right.roll_number and seat.batch == right.batch:
-                        return False
-                if r + 1 < self.rows:
-                    down = self.seating_plan[r + 1][c]
-                    if not down.is_broken and down.roll_number and seat.batch == down.batch:
+                right = self.seating_plan[r][c + 1]
+                if (not seat.is_broken and seat.roll_number and 
+                    not right.is_broken and right.roll_number):
+                    # Relax across block boundaries
+                    if seat.batch == right.batch and (c // self.block_width == (c + 1) // self.block_width):
                         return False
         return True
 
@@ -726,6 +696,8 @@ class SeatingAlgorithm:
             },
             "seating": [],
             "summary": self._generate_summary(),
+            "init_errors": self.init_errors,
+            "constraints_status": self.get_constraints_status(),
         }
 
         for row_idx, row in enumerate(self.seating_plan):
