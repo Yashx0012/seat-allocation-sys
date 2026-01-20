@@ -142,19 +142,24 @@ export const useDatabaseApi = () => {
     }
   }, [getHeaders]);
 
-  const deleteSession = useCallback(async (sessionId) => {
-    try {
-      const res = await fetch(`/api/database/session/${sessionId}/delete`, {
+  // In useDatabaseApi.jsx
+const deleteSession = async (sessionId) => {
+    const token = localStorage.getItem('token');
+    
+    // Use the sessions endpoint, not database
+    const response = await fetch(`/api/sessions/${sessionId}`, {
         method: 'DELETE',
-        headers: getHeaders()
-      });
-      const result = await res.json();
-      if (!result.success) throw new Error(result.error);
-      return { success: true, message: result.message, deleted: result.deleted };
-    } catch (err) {
-      return { success: false, error: err.message };
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+    });
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+        throw new Error(data.error || 'Delete failed');
     }
-  }, [getHeaders]);
+    
+    return data;
+};
 
   const exportTable = useCallback(async (tableName) => {
     try {

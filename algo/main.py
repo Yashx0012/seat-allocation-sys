@@ -17,6 +17,8 @@ from algo.api.blueprints.dashboard import dashboard_bp
 from algo.api.blueprints.admin import auth_bp, admin_bp
 from algo.api.blueprints.health import health_bp
 from algo.api.blueprints.feedback import feedback_bp
+from api.blueprints.database import database_bp
+
 
 def create_app(test_config=None):
     # Setup Logging
@@ -56,6 +58,7 @@ def create_app(test_config=None):
         close_db(exception)
         
     # Register Blueprints
+    app.register_blueprint(database_bp)
     app.register_blueprint(session_bp)
     app.register_blueprint(student_bp)
     app.register_blueprint(allocation_bp)

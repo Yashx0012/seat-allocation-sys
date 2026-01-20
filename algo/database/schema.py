@@ -202,6 +202,8 @@ def ensure_demo_db():
             ("ALTER TABLE allocation_sessions ADD COLUMN name TEXT", "sessions.name"),
             ("ALTER TABLE allocation_sessions ADD COLUMN last_activity DATETIME DEFAULT CURRENT_TIMESTAMP", "sessions.last_activity"),
             ("ALTER TABLE classrooms ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP", "classrooms.updated_at"),
+            ("ALTER TABLE classrooms ADD COLUMN block_width INTEGER DEFAULT 2", "classrooms.block_width")
+            
         ]
 
         for query, col_name in migration_queries:

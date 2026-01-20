@@ -53,14 +53,42 @@ def generate_seating():
         plan_id = data.get("plan_id")
         session_id = data.get("session_id")
         
-        # Verify session ownership
+        # Verify session exists and optionally claim it
         if session_id:
             conn = get_db_connection()
             cur = conn.cursor()
-            cur.execute("SELECT user_id FROM allocation_sessions WHERE session_id = ?", (session_id,))
-            owner = cur.fetchone()
-            conn.close()
-            if not owner or owner[0] != request.user_id:
+            cur.execute("SELECT user_id, status FROM allocation_sessions WHERE session_id = ?", (session_id,))
+            session_row = cur.fetchone()
+            
+            if not session_row:
+                conn.close()
+                return jsonify({"error": "Session not found"}), 404
+            
+            owner_id, status = session_row
+            
+            if status != 'active':
+                conn.close()
+                return jsonify({"error": f"Session is {status}"}), 400
+            
+            # If session has no owner or owner is default (1), claim it
+            # ✅ Only allow claiming truly orphaned sessions
+            if owner_id is None:  # Only if truly unowned
+                # Check if session is recent (created within last hour)
+                cur.execute("""
+                    SELECT created_at FROM allocation_sessions WHERE session_id = ?
+                """, (session_id,))
+                created = cur.fetchone()
+                
+                if created:
+                    from datetime import datetime, timedelta
+                    created_time = datetime.fromisoformat(created[0])
+                    if datetime.now() - created_time < timedelta(hours=1):
+                        cur.execute("""
+                            UPDATE allocation_sessions SET user_id = ? WHERE session_id = ?
+                        """, (request.user_id, session_id))
+                        conn.commit()
+            elif owner_id != request.user_id:
+                conn.close()
                 return jsonify({"error": "Unauthorized session"}), 403
 
         if not plan_id:
@@ -434,21 +462,6 @@ def constraints_status():
 # ============================================================================
 # Save/Reset Allocation Routes
 # ============================================================================
-@allocation_bp.route('/save-allocation', methods=['POST'])
-@token_required
-def save_allocation():
-    """Persist allocation to Database"""
-    data = request.json
-    session_id = data.get('session_id')
-    classroom_id = data.get('classroom_id')
-    seating_plan = data.get('seating_plan')
-    
-    if not session_id or not seating_plan:
-        return jsonify({"status": "error", "message": "Missing data"}), 400
-    
-    # TODO: Implement actual save logic
-    return jsonify({"status": "success", "message": "Saved to database"}), 200
-
 @allocation_bp.route('/reset-allocation', methods=['POST'])
 @token_required
 def reset_allocation():
