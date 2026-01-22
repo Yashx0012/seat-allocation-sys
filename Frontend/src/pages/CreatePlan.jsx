@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+
 const CreatePlan = ({ showToast }) => {
   const navigate = useNavigate();
   const [plans, setPlans] = useState([]);
@@ -60,33 +61,76 @@ const CreatePlan = ({ showToast }) => {
   // Fetch plan details and session stats
   const loadPlanDetails = async (plan) => {
     setLoadingDetails(true);
+    
+    // Start with the plan data we already have (this is the primary source)
+    const basePlanDetails = {
+      ...plan,
+      // Ensure these exist with defaults
+      total_students: plan.total_students || 0,
+      allocated_count: plan.allocated_count || 0,
+      room_count: plan.room_count || 0,
+      status: plan.status || 'unknown',
+      // Calculate completion from existing data
+      completion_rate: plan.total_students > 0 
+        ? Math.round((plan.allocated_count / plan.total_students) * 100) 
+        : 0,
+      // Initialize empty arrays for detailed breakdowns
+      rooms: [],
+      batches: plan.batches || []
+    };
+
     try {
       const token = localStorage.getItem('token');
       
+      // Try to fetch additional stats (rooms breakdown, etc.)
       const statsRes = await fetch(`/api/sessions/${plan.session_id}/stats`, {
         headers: token ? { 'Authorization': `Bearer ${token}` } : {}
       });
       
-      const statsData = await statsRes.json();
-      
-      if (!statsRes.ok) {
-        throw new Error(statsData.error || 'Failed to load plan details');
+      if (statsRes.ok) {
+        const statsData = await statsRes.json();
+        
+        if (statsData.success && statsData.stats) {
+          // Merge stats data, but keep plan data as primary source for counts
+          const stats = statsData.stats;
+          
+          basePlanDetails.rooms = stats.rooms || [];
+          basePlanDetails.batches = stats.batches || basePlanDetails.batches;
+          
+          // Only override completion_rate if stats provides it
+          if (stats.completion_rate !== undefined) {
+            basePlanDetails.completion_rate = stats.completion_rate;
+          }
+          
+          // Update room_count from actual rooms if available
+          if (stats.rooms && stats.rooms.length > 0) {
+            basePlanDetails.room_count = stats.rooms.length;
+          }
+          
+          console.log('📊 Stats loaded successfully:', stats);
+        }
+      } else {
+        // Stats fetch failed, but we still have basic plan data
+        console.warn('⚠️ Stats API failed, using basic plan data');
       }
       
-      setPlanDetails({
-        ...plan,
-        stats: statsData.stats
-      });
-      
+      // Set the normalized plan details
+      setPlanDetails(basePlanDetails);
       setViewingPlan(plan.session_id);
       
       if (showToast) {
-        showToast('Plan details loaded successfully', 'success');
+        showToast('Plan details loaded', 'success');
       }
+      
     } catch (err) {
-      console.error('Failed to load plan details:', err);
+      console.error('Failed to load plan stats:', err);
+      
+      // Even if stats fail, show the modal with basic plan data
+      setPlanDetails(basePlanDetails);
+      setViewingPlan(plan.session_id);
+      
       if (showToast) {
-        showToast(`Failed to load plan: ${err.message}`, 'error');
+        showToast('Loaded basic plan info (detailed stats unavailable)', 'warning');
       }
     } finally {
       setLoadingDetails(false);
@@ -675,53 +719,52 @@ const CreatePlan = ({ showToast }) => {
                 </div>
               ) : (
                 <>
-                  {/* Statistics Grid */}
-                  {planDetails.stats && (
+                  {/* Statistics Grid - FIXED with normalized data */}
+                  {planDetails && (
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                       <div className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
                         <div className="text-xs text-gray-600 dark:text-gray-400 font-bold mb-1">Total Students</div>
                         <div className="text-2xl font-black text-blue-600 dark:text-blue-400">
-                          {planDetails.stats.session?.total_students || 0}
+                          {planDetails.total_students}
                         </div>
                       </div>
 
                       <div className="p-4 bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 rounded-xl border border-emerald-200 dark:border-emerald-800">
                         <div className="text-xs text-gray-600 dark:text-gray-400 font-bold mb-1">Allocated</div>
                         <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
-                          {planDetails.stats.session?.allocated_count || 0}
+                          {planDetails.allocated_count}
                         </div>
                       </div>
 
                       <div className="p-4 bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20 rounded-xl border border-orange-200 dark:border-orange-800">
                         <div className="text-xs text-gray-600 dark:text-gray-400 font-bold mb-1">Completion</div>
                         <div className="text-2xl font-black text-orange-600 dark:text-orange-400">
-                          {planDetails.stats.completion_rate || 0}%
+                          {planDetails.completion_rate}%
                         </div>
                       </div>
 
                       <div className="p-4 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl border border-purple-200 dark:border-purple-800">
                         <div className="text-xs text-gray-600 dark:text-gray-400 font-bold mb-1">Rooms</div>
                         <div className="text-2xl font-black text-purple-600 dark:text-purple-400">
-                          {planDetails.stats.rooms?.length || 0}
+                          {planDetails.room_count}
                         </div>
                       </div>
                     </div>
                   )}
-
                   {/* Room-wise Exports */}
-                  {planDetails.stats?.rooms && planDetails.stats.rooms.length > 0 && (
-                    <div className="mb-6">
-                      <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                        <Building2 size={20} className="text-orange-500" />
-                        Room-wise Export
-                      </h3>
-                      
-                      <div className="space-y-3">
-                        {planDetails.stats.rooms.map((room, idx) => (
-                          <div 
-                            key={idx} 
-                            className="p-4 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700"
-                          >
+                  {planDetails?.rooms && planDetails.rooms.length > 0 && (
+                  <div className="mb-6">
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                      <Building2 size={20} className="text-orange-500" />
+                      Room-wise Export
+                    </h3>
+                    
+                    <div className="space-y-3">
+                      {planDetails.rooms.map((room, idx) => (
+                        <div 
+                          key={idx} 
+                          className="p-4 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700"
+                        >
                             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                               {/* Room Info */}
                               <div className="flex-1">
@@ -775,21 +818,21 @@ const CreatePlan = ({ showToast }) => {
                     </div>
                   )}
 
-                  {/* Batch Distribution */}
-                  {planDetails.stats?.batches && planDetails.stats.batches.length > 0 && (
+                  {/* Batch Distribution - Uses normalized batches array */}
+                  {planDetails?.batches && planDetails.batches.length > 0 && (
                     <div className="mb-6">
                       <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                         <Users size={20} className="text-orange-500" />
                         Batch Distribution
                       </h3>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        {planDetails.stats.batches.map((batch, idx) => (
+                        {planDetails.batches.map((batch, idx) => (
                           <div key={idx} className="p-4 bg-gray-50 dark:bg-gray-800 rounded-xl text-center border border-gray-200 dark:border-gray-700">
                             <div className="text-sm font-bold text-gray-600 dark:text-gray-400 mb-1 truncate">
-                              {batch.batch_name || 'Unknown'}
+                              {batch.batch_name || batch.name || 'Unknown'}
                             </div>
                             <div className="text-2xl font-black text-orange-600 dark:text-orange-400">
-                              {batch.count || 0}
+                              {batch.count || batch.student_count || 0}
                             </div>
                           </div>
                         ))}
@@ -797,36 +840,16 @@ const CreatePlan = ({ showToast }) => {
                     </div>
                   )}
 
-                  {/* Combined Export & Attendance Page Button */}
-                  <div className="border-t border-gray-200 dark:border-gray-700 pt-6 space-y-3">
-                    {/* Export All Rooms */}
-                    <button
-                      onClick={() => exportAllRoomsPDF(planDetails)}
-                      disabled={exportLoading === 'all'}
-                      className="w-full px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-50"
-                    >
-                      {exportLoading === 'all' ? (
-                        <>
-                          <Loader2 size={18} className="animate-spin" />
-                          Generating...
-                        </>
-                      ) : (
-                        <>
-                          <Download size={18} />
-                          Export All Rooms (Combined PDF)
-                        </>
-                      )}
-                    </button>
-
-                    {/* Go to Attendance Page (all rooms) */}
-                    <button
-                      onClick={() => goToAttendancePage(planDetails)}
-                      className="w-full px-6 py-3 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all"
-                    >
-                      <BarChart3 size={18} />
-                      Go to Attendance Control Page
-                    </button>
-                  </div>
+                  {/* Close button */}
+                <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
+                  <button
+                    onClick={closePlanViewer}
+                    className="w-full px-6 py-3 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-bold flex items-center justify-center gap-2 transition-all"
+                  >
+                    <X size={18} />
+                    Close
+                  </button>
+                </div>
                 </>
               )}
             </motion.div>

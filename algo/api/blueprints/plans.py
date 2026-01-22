@@ -28,6 +28,8 @@ def get_recent_plans():
                 s.created_at,
                 s.completed_at,
                 s.last_activity,
+                s.total_students,
+                s.allocated_count,
                 COUNT(DISTINCT a.classroom_id) as room_count
             FROM allocation_sessions s
             LEFT JOIN allocations a ON s.session_id = a.session_id

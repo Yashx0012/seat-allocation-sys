@@ -123,29 +123,54 @@ export default function ClassroomPage({ showToast }) {
     setSaving(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('/api/classrooms', {
-        method: 'POST',
+      
+      // ✅ Use PUT for updates, POST for creates
+      const isEditing = roomData.id != null && selectedRoomId !== 'new';
+      const url = isEditing ? `/api/classrooms/${roomData.id}` : '/api/classrooms';
+      const method = isEditing ? 'PUT' : 'POST';
+      
+      console.log(`📤 ${method} ${url}`, roomData);
+      
+      const res = await fetch(url, {
+        method: method,
         headers: { 
           'Content-Type': 'application/json',
           ...(token && { 'Authorization': `Bearer ${token}` })
         },
-        body: JSON.stringify(roomData)
+        body: JSON.stringify({
+          name: roomData.name,
+          rows: parseInt(roomData.rows),
+          cols: parseInt(roomData.cols),
+          block_width: parseInt(roomData.block_width) || 2,
+          broken_seats: roomData.broken_seats || ''
+        })
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || "Save failed");
+        throw new Error(data.message || data.error || "Save failed");
       }
 
-      if (showToast) showToast(data.message || `Layout for ${roomData.name} saved`, "success");
+      if (showToast) {
+        showToast(
+          isEditing 
+            ? `✅ ${roomData.name} updated successfully` 
+            : `✅ ${roomData.name} created successfully`, 
+          "success"
+        );
+      }
       
       fetchClassrooms();
       
-      if (selectedRoomId === 'new') {
-        setSelectedRoomId(null);
+      // If we just created a new room, select it
+      if (!isEditing && data.id) {
+        setSelectedRoomId(data.id);
+        setRoomData({ ...roomData, id: data.id });
       }
+      
     } catch (err) {
+      console.error('Save error:', err);
       if (showToast) showToast(err.message || "Error saving classroom", "error");
     } finally {
       setSaving(false);

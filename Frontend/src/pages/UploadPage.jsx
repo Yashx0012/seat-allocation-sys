@@ -1,18 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useSession } from '../contexts/SessionContext'; // NEW
-import SessionIndicator from '../components/SessionIndicator'; // NEW
+import { useSession } from '../contexts/SessionContext';
+import SessionIndicator from '../components/SessionIndicator';
 import { 
   Upload, Loader2, AlertCircle, CheckCircle, FileSpreadsheet, 
-  Database, ArrowRight, Eye, Check, X, Zap, RefreshCw
+  Database, ArrowRight, Eye, Check, X, Zap, RefreshCw, FileText
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const UploadPage = ({ showToast }) => {
   const navigate = useNavigate();
   
-  // NEW: Use session context
-  const { session, hasActiveSession, createSession, updateSession } = useSession();
+  const { 
+    session, 
+    hasActiveSession, 
+    loading: sessionLoading,
+    createSession, 
+    updateSession, 
+    clearCompletedSession 
+  } = useSession();
   
   const [file, setFile] = useState(null);
   const [mode, setMode] = useState('2');
@@ -24,17 +30,63 @@ const UploadPage = ({ showToast }) => {
   const [uploading, setUploading] = useState(false);
   const [commitLoading, setCommitLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [pageReady, setPageReady] = useState(false);
   
-  // Local state for UI (before committing to session)
+  // ✅ FIXED: Use consistent state name
   const [uploadedBatches, setUploadedBatches] = useState([]);
 
-  // NEW: Load existing session data on mount
+  // ============================================================================
+  // INITIALIZATION - Clear old sessions and refresh
+  // ============================================================================
   useEffect(() => {
-    if (hasActiveSession && session) {
-      // Fetch uploads for this session
+    const initPage = async () => {
+      console.log('📄 UploadPage initializing...');
+      
+      // Clear completed session from context
+      clearCompletedSession?.();
+      
+      // Force refresh session status from server
+      await updateSession();
+      
+      // Small delay to ensure state is settled
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      setPageReady(true);
+    };
+    
+    initPage();
+  }, []);
+
+  // ============================================================================
+  // CLEAR BATCHES - When no active session or session completed
+  // ============================================================================
+  useEffect(() => {
+    // Only run after page is ready to avoid clearing during init
+    if (!pageReady) return;
+    
+    if (!hasActiveSession || !session) {
+      console.log('🧹 Clearing uploaded batches - no active session');
+      setUploadedBatches([]);
+    }
+  }, [hasActiveSession, session, pageReady]);
+
+  useEffect(() => {
+    if (!pageReady) return;
+    
+    if (session?.status === 'completed') {
+      console.log('🧹 Session completed - clearing batches');
+      setUploadedBatches([]);
+    }
+  }, [session?.status, pageReady]);
+
+  // ============================================================================
+  // LOAD EXISTING BATCHES - If session exists
+  // ============================================================================
+  useEffect(() => {
+    if (hasActiveSession && session?.session_id && pageReady) {
       fetchSessionUploads(session.session_id);
     }
-  }, [hasActiveSession, session]);
+  }, [hasActiveSession, session?.session_id, pageReady]);
 
   const fetchSessionUploads = async (sessionId) => {
     try {
@@ -46,8 +98,11 @@ const UploadPage = ({ showToast }) => {
       
       if (data.success && data.uploads) {
         setUploadedBatches(data.uploads.map(u => ({
-          upload_id: u.id,
+          upload_id: u.upload_id || u.id,
+          batch_id: u.batch_id,
           batch_name: u.batch_name,
+          batch_color: u.batch_color || '#3b82f6',
+          filename: u.original_filename || u.filename || 'Unknown file',
           student_count: u.student_count || 0
         })));
       }
@@ -88,7 +143,6 @@ const UploadPage = ({ showToast }) => {
       formData.append('mode', mode);
       formData.append('batch_name', batchName.trim());
       
-      // NEW: Include session_id if exists
       if (hasActiveSession && session) {
         formData.append('session_id', session.session_id);
       }
@@ -125,7 +179,6 @@ const UploadPage = ({ showToast }) => {
     try {
       const token = localStorage.getItem('token');
       
-      // NEW: Include session_id if exists
       const payload = { batch_id: uploadResult.batch_id };
       if (hasActiveSession && session) {
         payload.session_id = session.session_id;
@@ -143,16 +196,18 @@ const UploadPage = ({ showToast }) => {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Commit failed');
 
-      // Add to local uploaded batches
+      // ✅ FIXED: Add to uploadedBatches with filename
       setUploadedBatches(prev => [...prev, {
         upload_id: data.upload_id,
+        batch_id: uploadResult.batch_id,
         batch_name: batchName,
+        batch_color: data.batch_color || '#3b82f6',
+        filename: file?.name || 'Unknown file',  // ✅ Include filename
         student_count: data.inserted
       }]);
 
       if (showToast) showToast(`✅ Committed! ${data.inserted} students added`, "success");
       
-      // NEW: Update session context
       if (hasActiveSession) {
         await updateSession();
       }
@@ -171,6 +226,12 @@ const UploadPage = ({ showToast }) => {
     }
   };
 
+  const handleRemoveBatch = (uploadId) => {
+    // Remove from local state (you might want to call an API to delete from server too)
+    setUploadedBatches(prev => prev.filter(b => b.upload_id !== uploadId));
+    if (showToast) showToast('Batch removed from selection', 'success');
+  };
+
   const handleStartSession = async () => {
     if (uploadedBatches.length === 0) {
       if (showToast) showToast('Please upload at least one batch', "error");
@@ -181,7 +242,6 @@ const UploadPage = ({ showToast }) => {
       const upload_ids = uploadedBatches.map(b => b.upload_id);
       const token = localStorage.getItem('token');
       
-      // Try normal session start
       let response = await fetch('/api/sessions/start', {
           method: 'POST',
           headers: { 
@@ -193,9 +253,8 @@ const UploadPage = ({ showToast }) => {
 
       let data = await response.json();
 
-      // If blocked by active session, ask to force
       if (!response.ok && data.error?.includes('active session')) {
-          if (window.confirm('An active session exists. Force start new session? (This will expire the old one)')) {
+          if (window.confirm('An active session exists. Force start new session?')) {
               response = await fetch('/api/sessions/force-new', {
                   method: 'POST',
                   headers: { 
@@ -213,12 +272,9 @@ const UploadPage = ({ showToast }) => {
 
       if (!response.ok) throw new Error(data.error);
 
-      // Update session context
       await createSession(upload_ids, []);
 
       if (showToast) showToast(`✅ Session initialized!`, "success");
-
-      // Navigate to allocation
       navigate('/allocation');
 
     } catch (err) {
@@ -230,11 +286,27 @@ const UploadPage = ({ showToast }) => {
     navigate('/allocation');
   };
 
+  // ============================================================================
+  // LOADING STATE - Show while initializing
+  // ============================================================================
+  if (!pageReady || sessionLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-[#050505] flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="relative w-16 h-16 mx-auto">
+            <div className="absolute inset-0 border-4 border-orange-200 dark:border-orange-900 rounded-full"></div>
+            <div className="absolute inset-0 border-4 border-transparent border-t-orange-500 rounded-full animate-spin"></div>
+          </div>
+          <p className="text-gray-600 dark:text-gray-400 font-medium">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[#050505] py-8 px-4 transition-colors duration-300">
       <div className="max-w-5xl mx-auto space-y-8">
         
-        {/* NEW: Session Indicator */}
         <SessionIndicator />
 
         {/* Hero Section */}
@@ -271,7 +343,7 @@ const UploadPage = ({ showToast }) => {
               <div className="text-right">
                 <div className="text-xs text-gray-500 mb-1">Total Students</div>
                 <div className="text-3xl font-black text-emerald-600 dark:text-emerald-400">
-                  {uploadedBatches.reduce((sum, b) => sum + b.student_count, 0)}
+                  {uploadedBatches.reduce((sum, b) => sum + (b.student_count || 0), 0)}
                 </div>
               </div>
             </div>
@@ -286,14 +358,14 @@ const UploadPage = ({ showToast }) => {
           </div>
         )}
 
-        {/* NEW: Active Session Warning */}
+        {/* Active Session Warning */}
         {hasActiveSession && (
           <div className="bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-200 dark:border-blue-800 rounded-xl p-6 flex gap-4">
             <AlertCircle className="w-6 h-6 text-blue-600 dark:text-blue-400 flex-shrink-0" />
             <div className="flex-1">
               <h3 className="font-bold text-blue-900 dark:text-blue-100 mb-2">Active Session Detected</h3>
               <p className="text-sm text-blue-800 dark:text-blue-200 mb-4">
-                You have an active session. New uploads will be added to this session.
+                You have an active session ({session?.plan_id}). New uploads will be added to this session.
               </p>
               <button 
                 onClick={handleContinueExisting}
@@ -305,17 +377,20 @@ const UploadPage = ({ showToast }) => {
           </div>
         )}
 
-        {/* Uploaded Batches Summary */}
+        {/* ✅ FIXED: Ready Batches Section with Filename */}
         {uploadedBatches.length > 0 && (
-          <div className="glass-card p-6 border-2 border-emerald-500 dark:border-emerald-400">
+          <div className="glass-card p-6 border-2 border-emerald-500 dark:border-emerald-400 rounded-2xl bg-white dark:bg-gray-900">
             <div className="flex justify-between items-center mb-4">
               <div>
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Ready Batches</h3>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                  <CheckCircle className="text-emerald-500" size={20} />
+                  Ready Batches
+                </h3>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {uploadedBatches.reduce((sum, b) => sum + b.student_count, 0)} students across {uploadedBatches.length} batch(es)
+                  {uploadedBatches.reduce((sum, b) => sum + (b.student_count || 0), 0)} students across {uploadedBatches.length} batch(es)
                 </p>
               </div>
-              {!hasActiveSession && (
+              {!hasActiveSession && uploadedBatches.length > 0 && (
                 <button
                   onClick={() => {
                     setFile(null);
@@ -329,20 +404,64 @@ const UploadPage = ({ showToast }) => {
               )}
             </div>
             
-            <div className="space-y-2 mb-4">
+            {/* ✅ Batch Cards with Filename */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
               {uploadedBatches.map((batch, idx) => (
-                <div key={idx} className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg flex justify-between items-center">
-                  <div className="flex items-center gap-3">
-                    <CheckCircle className="text-emerald-500" size={20} />
-                    <span className="font-bold text-gray-900 dark:text-white">{batch.batch_name}</span>
+                <div
+                  key={batch.upload_id || idx}
+                  className="relative bg-gray-50 dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-xl p-4 group hover:border-orange-400 transition-all"
+                >
+                  {/* Color indicator */}
+                  <div 
+                    className="absolute top-0 left-0 right-0 h-1.5 rounded-t-xl"
+                    style={{ backgroundColor: batch.batch_color || '#3b82f6' }}
+                  />
+                  
+                  {/* Remove button - Only visible when NO active session */}
+                  {!hasActiveSession && (
+                    <button
+                      onClick={() => handleRemoveBatch(batch.upload_id)}
+                      className="absolute top-2 right-2 p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                      title="Remove batch"
+                    >
+                      <X size={16} />
+                    </button>
+                  )}
+
+                  {/* Batch Info */}
+                  <div className="mt-2 space-y-2">
+                    {/* Batch/Branch Name */}
+                    <div className="flex items-center gap-2">
+                      <div 
+                        className="w-3 h-3 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: batch.batch_color || '#3b82f6' }}
+                      />
+                      <span className="font-bold text-gray-900 dark:text-white text-lg truncate">
+                        {batch.batch_name}
+                      </span>
+                    </div>
+
+                    {/* ✅ Filename Display */}
+                    <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                      <FileText size={14} className="flex-shrink-0 text-gray-400" />
+                      <span className="truncate" title={batch.filename}>
+                        {batch.filename || 'Unknown file'}
+                      </span>
+                    </div>
+
+                    {/* Student Count */}
+                    <div className="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-gray-700">
+                      <span className="text-xs text-gray-500 uppercase tracking-wide">Students</span>
+                      <span className="font-mono font-bold text-orange-600 dark:text-orange-400">
+                        {batch.student_count || 0}
+                      </span>
+                    </div>
                   </div>
-                  <span className="text-sm font-mono text-gray-600 dark:text-gray-400">
-                    {batch.student_count} students
-                  </span>
                 </div>
               ))}
             </div>
 
+            {/* Action Buttons */}
             {!hasActiveSession && (
               <button
                 onClick={handleStartSession}
@@ -366,11 +485,11 @@ const UploadPage = ({ showToast }) => {
           </div>
         )}
 
-        {/* Upload Form (same as before, already shown above) */}
+        {/* Upload Form */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Upload Zone */}
           <div className="space-y-6">
-            <div className="glass-card border-2 border-dashed border-gray-300 dark:border-gray-700 p-8 flex flex-col items-center justify-center min-h-[400px] relative overflow-hidden hover:border-orange-400 dark:hover:border-orange-400 transition-colors group rounded-2xl">
+            <div className="glass-card border-2 border-dashed border-gray-300 dark:border-gray-700 p-8 flex flex-col items-center justify-center min-h-[400px] relative overflow-hidden hover:border-orange-400 dark:hover:border-orange-400 transition-colors group rounded-2xl bg-white dark:bg-gray-900">
               {!file ? (
                 <>
                   <div className="w-20 h-20 rounded-full bg-orange-500/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
@@ -425,7 +544,7 @@ const UploadPage = ({ showToast }) => {
               )}
             </div>
 
-            <div className="glass-card p-6 rounded-2xl border-2 border-gray-200 dark:border-gray-700">
+            <div className="glass-card p-6 rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
               <h3 className="text-sm font-bold uppercase tracking-widest text-gray-900 dark:text-white mb-4">Requirements</h3>
               <ul className="space-y-2 text-xs text-gray-700 dark:text-gray-400 font-sans">
                 <li className="flex items-center gap-2"><Check className="w-3 h-3 text-emerald-500" /> Header row must contain Name, Roll, Dept</li>
@@ -443,7 +562,7 @@ const UploadPage = ({ showToast }) => {
                   className={`p-4 rounded-xl border-2 transition-all duration-200 text-left ${
                     mode === '1'
                       ? 'border-orange-500 dark:border-orange-400 bg-orange-50 dark:bg-orange-500/10 ring-2 ring-orange-200 dark:ring-orange-900'
-                      : 'border-gray-200 dark:border-gray-700 hover:border-orange-300'
+                      : 'border-gray-200 dark:border-gray-700 hover:border-orange-300 bg-white dark:bg-gray-900'
                   }`}
                 >
                   <div className="font-bold text-lg text-gray-900 dark:text-white">Mode 1</div>
@@ -454,7 +573,7 @@ const UploadPage = ({ showToast }) => {
                   className={`p-4 rounded-xl border-2 transition-all duration-200 text-left ${
                     mode === '2'
                       ? 'border-orange-500 dark:border-orange-400 bg-orange-50 dark:bg-orange-500/10 ring-2 ring-orange-200 dark:ring-orange-900'
-                      : 'border-gray-200 dark:border-gray-700 hover:border-orange-300'
+                      : 'border-gray-200 dark:border-gray-700 hover:border-orange-300 bg-white dark:bg-gray-900'
                   }`}
                 >
                   <div className="font-bold text-lg text-gray-900 dark:text-white">Mode 2</div>
@@ -500,7 +619,7 @@ const UploadPage = ({ showToast }) => {
             </div>
           </div>
 
-          {/* Preview Zone (same as before) */}
+          {/* Preview Zone */}
           <AnimatePresence>
             {uploadResult && (
               <motion.div
@@ -509,8 +628,8 @@ const UploadPage = ({ showToast }) => {
                 exit={{ opacity: 0, x: 20 }}
                 className="space-y-6"
               >
-                <div className="glass-card rounded-2xl p-0 flex flex-col overflow-hidden min-h-[500px] border-2 border-gray-200 dark:border-gray-700">
-                  <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700">
+                <div className="glass-card rounded-2xl p-0 flex flex-col overflow-hidden min-h-[500px] border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+                  <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-800">
                     <div className="flex items-center gap-3">
                       <Eye className="w-5 h-5 text-orange-600 dark:text-orange-400" />
                       <h2 className="font-bold uppercase text-gray-900 dark:text-white">Preview</h2>
@@ -536,7 +655,7 @@ const UploadPage = ({ showToast }) => {
 
                   <div className="flex-1 overflow-auto">
                     <table className="w-full text-left font-mono text-xs">
-                      <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">
+                      <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0">
                         <tr>
                           <th className="p-4 font-bold uppercase text-gray-700 dark:text-gray-300">NAME</th>
                           <th className="p-4 font-bold uppercase text-gray-700 dark:text-gray-300">ROLL</th>
@@ -545,7 +664,7 @@ const UploadPage = ({ showToast }) => {
                       </thead>
                       <tbody>
                         {uploadResult.sample?.slice(0, 10).map((row, i) => (
-                          <tr key={i} className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
+                          <tr key={i} className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
                             <td className="p-4 font-sans text-gray-900 dark:text-white">
                               {typeof row === 'object' && row.name ? row.name : 'N/A'}
                             </td>
@@ -561,14 +680,14 @@ const UploadPage = ({ showToast }) => {
                     </table>
                   </div>
 
-                  <div className="p-6 bg-gray-50 dark:bg-gray-700 border-t border-gray-200 dark:border-gray-700">
+                  <div className="p-6 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
                     <div className="flex gap-3 justify-end">
                       <button
                         onClick={() => {
                           setUploadResult(null);
                           setFile(null);
                         }}
-                        className="px-6 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 font-bold transition-all"
+                        className="px-6 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 font-bold transition-all"
                       >
                         Cancel
                       </button>

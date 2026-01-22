@@ -1,4 +1,4 @@
-// frontend/src/contexts/SessionContext.jsx
+// frontend/src/contexts/SessionContext.jsx - PROPERLY FIXED
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
 const SessionContext = createContext(null);
@@ -14,8 +14,10 @@ export const useSession = () => {
       error: null,
       createSession: async () => {},
       updateSession: async () => {},
+      refreshTotals: async () => {},
       completeSession: async () => {},
       clearSession: () => {},
+      clearCompletedSession: () => {},
       updateSessionFromResponse: () => {}
     };
   }
@@ -28,7 +30,9 @@ export const SessionProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Helper to safely parse session from response
+  // ============================================================================
+  // HELPER: Parse session data safely
+  // ============================================================================
   const parseSafeSession = useCallback((rawSession) => {
     if (!rawSession) return null;
 
@@ -51,22 +55,28 @@ export const SessionProvider = ({ children }) => {
     };
   }, []);
 
-  // CRITICAL: Update session directly from API response (for Save & Continue)
+  // ============================================================================
+  // Update session from API response
+  // ============================================================================
   const updateSessionFromResponse = useCallback((responseData) => {
-    if (!responseData?.session) {
+    const sessionData = responseData?.session || responseData?.session_data;
+    if (!sessionData) {
       console.warn('⚠️ No session data in response');
       return;
     }
 
-    const safeSession = parseSafeSession(responseData.session);
+    const safeSession = parseSafeSession(sessionData);
     if (safeSession) {
-      console.log('✅ Session updated from response:', safeSession);
+      console.log('✅ Session updated:', safeSession);
       setSession(safeSession);
-      setHasActiveSession(true);
+      setHasActiveSession(safeSession.status === 'active');
       setError(null);
     }
   }, [parseSafeSession]);
 
+  // ============================================================================
+  // Fetch active session from API
+  // ============================================================================
   const fetchActiveSession = useCallback(async () => {
     try {
       setError(null);
@@ -76,20 +86,12 @@ export const SessionProvider = ({ children }) => {
         headers: token ? { 'Authorization': `Bearer ${token}` } : {}
       });
 
-      // Handle non-200 responses
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('❌ Session fetch failed:', response.status, errorData);
-        
-        // 500 error - backend issue, don't clear session
         if (response.status === 500) {
-          setError('Server error - backend unavailable');
-          // Preserve existing session state on server error
+          setError('Server error');
           setLoading(false);
           return;
         }
-        
-        // 4xx errors - no active session
         setSession(null);
         setHasActiveSession(false);
         setLoading(false);
@@ -100,50 +102,87 @@ export const SessionProvider = ({ children }) => {
 
       if (data.success && data.session_data) {
         const safeSession = parseSafeSession(data.session_data);
-        if (safeSession) {
-          console.log('✅ Session fetched:', {
-            id: safeSession.session_id,
-            total: safeSession.total_students,
-            allocated: safeSession.allocated_count,
-            pending: safeSession.pending_count
-          });
-          
+        
+        // Only set if session is actually active
+        if (safeSession && safeSession.status === 'active') {
+          console.log('✅ Active session found:', safeSession.session_id);
           setSession(safeSession);
           setHasActiveSession(true);
-          setError(null);
+        } else {
+          console.log('🧹 Session not active, clearing');
+          setSession(null);
+          setHasActiveSession(false);
+          localStorage.removeItem('currentSession');
         }
       } else {
-        console.log('ℹ️ No active session found');
+        console.log('ℹ️ No active session');
         setSession(null);
         setHasActiveSession(false);
       }
     } catch (err) {
-      console.error('❌ Session fetch error:', err);
+      console.error('❌ Fetch error:', err);
       setError(err.message);
-      // On network error, preserve session state
+      setSession(null);
+      setHasActiveSession(false);
     } finally {
       setLoading(false);
     }
   }, [parseSafeSession]);
 
-  // Initial fetch on mount
+  // ============================================================================
+  // Initial load
+  // ============================================================================
   useEffect(() => {
     fetchActiveSession();
   }, [fetchActiveSession]);
 
-  // Refresh session (after allocation save, etc)
+  // ============================================================================
+  // Update/refresh session
+  // ============================================================================
   const updateSession = useCallback(async () => {
-    console.log('🔄 Updating session from server...');
+    console.log('🔄 Refreshing session...');
     await fetchActiveSession();
   }, [fetchActiveSession]);
 
-  // Create new session
+  // ============================================================================
+  // Refresh totals after adding batches
+  // ============================================================================
+  const refreshTotals = useCallback(async () => {
+    if (!session?.session_id) return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/sessions/${session.session_id}/refresh-totals`, {
+        method: 'POST',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setSession(prev => ({
+            ...prev,
+            total_students: data.total_students,
+            allocated_count: data.allocated_count,
+            pending_count: data.pending_count
+          }));
+          console.log('✅ Totals refreshed:', data);
+        }
+      }
+    } catch (err) {
+      console.error('❌ Refresh totals error:', err);
+    }
+  }, [session?.session_id]);
+
+  // ============================================================================
+  // CREATE SESSION - The function that was "missing"!
+  // ============================================================================
   const createSession = useCallback(async (uploadIds = [], classroomIds = []) => {
     if (!Array.isArray(uploadIds) || uploadIds.length === 0) {
       throw new Error('No upload IDs provided');
     }
 
-    console.log('🆕 Creating session with', uploadIds.length, 'uploads');
+    console.log('🆕 Creating/adding to session with', uploadIds.length, 'uploads');
     
     try {
       setError(null);
@@ -164,24 +203,17 @@ export const SessionProvider = ({ children }) => {
       const data = await response.json();
 
       if (!response.ok) {
-        // Check if blocked by existing session
-        if (data.existing_session) {
-          console.log('⚠️ Active session exists:', data.existing_session);
-          const error = new Error(data.error || 'An active session already exists');
-          error.existing_session = data.existing_session;
-          throw error;
-        }
         throw new Error(data.error || 'Failed to create session');
       }
 
       if (data.success && data.session) {
         const newSession = parseSafeSession(data.session);
         
-        console.log('✅ Session created:', {
-          id: newSession.session_id,
-          plan: newSession.plan_id,
-          total: newSession.total_students
-        });
+        if (data.added_to_existing) {
+          console.log('📎 Added to existing session:', newSession.session_id);
+        } else {
+          console.log('✅ New session created:', newSession.session_id);
+        }
         
         setSession(newSession);
         setHasActiveSession(true);
@@ -199,14 +231,11 @@ export const SessionProvider = ({ children }) => {
     }
   }, [parseSafeSession]);
 
-  // Complete session (called by Finalize button only)
+  // ============================================================================
+  // Complete/Finalize session
+  // ============================================================================
   const completeSession = useCallback(async () => {
-    console.log('🏁 Completing session...');
-    
-    if (!session?.session_id) {
-      console.warn('⚠️ No session to complete');
-      return;
-    }
+    if (!session?.session_id) return;
 
     try {
       const token = localStorage.getItem('token');
@@ -219,41 +248,78 @@ export const SessionProvider = ({ children }) => {
       );
 
       if (!response.ok) {
-        throw new Error('Failed to finalize session');
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to finalize');
       }
 
       console.log('✅ Session completed');
       setSession(null);
       setHasActiveSession(false);
-      setError(null);
+      localStorage.removeItem('currentSession');
 
     } catch (err) {
-      console.error('❌ Complete session error:', err);
-      setError(err.message);
+      console.error('❌ Finalize error:', err);
       throw err;
     }
   }, [session?.session_id]);
 
-  // Clear session (called when user logs out, etc)
+  // ============================================================================
+  // Clear session (manual)
+  // ============================================================================
   const clearSession = useCallback(() => {
-    console.log('🗑️ Clearing session');
+    console.log('🧹 Clearing session');
     setSession(null);
     setHasActiveSession(false);
     setError(null);
+    localStorage.removeItem('currentSession');
   }, []);
 
+  // ============================================================================
+  // Clear completed session (auto-cleanup)
+  // ============================================================================
+  const clearCompletedSession = useCallback(() => {
+    if (session && session.status === 'completed') {
+      console.log('🧹 Auto-clearing completed session');
+      setSession(null);
+      setHasActiveSession(false);
+      localStorage.removeItem('currentSession');
+    }
+  }, [session]);
+
+  // ============================================================================
+  // CONTEXT VALUE - All functions must be included here!
+  // ============================================================================
   const value = {
+    // State
     session,
     hasActiveSession,
     loading,
     error,
-    createSession,
+    
+    // Actions
+    createSession,           // ← THIS WAS MISSING IN YOUR BROKEN VERSION!
     updateSession,
-    updateSessionFromResponse,  // NEW: Direct update from API response
+    refreshTotals,
+    updateSessionFromResponse,
     completeSession,
-    clearSession
+    clearSession,
+    clearCompletedSession,
+    
+    // Alias for compatibility
+    fetchSession: fetchActiveSession
   };
+  useEffect(() => {
+  if (session && session.status !== 'active') {
+    console.log('🧹 Auto-clearing non-active session:', session.status);
+    setSession(null);
+    setHasActiveSession(false);
+    localStorage.removeItem('currentSession');
+  }
+}, [session?.status]);
 
+  // ============================================================================
+  // SINGLE RETURN - Only one!
+  // ============================================================================
   return (
     <SessionContext.Provider value={value}>
       {children}

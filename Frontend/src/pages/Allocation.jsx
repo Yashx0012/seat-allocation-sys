@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from "framer-motion";
+import { getPrintFriendlyColor } from '../utils/colorUtils';
 import { 
   Users, Layout, MapPin, Download, Play, Monitor, 
   Loader2, AlertCircle, RefreshCw, CheckCircle2,
@@ -110,6 +111,7 @@ const AllocationPage = ({ showToast }) => {
   const [selectedBatchIds, setSelectedBatchIds] = useState([null]);
 
   // Seating & UI
+  const [initializing, setInitializing] = useState(true);
   const [loading, setLoading] = useState(false);
   const [webData, setWebData] = useState(null);
   const [pdfLoading, setPdfLoading] = useState(false);
@@ -125,8 +127,13 @@ const AllocationPage = ({ showToast }) => {
   // ============================================================================
   // LOAD SESSION & BATCHES
   // ============================================================================
+  //============================================================================
+  // ✅ FIXED: Single initialization effect
+  // ============================================================================
   useEffect(() => {
-    const loadSession = async () => {
+    const initializePage = async () => {
+      setInitializing(true);
+      
       try {
         const token = localStorage.getItem('token');
         const res = await fetch('/api/sessions/active', {
@@ -134,22 +141,29 @@ const AllocationPage = ({ showToast }) => {
         });
         const data = await res.json();
         
-        if (data.success && data.session_data) {
+        if (data.success && data.session_data && data.session_data.status === 'active') {
           setSession(data.session_data);
           setHasActiveSession(true);
-          loadUploadedBatches(data.session_data.session_id);
+          await loadUploadedBatches(data.session_data.session_id);
           setUsedRoomIds(data.session_data.allocated_rooms?.map(r => r.classroom_id) || []);
+          console.log('✅ Active session loaded:', data.session_data.session_id);
+        } else {
+          setSession(null);
+          setHasActiveSession(false);
+          console.log('ℹ️ No active session found');
         }
-        else {
-          setHasActiveSession(false);}
-
       } catch (err) {
         console.error('Failed to load session:', err);
+        setSession(null);
         setHasActiveSession(false);
       }
+      
+      // Small delay to prevent flash
+      await new Promise(resolve => setTimeout(resolve, 150));
+      setInitializing(false);
     };
     
-    loadSession();
+    initializePage();
   }, []);
 
   const loadUploadedBatches = async (sessionId) => {
@@ -169,7 +183,6 @@ const AllocationPage = ({ showToast }) => {
       }
     } catch (err) {
       console.error('Failed to load batches:', err);
-      if (showToast) showToast('Failed to load batches', 'error');
     } finally {
       setLoadingBatches(false);
     }
@@ -185,9 +198,8 @@ const AllocationPage = ({ showToast }) => {
       .then(data => setClassrooms(Array.isArray(data) ? data : []))
       .catch(err => {
         console.error(err);
-        if (showToast) showToast("Failed to load classrooms", "error");
       });
-  }, [showToast]);
+  }, []);
 
   // Stats
   const allocated = session?.allocated_count || 0;
@@ -591,28 +603,90 @@ const AllocationPage = ({ showToast }) => {
     }
   };
 
+// ============================================================================
+// NO SESSION
+// ============================================================================
+
+// LOADING STATE
+
+if (initializing) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-[#050505] flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="relative w-20 h-20 mx-auto">
+            {/* Outer ring */}
+            <div className="absolute inset-0 border-4 border-orange-200 dark:border-orange-900 rounded-full"></div>
+            {/* Spinning ring */}
+            <div className="absolute inset-0 border-4 border-transparent border-t-orange-500 rounded-full animate-spin"></div>
+            {/* Center icon */}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-amber-500 rounded-xl flex items-center justify-center shadow-lg">
+                <Layout className="w-5 h-5 text-white" />
+              </div>
+            </div>
+          </div>
+          <div>
+            <p className="text-gray-900 dark:text-white font-bold text-lg">Loading Allocation</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Preparing your session...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // ============================================================================
-  // NO SESSION
+  // ✅ FIXED: No Session - Only show AFTER initialization complete
   // ============================================================================
-  if (!session) {
+  if (!hasActiveSession && !initializing) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-[#050505] flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white dark:bg-gray-900 rounded-2xl shadow-xl border-2 border-amber-500 p-8">
-          <div className="text-center space-y-6">
-            <div className="w-20 h-20 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mx-auto">
-              <AlertTriangle className="w-10 h-10 text-amber-600 dark:text-amber-400" />
+        <div className="max-w-md w-full">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl border-2 border-amber-400 dark:border-amber-600 overflow-hidden">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 p-6 border-b border-amber-200 dark:border-amber-800">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 bg-amber-100 dark:bg-amber-900/30 rounded-xl flex items-center justify-center">
+                  <AlertTriangle className="w-7 h-7 text-amber-600 dark:text-amber-400" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                    No Active Session
+                  </h2>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Start by uploading student data
+                  </p>
+                </div>
+              </div>
             </div>
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">No Active Session</h2>
-              <p className="text-gray-600 dark:text-gray-400">Upload student data to begin allocation</p>
+
+            {/* Content */}
+            <div className="p-6 space-y-4">
+              <p className="text-gray-600 dark:text-gray-400 text-sm">
+                To begin allocating seats, you need to:
+              </p>
+              <ol className="space-y-2 text-sm">
+                <li className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                  <span className="w-6 h-6 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center text-xs font-bold text-orange-600">1</span>
+                  Upload student CSV files
+                </li>
+                <li className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                  <span className="w-6 h-6 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center text-xs font-bold text-orange-600">2</span>
+                  Start an allocation session
+                </li>
+                <li className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                  <span className="w-6 h-6 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center text-xs font-bold text-orange-600">3</span>
+                  Generate seating arrangements
+                </li>
+              </ol>
+
+              <button
+                onClick={() => navigate('/create-plan', { replace: true })}
+                className="w-full mt-4 h-12 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg"
+              >
+                Go to Upload
+                <ArrowRight size={18} />
+              </button>
             </div>
-            <button
-              onClick={() => navigate('/upload', { replace: true })}
-              className="w-full h-14 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold rounded-xl"
-            >
-              <ArrowRight className="inline mr-2" size={20} />
-              Go to Upload
-            </button>
           </div>
         </div>
       </div>
@@ -648,48 +722,53 @@ const AllocationPage = ({ showToast }) => {
           </div>
         </div>
 
-        {/* PROGRESS CARD */}
-        <Card className="p-6 border-2 border-orange-500 dark:border-orange-400">
-          <div className="flex justify-between items-start mb-4">
-            <div>
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">Session Progress</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400 font-mono">ID: {session.plan_id}</p>
-            </div>
-            <Button onClick={fetchStats} variant="outline" className="h-9 px-3 text-sm">
-              <BarChart3 size={16} className="mr-2" />
-              View Stats
-            </Button>
-          </div>
-          <div className="relative h-4 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden mb-4">
-            <motion.div 
-              className="absolute inset-y-0 left-0 bg-gradient-to-r from-orange-500 to-amber-500 flex items-center justify-end pr-2"
-              animate={{ width: `${progressPct}%` }}
-              transition={{ duration: 0.5 }}
-            >
-              <span className="text-white text-xs font-bold">{progressPct}%</span>
-            </motion.div>
-          </div>
-          <div className="flex justify-between text-sm font-mono text-gray-600 dark:text-gray-400 mb-4">
-            <span>{allocated} / {totalStudents} allocated</span>
-            <span>{pendingCount} remaining</span>
-          </div>
-          
-          {allocatedRooms.length > 0 && (
-            <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-              <p className="text-xs font-bold uppercase text-gray-500 mb-2">Allocated Rooms:</p>
-              <div className="flex flex-wrap gap-2">
-                {allocatedRooms.map((room, idx) => (
-                  <div 
-                    key={room?.classroom_id || idx}
-                    className="px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 rounded-lg text-xs font-bold border border-emerald-200 dark:border-emerald-700"
-                  >
-                    {room?.classroom_name || 'Unknown'}: {room?.count || 0} seats
-                  </div>
-                ))}
+        
+        {/* PROGRESS CARD - With null guards */}
+          {session && (
+            <Card className="p-6 border-2 border-orange-500 dark:border-orange-400">
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">Session Progress</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 font-mono">ID: {session?.plan_id || 'N/A'}</p>
+                </div>
+                <Button onClick={fetchStats} variant="outline" className="h-9 px-3 text-sm">
+                  <BarChart3 size={16} className="mr-2" />
+                  View Stats
+                </Button>
               </div>
-            </div>
+              <div className="relative h-4 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden mb-4">
+                <motion.div 
+                  className="absolute inset-y-0 left-0 bg-gradient-to-r from-orange-500 to-amber-500 flex items-center justify-end pr-2"
+                  animate={{ width: `${progressPct}%` }}
+                  transition={{ duration: 0.5 }}
+                >
+                  {progressPct > 5 && (
+                    <span className="text-white text-xs font-bold">{progressPct}%</span>
+                  )}
+                </motion.div>
+              </div>
+              <div className="flex justify-between text-sm font-mono text-gray-600 dark:text-gray-400 mb-4">
+                <span>{allocated} / {totalStudents} allocated</span>
+                <span>{pendingCount} remaining</span>
+              </div>
+              
+              {allocatedRooms.length > 0 && (
+                <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <p className="text-xs font-bold uppercase text-gray-500 mb-2">Allocated Rooms:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {allocatedRooms.map((room, idx) => (
+                      <div 
+                        key={room?.classroom_id || idx}
+                        className="px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 rounded-lg text-xs font-bold border border-emerald-200 dark:border-emerald-700"
+                      >
+                        {room?.classroom_name || 'Unknown'}: {room?.count || 0} seats
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </Card>
           )}
-        </Card>
 
         {/* STATS MODAL */}
         <AnimatePresence>
@@ -1010,7 +1089,11 @@ const AllocationPage = ({ showToast }) => {
               </div>
               {webData && (
                 <div className="flex gap-2 flex-wrap">
-                  <Button onClick={() => navigate(`/attendance/${session?.plan_id}`)} className="h-10 px-4 bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300 text-xs font-bold">
+                  <Button 
+                        onClick={() => session?.plan_id && navigate(`/attendance/${session.plan_id}`)} 
+                        disabled={!session?.plan_id}
+                        className="h-10 px-4 bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300 text-xs font-bold"
+>
                     <UserCheck size={14} className="mr-2"/> Attendance
                   </Button>
                   <Button onClick={downloadPdf} disabled={pdfLoading} className="h-10 px-4 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white text-xs font-bold">
@@ -1079,7 +1162,7 @@ const AllocationPage = ({ showToast }) => {
                                   }`}
                                 >
                                   {isAllocated && (
-                                    <div className="absolute top-0 inset-x-0 h-1.5 rounded-t-xl" style={{ backgroundColor: seat.color }} />
+                                    <div className="absolute top-0 inset-x-0 h-1.5 rounded-t-xl" style={{ backgroundColor: getPrintFriendlyColor(seat.color) }} />
                                   )}
                                   {isAllocated ? (
                                     <>
