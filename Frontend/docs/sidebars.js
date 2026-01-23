@@ -19,33 +19,29 @@ const sidebars = {
     {
       type: 'doc',
       id: 'intro',
-      label: 'Overview'
+      label: '🚀 Introduction'
     },
     {
-      type: 'doc',
-      id: 'getting-started',
-      label: 'Getting Started'
+      type: 'category',
+      label: '📖 User Guide',
+      collapsed: false,
+      items: [
+        'user-guide/manual',
+        'user-guide/troubleshooting',
+      ],
     },
     {
-      type: 'doc',
-      id: 'algorithm-documentation',
-      label: 'Algorithm Documentation'
+      type: 'category',
+      label: '🛠️ Developer Reference',
+      collapsed: true,
+      items: [
+        'developers/setup',
+        'developers/architecture',
+        'developers/algorithm',
+        'developers/api',
+        'developers/auth',
+      ],
     },
-    {
-      type: 'doc',
-      id: 'system-architecture',
-      label: 'System Architecture'
-    },
-    {
-      type: 'doc',
-      id: 'quick-reference',
-      label: 'Quick Reference'
-    },
-    {
-      type: 'doc',
-      id: 'authentication-setup',
-      label: 'Authentication Setup'
-    }
   ]
 };
 

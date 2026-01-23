@@ -101,13 +101,13 @@ const Navbar = () => {
               hoveredPillTextColor="rgb(var(--pillnav-hover-text) / 1)"
               pillBorderColor={
                 theme === 'light'
-                  ? 'rgba(17, 24, 39, 0.45)'
-                  : 'rgba(192, 192, 192, 0.9)'
+                  ? 'rgba(0, 0, 0, 0.1)'
+                  : 'rgba(255, 255, 255, 0.1)'
               }
               groupBorderColor={
                 theme === 'light'
-                  ? 'rgba(17, 24, 39, 0.55)'
-                  : 'rgba(192, 192, 192, 0.95)'
+                  ? 'rgba(0, 0, 0, 0.15)'
+                  : 'rgba(255, 255, 255, 0.15)'
               }
             />
           )}

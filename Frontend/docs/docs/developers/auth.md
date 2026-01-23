@@ -4,15 +4,19 @@ sidebar_position: 6
 
 import CodeHeader from '@site/src/components/filetypeheaderstyle';
 
-# Authentication Setup Guide
+import ComplexityCards from '@site/src/components/complexitycards';
 
-Comprehensive documentation for user authentication, database integration, and security protocols within the Seat Allocation System.
+# 🔐 Authentication & Security
+
+<ComplexityCards />
+
+Comprehensive technical documentation for user authentication, Google OAuth integration, and security protocols.
 
 ---
 
 ## 📋 System Overview
 
-The authentication system is built on a secure, modular architecture combining SQLite persistence with JWT-based session management.
+The authentication system is built on a secure, modular architecture combining SQLite persistence with JWT-based session management. <span style={{ backgroundColor: '#f97316', color: 'white', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', verticalAlign: 'middle', marginLeft: '8px' }}>v2.3 UPDATE</span>
 
 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', marginBottom: '3rem' }}>
   <div style={{ padding: '1.5rem', borderRadius: '0.75rem', border: '1px solid #334155', backgroundColor: '#1e293b' }}>
@@ -59,17 +63,11 @@ pip install -r requirements.txt`}
   {/* Step 2: Database Initialization */}
   <div style={{ position: 'relative', paddingLeft: '3.5rem', paddingBottom: '3rem' }}>
     <div style={{ position: 'absolute', left: '0', top: '0', width: '30px', height: '30px', borderRadius: '50%', backgroundColor: '#f97316', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '14px', border: '4px solid var(--ifm-background-color)' }}>2</div>
-    <h3 style={{ marginTop: '0', marginBottom: '1rem', fontSize: '1.25rem' }}>Schema Deployment</h3>
-    <p style={{ color: '#94a3b8', marginBottom: '1rem' }}>Deploy the SQLite schema for user and session management.</p>
+    <h3 style={{ marginTop: '0', marginBottom: '1rem', fontSize: '1.25rem' }}>Server Ignition</h3>
+    <p style={{ color: '#94a3b8', marginBottom: '1rem' }}>Launch the Flask server. Database initialization is handled automatically by the app factor functions.</p>
     <CodeHeader title="BASH">
-{`# Initialize database (if needed)
-cd ../Backend
-python database.py
-
-# Return to application directory
-cd ../algo
-
-# Run Flask server
+{`# Run Flask server
+cd algo
 python app.py`}
     </CodeHeader>
     :::tip Expected Output
@@ -106,11 +104,12 @@ The system uses SQLite for lightweight, reliable persistence.
 <CodeHeader title="SQL">
 {`CREATE TABLE users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username VARCHAR(80) UNIQUE NOT NULL,
-    email VARCHAR(120) UNIQUE NOT NULL,
-    password VARCHAR(255) NOT NULL,
-    role VARCHAR(20) NOT NULL DEFAULT 'STUDENT',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    username TEXT UNIQUE,
+    email TEXT UNIQUE,
+    password_hash TEXT,
+    role TEXT DEFAULT 'STUDENT' CHECK(role IN ('STUDENT', 'ADMIN', 'TEACHER')),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    last_login DATETIME
 )`}
 </CodeHeader>
 
@@ -126,12 +125,19 @@ The system uses SQLite for lightweight, reliable persistence.
 ### Session Management (`sessions`)
 
 <CodeHeader title="SQL">
-{`CREATE TABLE sessions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    token VARCHAR(500) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id)
+{`CREATE TABLE allocation_sessions (
+    session_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    plan_id TEXT UNIQUE NOT NULL,
+    user_id INTEGER DEFAULT 1,
+    name TEXT,
+    status TEXT CHECK(status IN ('active', 'completed', 'archived', 'draft', 'expired')) DEFAULT 'active',
+    total_students INTEGER DEFAULT 0,
+    allocated_count INTEGER DEFAULT 0,
+    total_capacity INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    last_activity DATETIME DEFAULT CURRENT_TIMESTAMP,
+    completed_at DATETIME,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
 )`}
 </CodeHeader>
 
@@ -141,6 +147,9 @@ The system uses SQLite for lightweight, reliable persistence.
 | `user_id` | INTEGER | Foreign key reference to `users(id)` |
 | `token` | VARCHAR(500) | Active JWT authentication token |
 | `created_at` | TIMESTAMP | Session initiation timestamp |
+
+### Session Architecture (v2.3 Refined)
+The system now adheres to a **Strict Session Isolation** model where each seating plan preserves its own state history and cache snapshots, identified by a unique `plan_id`.
 
 ---
 
@@ -349,5 +358,5 @@ CORS(app, resources={
 
 ---
 
-**Version**: 2.2  
-**Last Updated**: January 2026
+**Version**: 2.3  
+**Last Updated**: January 24, 2026

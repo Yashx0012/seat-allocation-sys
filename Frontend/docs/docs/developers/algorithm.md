@@ -2,9 +2,13 @@
 sidebar_position: 3
 ---
 
-# Algorithm Documentation
+import ComplexityCards from '@site/src/components/complexitycards';
 
-Complete technical reference for the Classroom Seating Arrangement Algorithm.
+# 🧠 Algorithm Foundations
+
+<ComplexityCards />
+
+Comprehensive technical reference for the Classroom Seating Arrangement Algorithm.
 
 ## Overview
 
@@ -17,7 +21,7 @@ The Classroom Seating Arrangement Algorithm is a constraint-based seating system
 - Broken seat handling
 - Per-batch student count limits
 - Customizable roll number formatting
-- Paper set alternation (A/B within blocks)
+- Paper set alternation (Sequence-strict A/B) <span style={{ backgroundColor: '#f97316', color: 'white', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem' }}>v2.3 UPDATE</span>
 - Batch color coding
 - Comprehensive constraint validation
 - PDF export capability
@@ -37,7 +41,7 @@ flowchart LR
     subgraph FE [Frontend Layer]
         direction TB
         HTML(HTML Form<br><small>User Inputs</small>)
-        JS(Vanilla JS<br><small>+ Tailwind CSS</small>)
+        JS(React Components<br><small>+ Tailwind CSS</small>)
     end
 
     %% Backend Layer
@@ -168,21 +172,20 @@ class PaperSet(Enum):
     </ul>
   </div>
   <div style={{ border: '1px solid var(--ifm-color-emphasis-200)', borderRadius: '6px', padding: '20px', backgroundColor: 'var(--ifm-card-background-color)', transition: 'transform 0.2s', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
-    <h4 style={{ marginTop: 0, color: 'var(--ifm-color-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>Phase 4: Paper Set Assignment</h4>
+    <h4 style={{ marginTop: 0, color: 'var(--ifm-color-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>Phase 4: Paper Set Assignment <span style={{ backgroundColor: '#f97316', color: 'white', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem' }}>v2.3 UPDATE</span></h4>
     <ul style={{ paddingLeft: '20px', margin: 0 }}>
-      <li>Apply block-based paper set alternation</li>
-      <li>A and B alternate within blocks</li>
-      <li>Priority-based same-batch handling</li>
-      <li>Ensure compliance with paper set rules</li>
+      <li><b>Sequence-Centric:</b> Paper sets (A/B) strictly follow student sequence</li>
+      <li>Intelligently skips broken seats to maintain alternation</li>
+      <li>Ensures alternating sets for physical neighbors within blocks</li>
+      <li>Prioritizes academic integrity over simple pattern filling</li>
     </ul>
   </div>
   <div style={{ border: '1px solid var(--ifm-color-emphasis-200)', borderRadius: '6px', padding: '20px', backgroundColor: 'var(--ifm-card-background-color)', transition: 'transform 0.2s', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
-    <h4 style={{ marginTop: 0, color: 'var(--ifm-color-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>Phase 5: Validation</h4>
+    <h4 style={{ marginTop: 0, color: 'var(--ifm-color-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>Phase 5: Validation <span style={{ backgroundColor: '#f97316', color: 'white', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem' }}>PRAGMATIC MODEL</span></h4>
     <ul style={{ paddingLeft: '20px', margin: 0 }}>
-      <li>Check all 8 constraints</li>
-      <li>Apply 3-tier priority system</li>
-      <li>Generate validation report</li>
-      <li>Provide detailed error messages</li>
+      <li><b>Errors:</b> Critical physical collisions (Must resolve)</li>
+      <li><b>Warnings:</b> Gaps in paper set sequence (Informational)</li>
+      <li>Dual-tier report for better decision making</li>
     </ul>
   </div>
 </div>
@@ -302,7 +305,7 @@ Content-Type: application/json
 | 1 | Broken Seats | Skip unavailable seats | HIGH | Yes |
 | 2 | Batch Limits | Don't exceed per-batch limits | HIGH | Yes |
 | 3 | Block Width | Respect block structure | HIGH | Yes |
-| 4 | Paper Sets | Alternate A/B in blocks | MEDIUM | Yes |
+| 4 | Paper Sets | Sequence-strict A/B alternation | MEDIUM | Yes |
 | 5 | Column-Batch Map | Column to batch mapping | HIGH | Yes |
 | 6 | Adjacent Batches | Optional: no adjacent batches | MEDIUM | No |
 | 7 | Roll Format | Format roll numbers correctly | HIGH | Yes |
@@ -489,5 +492,5 @@ generateSeating(params: any): Observable<any> {
 
 ---
 
-**Version**: 2.1  
-**Last Updated**: January 2026
+**Version**: 2.3  
+**Last Updated**: January 24, 2026

@@ -1,70 +1,39 @@
-# Getting Started with Create React App
+# SeatWise - Frontend (React)
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+The administrative portal for SeatWise, built with React and optimized for high-performance seating visualization and layout management.
 
-## Available Scripts
+## 🎨 Design Philosophy
+
+The interface follows a **Modern Glassmorphism** aesthetic, designed to provide a premium, professional experience for educational administrators.
+
+- **Glassy Navbar**: Subtle, transparent navigation boundaries that blend with the backdrop-blur effect.
+- **Dynamic Grid**: A high-fidelity seating visualization that handles 200+ students per room with zero lag.
+- **Micro-Animations**: Smooth transitions powered by GSAP and Framer Motion for enhanced user feedback.
+
+## 🛠️ Tech Stack
+
+- **Framework**: React 18
+- **Styling**: Vanilla CSS (Layouts) + Tailwind CSS (Components)
+- **Animations**: GSAP (PillNav) + Framer Motion (Page Transitions)
+- **Routing**: React Router DOM v6
+- **State Management**: React Context API
+
+## 🔑 Key Components
+
+- **[Navbar](file:///home/blazex/Documents/git/seat-allocation-sys/Frontend/src/components/Navbar.jsx)**: Global navigation with theme toggling and glassmorphism styling.
+- **[PillNav](file:///home/blazex/Documents/git/seat-allocation-sys/Frontend/src/components/PillNav.jsx)**: GSAP-animated pill-style navigation for secondary menus.
+- **Seating Designer**: Interactive tool for configuring room layouts and marking broken seats.
+- **Allocation Dashboard**: Live view of generated seating plans with real-time constraint validation symbols.
+
+## 🚀 Development
+
+### Available Scripts
 
 In the project directory, you can run:
 
-### `npm start`
+- `npm start`: Runs the app in development mode.
+- `npm run build`: Bundles the app for production.
+- `npm test`: Launches the test runner.
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
-
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
-
-### `npm test`
-
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
-
-### `npm run build`
-
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
-
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
-
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
-
-### `npm run eject`
-
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
-
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
-
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+---
+*Generated by SeatWise Frontend Team.*

@@ -5,9 +5,13 @@ sidebar_position: 2
 import CodeHeader from '@site/src/components/filetypeheaderstyle';
 
 
-# Getting Started
+import ComplexityCards from '@site/src/components/complexitycards';
 
-Quick start guide to get the Seat Allocation System up and running.
+# 🛠️ Developer Setup
+
+<ComplexityCards />
+
+Comprehensive technical guide to setting up the Seat Allocation System development environment.
 
 ## Prerequisites
 
@@ -86,27 +90,28 @@ $ pip install -r requirements.txt`}
 
   <div style={{ position: 'relative', paddingLeft: '3.5rem', paddingBottom: '3rem' }}>
     <div style={{ position: 'absolute', left: '0', top: '0', width: '30px', height: '30px', borderRadius: '50%', backgroundColor: '#f97316', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '14px', border: '4px solid var(--ifm-background-color)' }}>3</div>
-    <h3 style={{ marginTop: '0', marginBottom: '1rem', fontSize: '1.25rem' }}>Database Initialization</h3>
+    <h3 style={{ marginTop: '0', marginBottom: '1rem', fontSize: '1.25rem' }}>Start Backend Server</h3>
+    <p>The system initializes the database (demo.db) automatically on the first run.</p>
     <CodeHeader title="BASH">
-{`# Go to Backend directory
-$ cd ../Backend
+{`$ cd algo
+$ python app.py
 
-# Initialize database
-$ python database.py
-Database initialized successfully
-
-# Return to algo directory
-$ cd ../algo`}
+# Expected Output:
+🚀 Starting Seat Allocation System - Modular Backend
+🔧 Environment: development
+🐛 Debug Mode: True
+* Running on http://localhost:5000`}
     </CodeHeader>
   </div>
 
   <div style={{ position: 'relative', paddingLeft: '3.5rem', paddingBottom: '3rem' }}>
     <div style={{ position: 'absolute', left: '0', top: '0', width: '30px', height: '30px', borderRadius: '50%', backgroundColor: '#f97316', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '14px', border: '4px solid var(--ifm-background-color)' }}>4</div>
-    <h3 style={{ marginTop: '0', marginBottom: '1rem', fontSize: '1.25rem' }}>Start Backend Server</h3>
+    <h3 style={{ marginTop: '0', marginBottom: '1rem', fontSize: '1.25rem' }}>Run Documentation Server</h3>
     <CodeHeader title="BASH">
-{`$ python app.py
-* Running on http://localhost:5000
-* Debug mode: on`}
+{`$ cd Frontend/docs
+$ npm start
+
+# Runs on: http://localhost:3001`}
     </CodeHeader>
   </div>
 
@@ -141,26 +146,27 @@ Local: http://localhost:3000`}
 
 <CodeHeader title="FILE STRUCTURE">
 {`seat-allocation-sys/
-├── algo/                    # Backend (Flask)
-│   ├── app.py              # Main Flask application
-│   ├── algo.py             # Seating algorithm
-│   ├── auth_service.py     # Authentication logic
-│   ├── requirements.txt    # Python dependencies
+├── algo/                    # Backend (Flask Modular Architecture)
+│   ├── app.py              # Main entry point (Port 5000)
+│   ├── main.py             # App factory & Route registration
+│   ├── auth_service.py     # Auth logic & JWT management
+│   ├── api/                # API Blueprints
+│   │   └── blueprints/    # Individual feature routes
+│   ├── core/               # Core business logic
+│   │   ├── algorithm/     # Seating engine (seating.py)
+│   │   ├── database/      # DB Schema & Queries (demo.db)
+│   │   └── services/      # Logic isolation layer
 │   └── ...
-├── Backend/                # Database & Auth
-│   ├── database.py         # Database setup
-│   └── auth_service.py     # Authentication service
-├── Frontend/               # React application
+├── Frontend/               # React Application
 │   ├── src/
-│   │   ├── pages/         # Page components
-│   │   ├── components/    # Reusable components
-│   │   ├── context/       # Context providers
-│   │   └── App.jsx        # Main app component
-│   ├── package.json       # npm dependencies
-│   └── ...
-└── docs/                   # Documentation (Docusaurus)
-    ├── docs/              # Documentation files
-    └── docusaurus.config.js`}
+│   │   ├── components/    # Reusable UI (Navbar, Bento, etc.)
+│   │   ├── pages/         # Dashboard & Layouts
+│   │   └── App.jsx        # Main context & routing
+│   ├── docs/              # Documentation (Docusaurus - Port 3001)
+│   └── package.json       # Frontend dependencies
+├── tests/                  # Verification & Repro scripts
+├── app.log                 # Backend system logs
+└── demo.db                 # Primary SQLite database`}
 </CodeHeader>
 
 ## First Time Usage
@@ -292,11 +298,13 @@ Runs on `http://localhost:3000` (different port in docs package.json)
 </CodeHeader>
 
 
-### Check Database Status
+### Database Registry
 
-<CodeHeader title="BASH">
-{`$ ls -la Backend/user_auth.db`}
-</CodeHeader>
+| Location | Purpose |
+|---|---|
+| `algo/demo.db` | Primary SQLite database |
+| `algo/app.log` | Backend activity logs |
+| `algo/user_auth.db` | Legacy authentication store (Auth v1) |
 
 ## File Descriptions
 
@@ -305,10 +313,10 @@ Runs on `http://localhost:3000` (different port in docs package.json)
 | File | Purpose |
 |---|---|
 | `algo/app.py` | Flask REST API server |
-| `algo/algo.py` | Seating algorithm implementation |
+| `algo/core/algorithm/seating.py` | Seating algorithm implementation |
 | `algo/auth_service.py` | User authentication logic |
 | `algo/student_parser.py` | Student data parsing |
-| `Backend/database.py` | SQLite database handler |
+| `algo/database/db.py` | SQLite database handler |
 
 ### Key Frontend Files
 
@@ -367,10 +375,9 @@ $ npm install`}
 
 **Solution:**
 <CodeHeader title="BASH">
-{`$ rm Backend/user_auth.db
-$ cd Backend
-$ python database.py
-$ cd ../algo`}
+{`$ rm algo/user_auth.db
+$ cd algo
+$ python app.py`}
 </CodeHeader>
 
 ### Issue: Backend and Frontend not connecting
@@ -430,5 +437,5 @@ $ cd Frontend && npm start
 
 ---
 
-**Version**: 2.2  
-**Last Updated**: January 2026
+**Version**: 2.3 <span style={{ backgroundColor: '#f97316', color: 'white', padding: '2px 6px', borderRadius: '4px', fontSize: '0.6rem' }}>NEW UPDATE</span>  
+**Last Updated**: January 24, 2026

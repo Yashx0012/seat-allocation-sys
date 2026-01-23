@@ -12,32 +12,55 @@ import CodeHeader from '@site/src/components/filetypeheaderstyle';
 <div className="hero-section">
   <h1>Seat Allocation System</h1>
   <p>Intelligent classroom seating arrangement powered by constraint-based algorithms</p>
-  <div style={{ marginTop: '2rem', display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-    <a href="/docs/getting-started" className="cta-button cta-button-primary">Get Started</a>
-    <a href="/docs/algorithm-documentation" className="cta-button cta-button-secondary">Learn More</a>
-  </div>
 </div>
 
-## What is the Seat Allocation System?
+<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '2rem', marginTop: '3rem', marginBottom: '4rem' }}>
+  
+  {/* Path 1: User / Teacher */}
+  <MagicBento 
+    enableStars={true} 
+    glowColor="59, 130, 246"
+    enableBorderGlow={true}
+    enableTilt={true}
+    clickEffect={true}
+  >
+    <div style={{ padding: '1rem' }}>
+      <div style={{ fontSize: '3rem', marginBottom: '1.5rem' }}>📖</div>
+      <h2 style={{ border: 'none', marginBottom: '1rem', color: '#3b82f6' }}>I am a User</h2>
+      <p style={{ fontSize: '1.1rem', color: 'var(--ifm-color-content-secondary)', minHeight: '80px' }}>
+        Learn how to use the application to generate seating plans, manage students, and export PDFs for your classes.
+      </p>
+      <a href="/docs/user-guide/manual" className="cta-button cta-button-primary" style={{ display: 'block', textAlign: 'center', backgroundColor: '#3b82f6' }}>
+        View User Manual
+      </a>
+    </div>
+  </MagicBento>
 
-The **Seat Allocation System** is a sophisticated web-based platform that intelligently allocates students to classroom seats using advanced constraint-based algorithms. Perfect for educational institutions needing fair, automated, and efficient seating arrangements.
+  {/* Path 2: Developer / Contributor */}
+  <MagicBento 
+    enableStars={true} 
+    glowColor="139, 92, 246"
+    enableBorderGlow={true}
+    enableTilt={true}
+    clickEffect={true}
+  >
+    <div style={{ padding: '1rem' }}>
+      <div style={{ fontSize: '3rem', marginBottom: '1.5rem' }}>🛠️</div>
+      <h2 style={{ border: 'none', marginBottom: '1rem', color: '#8b5cf6' }}>I am a Developer</h2>
+      <p style={{ fontSize: '1.1rem', color: 'var(--ifm-color-content-secondary)', minHeight: '80px' }}>
+        Deep dive into the architecture, algorithm logic, API endpoints, and technical setup of the system.
+      </p>
+      <a href="/docs/developers/setup" className="cta-button cta-button-secondary" style={{ display: 'block', textAlign: 'center', borderColor: '#8b5cf6', color: '#8b5cf6' }}>
+        Explore Technical Docs
+      </a>
+    </div>
+  </MagicBento>
+
+</div>
 
 ---
 
-## Technology Stack
-
-<div className="tech-stack">
-  <div className="tech-item">⚛️ React 19</div>
-  <div className="tech-item">🐍 Python Flask</div>
-  <div className="tech-item">📱 Tailwind CSS</div>
-  <div className="tech-item">🗄️ SQLite + History</div>
-  <div className="tech-item">🚀 REST API</div>
-  <div className="tech-item">🔑 Google Auth</div>
-</div>
-
----
-
-## Key Features
+## Technical Overview
 
 <div className="feature-cards" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
   <MagicBento 
@@ -52,8 +75,8 @@ The **Seat Allocation System** is a sophisticated web-based platform that intell
     particleCount={12}
     glowColor="132, 0, 255"
   >
-    <h3>🎯 Smart Algorithm</h3>
-    <p>8 built-in constraints including batch limits, broken seats, and paper set alternation for optimal seating</p>
+    <h3>🎯 Smart Algorithm <span style={{ backgroundColor: '#f97316', color: 'white', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', verticalAlign: 'middle', marginLeft: '8px' }}>NEW UPDATE v2.3</span></h3>
+    <p>Enhanced <b>Sequence-Centric</b> paper sets that maintain alternation by student order, intelligently skipping broken seats while ensuring academic integrity.</p>
   </MagicBento>
 
   <MagicBento enableStars={true} glowColor="255, 100, 0">
@@ -62,13 +85,13 @@ The **Seat Allocation System** is a sophisticated web-based platform that intell
   </MagicBento>
 
   <MagicBento enableStars={true} glowColor="0, 200, 255">
-    <h3>📊 Real-time Validation</h3>
-    <p>Comprehensive constraint validation with priority levels (HIGH, MEDIUM, LOW)</p>
+    <h3>📊 Pragmatic Validation</h3>
+    <p>New dual-tier validation model: <b>Critical Errors</b> for physical collisions and <b>Informational Warnings</b> for sequence gaps.</p>
   </MagicBento>
 
   <MagicBento enableStars={true} glowColor="255, 0, 100">
-    <h3>🎨 Visual Design</h3>
-    <p>Beautiful color-coded seating grid with batch-specific colors and responsive layout</p>
+    <h3>🎨 Premium Design <span style={{ backgroundColor: '#f97316', color: 'white', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', verticalAlign: 'middle', marginLeft: '8px' }}>NEW</span></h3>
+    <p>Modern <b>Glassmorphism</b> aesthetic featuring backdrop blurs, glassy navbar borders, and a refined professional dark mode.</p>
   </MagicBento>
 
   <MagicBento enableStars={true} glowColor="50, 255, 50">
@@ -245,7 +268,7 @@ The algorithm strictly follows these rules to ensure a valid and conflict-free a
 - ✓ Broken Seats (unavailable positions)
 - ✓ Batch Limits (per-batch student count)
 - ✓ Block Width (seating structure)
-- ✓ Paper Sets (A/B alternation)
+- ✓ Paper Sets (Sequence-strict A/B alternation skipping broken seats) <span style={{ backgroundColor: '#f97316', color: 'white', padding: '2px 4px', borderRadius: '4px', fontSize: '0.6rem', verticalAlign: 'middle' }}>v2.3</span>
 - ✓ Column-Batch Mapping
 - ✓ Adjacent Batch Control
 - ✓ Roll Format Validation

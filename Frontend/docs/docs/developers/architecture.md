@@ -4,9 +4,11 @@ sidebar_position: 4
 
 import ComplexityCards from '@site/src/components/complexitycards';
 
-# System Architecture
+# 🏗️ System Architecture
 
-Complete system design and data flow documentation.
+<ComplexityCards />
+
+Deep dive into the structural design, data flow, and algorithmic foundations of the platform.
 
 ## High-Level Architecture
 
@@ -17,86 +19,55 @@ graph TB
     classDef api fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:#1b5e20,rx:5,ry:5
     classDef algo fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#4a148c,rx:5,ry:5
     classDef router fill:#fff3e0,stroke:#ff6d00,stroke-width:2px,color:#e65100,stroke-dasharray: 5 5,shape:circle
-    classDef spacerNode width:0px,height:50px,fill:none,stroke:none;
-    %% Label Node Style (White box, clear border, rounded like others)
     classDef labelNode fill:#ffffff,stroke:#333333,stroke-width:1px,rx:5,ry:5,color:#000
     
-            classDef transparentBox fill:none,stroke:none;
-    %% Orange Thicker Arrows
-    linkStyle default stroke:#ff9800,stroke-width:4px,fill:none
+    linkStyle default stroke:#ff9800,stroke-width:3px,fill:none
 
-    %% CLIENT LAYER (Horizontal)
-    subgraph Client[" "]
- direction TB
-        style Client fill:transparent,stroke-width:0px,color:#ff9800
-        %% --- 1. THE NEW BOX ABOVE ---
-        
-        %% --- 2. THE ROW BELOW (Nested Subgraph) ---
-        subgraph ClientRow[" "]
-            direction LR
-            style ClientRow fill:none,stroke:none
-            %% EXISTING NODES
-            HTML["HTML Form Inputs"]:::client
-            GRID["Seating Grid Display"]:::client
-            SUMMARY["Summary Statistics"]:::client
-            MODAL["Constraints Modal"]:::client
-            PDF["PDF/Attendance Export"]:::client
-            MANUAL["Manual Adjustments"]:::client
-            FEEDBACK["Feedback System"]:::client
-        end
+    %% CLIENT LAYER
+    subgraph ClientLayer["Frontend (React)"]
+        HTML["React Forms"]:::client
+        GRID["Glassy Seating Grid"]:::client
+        DASH["Admin Dashboard"]:::client
     end
        
-    %% API LAYER (Vertical with Router)
-    %% Moved label to side using spaces to avoid arrow overlap
-    subgraph API[" "]
-        direction TB
-        style API fill:transparent,stroke-width:0px,color:#ff9800
+    %% API LAYER
+    subgraph APILayer["Backend (algo/api)"]
+        ROUTER(("Flask Router")):::router
+        BP_S["Session Blueprint"]:::api
+        BP_A["Allocation Blueprint"]:::api
+        BP_U["Auth Blueprint"]:::api
         
-        ROUTER((" / Flask Router / ")):::router
-        
-        GET[" GET / "]:::api
-        POST1["POST /api/generate-seating"]:::api
-        POST2["POST /api/constraints-status"]:::api
-        
-        %% Internal API Label Nodes
-        L_ROUTE1["Route"]:::labelNode
-        L_ROUTE2["Route"]:::labelNode
-        L_ROUTE3["Route"]:::labelNode
-
-        ROUTER --> L_ROUTE1 --> GET
-        ROUTER --> L_ROUTE2 --> POST1
-        ROUTER --> L_ROUTE3 --> POST2
+        ROUTER --> BP_S
+        ROUTER --> BP_A
+        ROUTER --> BP_U
     end
     
-    %% ALGORITHM LAYER (Bottom)
-    %% Shift Left via padding-right
-    subgraph Algorithm[" "]
-        direction TB
-        style Algorithm fill:transparent,stroke-width:0px,color:#ff9800
-
+    %% CORE LAYER
+    subgraph CoreLayer["Core Logic (algo/core)"]
+        S_SERVICE["Session Service"]:::algo
+        A_SERVICE["Allocation Service"]:::algo
+        ENGINE["Seating Engine (seating.py)"]:::algo
+        VALIDATOR["Pragmatic Validator"]:::algo
         
-        SA["SeatingAlgorithm"]:::algo
-        SC["Seat Class"]:::algo
-        PS["PaperSet Enum"]:::algo
-        METHODS["20+ Methods"]:::algo
-        ATT["Attendance Generator"]:::algo
-        LEFT["Leftover Calculator"]:::algo
-        
-        SA -.-> SC
-        SA -.-> PS
-        SA -.-> METHODS
-        SA -.-> ATT
-        SA -.-> LEFT
+        BP_S --> S_SERVICE
+        BP_A --> A_SERVICE
+        A_SERVICE --> ENGINE
+        ENGINE --> VALIDATOR
     end
     
-    %% Inter-Layer Connections with Label Nodes
-    L_JSON["JSON via HTTP"]:::labelNode
-    L_PY["Python Objects"]:::labelNode
-    L_STATUS["Status Check"]:::labelNode
+    %% DATA LAYER
+    subgraph DataLayer["Persistence"]
+        DB[(SQLite / demo.db)]:::labelNode
+        CACHE["Session Cache (JSON)"]:::labelNode
+        
+        S_SERVICE --> DB
+        S_SERVICE --> CACHE
+        A_SERVICE --> DB
+    end
 
-    MODAL --> L_JSON --> ROUTER
-    POST1 --> L_PY --> SA
-    POST2 --> L_STATUS --> SA
+    %% Connections
+    HTML --> ROUTER
+    GRID --> BP_A
 ```
 
 ## Data Flow Diagram
@@ -376,8 +347,10 @@ erDiagram
         timestamp created_at
     }
 ```
-### System Performance Metrics
-<ComplexityCards />
+## State Synchronization
+The system maintains a dual-state model:
+1. **Database State**: Primary source of truth in `demo.db`.
+2. **In-Memory Buffer**: Active seating calculations before persistence.
 
 ## Extension Points
 
@@ -435,7 +408,22 @@ graph TB
     G --> I
 ```
 
+## Design System & Aesthetic Profile <span style={{ backgroundColor: '#f97316', color: 'white', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem' }}>NEW v2.3</span>
+
+The platform employs a **Glassmorphism** design language to create a premium, modern experience.
+
+### Core Visual Tokens
+- **Backdrop Blur:** Surfaces use `backdrop-filter: blur(12px)` for a depth effect.
+- **Glassy Borders:** Semi-transparent borders (e.g., `rgba(255, 255, 255, 0.1)`) create distinctive edges.
+- **Vibrant Gradients:** Strategic use of mesh gradients and glows (as seen in `MagicBento`).
+- **Surface Elevation:** Multi-layered transparency instead of traditional solid shadows.
+
+### Glassmorphism Components
+- **Navbar:** High-gloss pill-shaped navigation with transparent borders.
+- **Cards:** `.glass-card` utility classes applied to seating grid and summary items.
+- **Modals:** Deep blur overlays for focused constraint management.
+
 ---
 
-**Version**: 2.1  
-**Last Updated**: January 2026
+**Version**: 2.3  
+**Last Updated**: January 24, 2026

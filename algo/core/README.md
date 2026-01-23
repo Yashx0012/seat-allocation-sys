@@ -4,9 +4,11 @@ The `core/` directory contains the fundamental algorithmic and data management c
 
 ## Key Modules
 
-### [Algorithm](file:///home/blazex/Documents/git/seat-allocation-sys/algo/core/algorithm/seating.py)
-- **Primary Function**: The `SeatingAlgorithm` class implements complex logic to arrange students based on batch constraints, column-major filling, and paper set alternation.
-- **Features**: Supports broken seat avoidance, block boundaries, and custom batch coloring.
+- **Primary Function**: The `SeatingAlgorithm` class implements multi-constraint logic to arrange students following a **Sequence-Centric** model.
+- **Features**: 
+    - **Sequence-Strict Paper Sets**: Guarantees A-B-A-B alternation by treating students as a continuous sequence, strictly skipping broken seats and empty spaces.
+    - **Collision Resolution**: Prioritizes physical adjacency (dist 1) in conflict cases to ensure no two side-by-side students ever share the same set.
+    - **Pragmatic Validation**: Includes a dual-tier validator that distinguishes between critical Physical Errors and layout-forced Sequence Warnings.
 
 ### [Cache](file:///home/blazex/Documents/git/seat-allocation-sys/algo/core/cache/cache_manager.py)
 - **Primary Function**: The `CacheManager` provides a manual "Snapshot" system for active seating plans.

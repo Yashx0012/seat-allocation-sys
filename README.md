@@ -7,7 +7,7 @@ A high-performance, intelligent seating management platform designed for educati
 ## 🚀 CORE FEATURES
 
 - **Intelligent Seating Engine**: Automated generation based on room capacity, student count, and branching logic.
-- **Academic Integrity (Paper Sets)**: Guaranteed A/B paper set alternation for all immediate neighbors (Vertical/Horizontal).
+- **Academic Integrity (Paper Sets)**: Strict A/B alternation following student sequence, skipping broken/empty seats for perfect isolation.
 - **Batch Isolation**: Smart spacing that prevents students from the same batch sitting together within classroom blocks.
 - **Dynamic Hall Visualization**: Interactive, responsive grid layout with aisle support and sub-room blocking.
 - **Student Data Management**: Robust ingestion of student records with support for real enrollment strings.
@@ -25,12 +25,13 @@ The system utilizes a custom **Column-Major Multi-Constraint Algorithm** (`seati
 1.  **Block-Aware Isolation**:
     *   **In-Block**: Strictly enforces at least one column gap (empty seat or different batch) between students of the same branch within a physical desk block.
     *   **Across-Aisle**: Intelligently allows same-batch adjacency across block boundaries (aisles) to maximize seat utilization while maintaining social distancing.
-2.  **Batch-Aware Paper Sets**:
-    *   The algorithm tracks the last paper set used for a specific batch in a row.
-    *   If a student's same-batch predecessor in a row had "Set A", the current student is guaranteed "Set B", regardless of their physical grid position.
-3.  **Physical Integrity**:
+2.  **Sequence-Aware Paper Sets**:
+    *   The algorithm treats students as an ordered sequence in each row/column, **strictly skipping broken and empty seats**.
+    *   If a student's same-batch predecessor in a sequence had "Set A", the current student receives "Set B", even if separated by gaps.
+    *   **Physical Priority**: In conflict cases, physical adjacency (dist 1) takes precedence to ensure side-by-side neighbors never share the same set.
+3.  **Physical Integrity & Validation**:
     *   Ensures a checkerboard pattern for ALL students to prevent copying from immediate neighbors.
-    *   Automatically respects "Broken Seats" and physical obstructions defined in room configurations.
+    *   **Pragmatic Validator**: Distinguishes between critical physical collisions (Errors) and layout-forced sequence gaps (Warnings), ensuring valid plans are correctly marked.
 
 ---
 
@@ -39,7 +40,7 @@ The system utilizes a custom **Column-Major Multi-Constraint Algorithm** (`seati
 Built for high readability and professional aesthetics:
 - **Responsive Seat Cards**: Dynamic sizing that prevents text wrapping for long enrollment IDs.
 - **Status Indicators**: Real-time "Constraint Validation" dashboard showing the health of the current layout.
-- **Glassmorphism Design**: Modern, premium aesthetic with subtle blurs, sleek gradients, and micro-animations.
+- **Glassmorphism Design**: Modern, premium aesthetic with glassy navbar borders, subtle blurs, sleek gradients, and micro-animations.
 - **Aisle Implementation**: Logical blocks (e.g., 3-seater desks) are separated by clear visual aisles for realistic floor planning.
 
 ---

@@ -4,9 +4,13 @@ sidebar_position: 5
 
 import CodeHeader from '@site/src/components/filetypeheaderstyle';
 
-# Quick Reference Guide
+import ComplexityCards from '@site/src/components/complexitycards';
 
-Fast developer integration and common workflows.
+# 🔌 API Technical Reference
+
+<ComplexityCards />
+
+Fast developer integration and comprehensive REST API workflows.
 
 ## 5-Minute Setup
 
@@ -99,9 +103,10 @@ data.summary.total_available_seats      // 78
 data.summary.total_allocated_students   // 25
 data.summary.batch_distribution         // {1: 10, 2: 8, 3: 7}
 
-// Validation
+// Validation <span style={{ backgroundColor: '#f97316', color: 'white', padding: '1px 6px', borderRadius: '4px', fontSize: '0.6rem' }}>PRAGMATIC MODEL</span>
 data.validation.is_valid                // true/false
-data.validation.errors                  // ["error1", "error2"]
+data.validation.errors                  // ["physical collision at ..."]
+data.validation.warnings                // ["paper set sequence gap at ..."]
 
 // Constraints
 data.constraints_status.constraints     // Array of constraint objects`}
@@ -528,13 +533,10 @@ data.constraints_status.constraints.forEach(c => {
 {`seat-allocation-sys/
 ├── algo/
 │   ├── app.py                 # Flask app
-│   ├── algo.py               # Algorithm core
+│   ├── core/algorithm/seating.py  # Algorithm core
 │   ├── auth_service.py        # Authentication
 │   ├── requirements.txt       # Python dependencies
 │   └── ...
-├── Backend/
-│   ├── database.py           # Database handler
-│   └── auth_service.py       # Auth service
 ├── Frontend/
 │   ├── src/
 │   │   ├── App.jsx          # Main component
@@ -548,5 +550,5 @@ data.constraints_status.constraints.forEach(c => {
 
 ---
 
-**Version**: 2.1  
-**Last Updated**: January 2026
+**Version**: 2.3  
+**Last Updated**: January 24, 2026
