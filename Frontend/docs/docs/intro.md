@@ -7,6 +7,7 @@ slug: /
 
 import { Redirect } from '@docusaurus/router';
 import MagicBento from '@site/src/components/MagicBento';
+import CodeHeader from '@site/src/components/filetypeheaderstyle';
 
 <div className="hero-section">
   <h1>Seat Allocation System</h1>
@@ -327,8 +328,8 @@ This documentation is organized into the following sections:
 
 ### For Developers
 
-```bash title="Terminal"
-# Clone repository
+<CodeHeader title="Terminal">
+{`# Clone repository
 git clone https://github.com/TANISHX1/seat-allocation-sys.git
 
 # Install dependencies
@@ -338,8 +339,8 @@ pip install -r algo/requirements.txt
 
 # Start development servers
 npm start        # Frontend (port 3000)
-python app.py    # Backend (port 5000)
-```
+python app.py    # Backend (port 5000)`}
+</CodeHeader>
 
 ---
 

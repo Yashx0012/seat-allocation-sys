@@ -2,6 +2,9 @@
 sidebar_position: 2
 ---
 
+import CodeHeader from '@site/src/components/filetypeheaderstyle';
+
+
 # Getting Started
 
 Quick start guide to get the Seat Allocation System up and running.
@@ -57,164 +60,70 @@ Quick start guide to get the Seat Allocation System up and running.
   <div style={{ position: 'relative', paddingLeft: '3.5rem', paddingBottom: '3rem' }}>
     <div style={{ position: 'absolute', left: '0', top: '0', width: '30px', height: '30px', borderRadius: '50%', backgroundColor: '#f97316', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '14px', border: '4px solid var(--ifm-background-color)' }}>1</div>
     <h3 style={{ marginTop: '0', marginBottom: '1rem', fontSize: '1.25rem' }}>Clone Repository</h3>
-    <div style={{ width: '100%', height: 'auto', backgroundColor: '#1e293b', borderRadius: '10px', display: 'grid', gridTemplateRows: '40px 1fr', marginBottom: '20px', position: 'relative', overflow: 'hidden', fontFamily: 'monospace' }}>
-      <div style={{ display: 'flex', alignItems: 'center', position: 'relative', backgroundColor: 'rgba(51, 65, 85, 0.5)', width: '100%' }}>
-        <span style={{ color: '#7dd3fc', fontSize: '13px', padding: '2px 12px' }}>Terminal</span>
-        <button style={{ position: 'absolute', background: 'transparent', border: 'none', top: '50%', right: '15px', transform: 'translateY(-50%)', color: 'rgb(100, 116, 139)', cursor: 'pointer', fontSize: '12px' }}>Copy</button>
-        <div style={{ content: '""', position: 'absolute', borderTopLeftRadius: '5px', borderTopRightRadius: '5px', border: '1px solid rgba(100, 116, 139, 0.3)', right: '1px', bottom: '0', backgroundColor: 'rgba(51, 65, 85, 0.5)', width: 'calc(100% - 2px)', height: '33px', zIndex: '100', pointerEvents: 'none' }}></div>
-        <div style={{ content: '""', position: 'absolute', width: '100%', height: '1px', backgroundColor: '#f97316', bottom: '0', opacity: '0.5' }}></div>
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', padding: '15px 10px', backgroundColor: '#1e293b' }}>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <span style={{ color: 'rgb(244, 114, 182)', paddingTop: '3px', marginRight: '5px' }}>$</span>
-          <span style={{ color: '#f8fafc' }}>git clone https://github.com/TANISHX1/seat-allocation-sys.git</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <span style={{ color: 'rgb(244, 114, 182)', paddingTop: '3px', marginRight: '5px' }}>$</span>
-          <span style={{ color: '#f8fafc' }}>cd seat-allocation-sys</span>
-        </div>
-      </div>
-    </div>
+    <CodeHeader title="BASH">
+{`$ git clone https://github.com/TANISHX1/seat-allocation-sys.git
+$ cd seat-allocation-sys`}
+    </CodeHeader>
   </div>
 
   <div style={{ position: 'relative', paddingLeft: '3.5rem', paddingBottom: '3rem' }}>
     <div style={{ position: 'absolute', left: '0', top: '0', width: '30px', height: '30px', borderRadius: '50%', backgroundColor: '#f97316', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '14px', border: '4px solid var(--ifm-background-color)' }}>2</div>
     <h3 style={{ marginTop: '0', marginBottom: '1rem', fontSize: '1.25rem' }}>Backend Setup</h3>
-    <div style={{ width: '100%', height: 'auto', backgroundColor: '#1e293b', borderRadius: '10px', display: 'grid', gridTemplateRows: '40px 1fr', marginBottom: '20px', position: 'relative', overflow: 'hidden', fontFamily: 'monospace' }}>
-      <div style={{ display: 'flex', alignItems: 'center', position: 'relative', backgroundColor: 'rgba(51, 65, 85, 0.5)', width: '100%' }}>
-        <span style={{ color: '#7dd3fc', fontSize: '13px', padding: '2px 12px' }}>Terminal</span>
-        <button style={{ position: 'absolute', background: 'transparent', border: 'none', top: '50%', right: '15px', transform: 'translateY(-50%)', color: 'rgb(100, 116, 139)', cursor: 'pointer', fontSize: '12px' }}>Copy</button>
-        <div style={{ content: '""', position: 'absolute', borderTopLeftRadius: '5px', borderTopRightRadius: '5px', border: '1px solid rgba(100, 116, 139, 0.3)', right: '1px', bottom: '0', backgroundColor: 'rgba(51, 65, 85, 0.5)', width: 'calc(100% - 2px)', height: '33px', zIndex: '100', pointerEvents: 'none' }}></div>
-        <div style={{ content: '""', position: 'absolute', width: '100%', height: '1px', backgroundColor: '#f97316', bottom: '0', opacity: '0.5' }}></div>
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', padding: '15px 10px', backgroundColor: '#1e293b' }}>
-        <div style={{ display: 'flex', alignItems: 'center', color: '#94a3b8' }}># Navigate to backend directory</div>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <span style={{ color: 'rgb(244, 114, 182)', paddingTop: '3px', marginRight: '5px' }}>$</span>
-          <span style={{ color: '#f8fafc' }}>cd algo</span>
-        </div>
-        <br/>
-        <div style={{ display: 'flex', alignItems: 'center', color: '#94a3b8' }}># Create virtual environment</div>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <span style={{ color: 'rgb(244, 114, 182)', paddingTop: '3px', marginRight: '5px' }}>$</span>
-          <span style={{ color: '#f8fafc' }}>python -m venv venv</span>
-        </div>
-        <br/>
-        <div style={{ display: 'flex', alignItems: 'center', color: '#94a3b8' }}># Activate virtual environment (Windows)</div>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <span style={{ color: 'rgb(244, 114, 182)', paddingTop: '3px', marginRight: '5px' }}>$</span>
-          <span style={{ color: '#f8fafc' }}>venv\Scripts\activate</span>
-        </div>
-        <br/>
-        <div style={{ display: 'flex', alignItems: 'center', color: '#94a3b8' }}># Install Python dependencies</div>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <span style={{ color: 'rgb(244, 114, 182)', paddingTop: '3px', marginRight: '5px' }}>$</span>
-          <span style={{ color: '#f8fafc' }}>pip install -r requirements.txt</span>
-        </div>
-      </div>
-    </div>
+    <CodeHeader title="BASH">
+{`# Navigate to backend directory
+$ cd algo
+
+# Create virtual environment
+$ python -m venv venv
+
+# Activate virtual environment (Windows)
+$ venv\\Scripts\\activate
+
+# Install Python dependencies
+$ pip install -r requirements.txt`}
+    </CodeHeader>
   </div>
 
   <div style={{ position: 'relative', paddingLeft: '3.5rem', paddingBottom: '3rem' }}>
     <div style={{ position: 'absolute', left: '0', top: '0', width: '30px', height: '30px', borderRadius: '50%', backgroundColor: '#f97316', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '14px', border: '4px solid var(--ifm-background-color)' }}>3</div>
     <h3 style={{ marginTop: '0', marginBottom: '1rem', fontSize: '1.25rem' }}>Database Initialization</h3>
-    <div style={{ width: '100%', height: 'auto', backgroundColor: '#1e293b', borderRadius: '10px', display: 'grid', gridTemplateRows: '40px 1fr', marginBottom: '20px', position: 'relative', overflow: 'hidden', fontFamily: 'monospace' }}>
-      <div style={{ display: 'flex', alignItems: 'center', position: 'relative', backgroundColor: 'rgba(51, 65, 85, 0.5)', width: '100%' }}>
-        <span style={{ color: '#7dd3fc', fontSize: '13px', padding: '2px 12px' }}>Terminal</span>
-        <button style={{ position: 'absolute', background: 'transparent', border: 'none', top: '50%', right: '15px', transform: 'translateY(-50%)', color: 'rgb(100, 116, 139)', cursor: 'pointer', fontSize: '12px' }}>Copy</button>
-        <div style={{ content: '""', position: 'absolute', borderTopLeftRadius: '5px', borderTopRightRadius: '5px', border: '1px solid rgba(100, 116, 139, 0.3)', right: '1px', bottom: '0', backgroundColor: 'rgba(51, 65, 85, 0.5)', width: 'calc(100% - 2px)', height: '33px', zIndex: '100', pointerEvents: 'none' }}></div>
-        <div style={{ content: '""', position: 'absolute', width: '100%', height: '1px', backgroundColor: '#f97316', bottom: '0', opacity: '0.5' }}></div>
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', padding: '15px 10px', backgroundColor: '#1e293b' }}>
-        <div style={{ display: 'flex', alignItems: 'center', color: '#94a3b8' }}># Go to Backend directory</div>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <span style={{ color: 'rgb(244, 114, 182)', paddingTop: '3px', marginRight: '5px' }}>$</span>
-          <span style={{ color: '#f8fafc' }}>cd ../Backend</span>
-        </div>
-        <br/>
-        <div style={{ display: 'flex', alignItems: 'center', color: '#94a3b8' }}># Initialize database</div>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <span style={{ color: 'rgb(244, 114, 182)', paddingTop: '3px', marginRight: '5px' }}>$</span>
-          <span style={{ color: '#f8fafc' }}>python database.py</span>
-        </div>
-         <div style={{ display: 'flex', alignItems: 'center', color: '#4ade80' }}>
-          <span style={{ color: 'transparent', marginRight: '5px' }}>$</span>
-          <span style={{ fontStyle: 'italic' }}>Database initialized successfully</span>
-        </div>
-        <br/>
-        <div style={{ display: 'flex', alignItems: 'center', color: '#94a3b8' }}># Return to algo directory</div>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <span style={{ color: 'rgb(244, 114, 182)', paddingTop: '3px', marginRight: '5px' }}>$</span>
-          <span style={{ color: '#f8fafc' }}>cd ../algo</span>
-        </div>
-      </div>
-    </div>
+    <CodeHeader title="BASH">
+{`# Go to Backend directory
+$ cd ../Backend
+
+# Initialize database
+$ python database.py
+Database initialized successfully
+
+# Return to algo directory
+$ cd ../algo`}
+    </CodeHeader>
   </div>
 
   <div style={{ position: 'relative', paddingLeft: '3.5rem', paddingBottom: '3rem' }}>
     <div style={{ position: 'absolute', left: '0', top: '0', width: '30px', height: '30px', borderRadius: '50%', backgroundColor: '#f97316', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '14px', border: '4px solid var(--ifm-background-color)' }}>4</div>
     <h3 style={{ marginTop: '0', marginBottom: '1rem', fontSize: '1.25rem' }}>Start Backend Server</h3>
-    <div style={{ width: '100%', height: 'auto', backgroundColor: '#1e293b', borderRadius: '10px', display: 'grid', gridTemplateRows: '40px 1fr', marginBottom: '20px', position: 'relative', overflow: 'hidden', fontFamily: 'monospace' }}>
-      <div style={{ display: 'flex', alignItems: 'center', position: 'relative', backgroundColor: 'rgba(51, 65, 85, 0.5)', width: '100%' }}>
-        <span style={{ color: '#7dd3fc', fontSize: '13px', padding: '2px 12px' }}>Terminal</span>
-        <button style={{ position: 'absolute', background: 'transparent', border: 'none', top: '50%', right: '15px', transform: 'translateY(-50%)', color: 'rgb(100, 116, 139)', cursor: 'pointer', fontSize: '12px' }}>Copy</button>
-        <div style={{ content: '""', position: 'absolute', borderTopLeftRadius: '5px', borderTopRightRadius: '5px', border: '1px solid rgba(100, 116, 139, 0.3)', right: '1px', bottom: '0', backgroundColor: 'rgba(51, 65, 85, 0.5)', width: 'calc(100% - 2px)', height: '33px', zIndex: '100', pointerEvents: 'none' }}></div>
-        <div style={{ content: '""', position: 'absolute', width: '100%', height: '1px', backgroundColor: '#f97316', bottom: '0', opacity: '0.5' }}></div>
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', padding: '15px 10px', backgroundColor: '#1e293b' }}>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <span style={{ color: 'rgb(244, 114, 182)', paddingTop: '3px', marginRight: '5px' }}>$</span>
-          <span style={{ color: '#f8fafc' }}>python app.py</span>
-        </div>
-         <div style={{ display: 'flex', alignItems: 'center', color: '#94a3b8' }}>
-          <span style={{ color: 'transparent', marginRight: '5px' }}>$</span>
-          <span>* Running on http://localhost:5000</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', color: '#94a3b8' }}>
-          <span style={{ color: 'transparent', marginRight: '5px' }}>$</span>
-          <span>* Debug mode: on</span>
-        </div>
-      </div>
-    </div>
+    <CodeHeader title="BASH">
+{`$ python app.py
+* Running on http://localhost:5000
+* Debug mode: on`}
+    </CodeHeader>
   </div>
 
   <div style={{ position: 'relative', paddingLeft: '3.5rem', paddingBottom: '3rem' }}>
     <div style={{ position: 'absolute', left: '0', top: '0', width: '30px', height: '30px', borderRadius: '50%', backgroundColor: '#f97316', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '14px', border: '4px solid var(--ifm-background-color)' }}>5</div>
     <h3 style={{ marginTop: '0', marginBottom: '1rem', fontSize: '1.25rem' }}>Frontend Setup</h3>
-    <div style={{ width: '100%', height: 'auto', backgroundColor: '#1e293b', borderRadius: '10px', display: 'grid', gridTemplateRows: '40px 1fr', marginBottom: '20px', position: 'relative', overflow: 'hidden', fontFamily: 'monospace' }}>
-      <div style={{ display: 'flex', alignItems: 'center', position: 'relative', backgroundColor: 'rgba(51, 65, 85, 0.5)', width: '100%' }}>
-        <span style={{ color: '#7dd3fc', fontSize: '13px', padding: '2px 12px' }}>Terminal</span>
-        <button style={{ position: 'absolute', background: 'transparent', border: 'none', top: '50%', right: '15px', transform: 'translateY(-50%)', color: 'rgb(100, 116, 139)', cursor: 'pointer', fontSize: '12px' }}>Copy</button>
-        <div style={{ content: '""', position: 'absolute', borderTopLeftRadius: '5px', borderTopRightRadius: '5px', border: '1px solid rgba(100, 116, 139, 0.3)', right: '1px', bottom: '0', backgroundColor: 'rgba(51, 65, 85, 0.5)', width: 'calc(100% - 2px)', height: '33px', zIndex: '100', pointerEvents: 'none' }}></div>
-        <div style={{ content: '""', position: 'absolute', width: '100%', height: '1px', backgroundColor: '#f97316', bottom: '0', opacity: '0.5' }}></div>
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', padding: '15px 10px', backgroundColor: '#1e293b' }}>
-        <div style={{ display: 'flex', alignItems: 'center', color: '#94a3b8' }}># From project root, navigate to Frontend</div>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <span style={{ color: 'rgb(244, 114, 182)', paddingTop: '3px', marginRight: '5px' }}>$</span>
-          <span style={{ color: '#f8fafc' }}>cd Frontend</span>
-        </div>
-        <br/>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <span style={{ color: 'rgb(244, 114, 182)', paddingTop: '3px', marginRight: '5px' }}>$</span>
-          <span style={{ color: '#f8fafc' }}>npm install</span>
-        </div>
-        <br/>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <span style={{ color: 'rgb(244, 114, 182)', paddingTop: '3px', marginRight: '5px' }}>$</span>
-          <span style={{ color: '#f8fafc' }}>npm start</span>
-        </div>
-        <br/>
-         <div style={{ display: 'flex', alignItems: 'center', color: '#4ade80' }}>
-          <span style={{ color: 'transparent', marginRight: '5px' }}>$</span>
-          <span>Compiled successfully!</span>
-        </div>
-         <div style={{ display: 'flex', alignItems: 'center', color: '#94a3b8' }}>
-          <span style={{ color: 'transparent', marginRight: '5px' }}>$</span>
-          <span>Local: http://localhost:3000</span>
-        </div>
-      </div>
-    </div>
+    <CodeHeader title="BASH">
+{`# From project root, navigate to Frontend
+$ cd Frontend
+
+$ npm install
+
+$ npm start
+
+Compiled successfully!
+Local: http://localhost:3000`}
+    </CodeHeader>
   </div>
 
 <div style={{ position: 'relative', paddingLeft: '3.5rem', paddingBottom: '0' }}>
@@ -230,8 +139,8 @@ Quick start guide to get the Seat Allocation System up and running.
 
 ## Project Structure
 
-```
-seat-allocation-sys/
+<CodeHeader title="FILE STRUCTURE">
+{`seat-allocation-sys/
 ├── algo/                    # Backend (Flask)
 │   ├── app.py              # Main Flask application
 │   ├── algo.py             # Seating algorithm
@@ -251,8 +160,8 @@ seat-allocation-sys/
 │   └── ...
 └── docs/                   # Documentation (Docusaurus)
     ├── docs/              # Documentation files
-    └── docusaurus.config.js
-```
+    └── docusaurus.config.js`}
+</CodeHeader>
 
 ## First Time Usage
 
@@ -301,101 +210,59 @@ To use real student names instead of counts:
 
 Create a `.env` file in the `algo` directory:
 
-```env
-FLASK_ENV=development
+<CodeHeader title="ENV">
+{`FLASK_ENV=development
 JWT_SECRET=your_secret_key_here
 DATABASE_URL=sqlite:///user_auth.db
-CORS_ORIGINS=http://localhost:3000
-```
+CORS_ORIGINS=http://localhost:3000`}
+</CodeHeader>
 
 ### Frontend Configuration (Frontend/.env)
 
 Create a `.env` file in the `Frontend` directory:
 
-```env
-REACT_APP_API_URL=http://localhost:5000
-```
+<CodeHeader title="ENV">
+{`REACT_APP_API_URL=http://localhost:5000`}
+</CodeHeader>
 
 ## Environment Variables Reference
 
 ### Backend (.env in algo/)
-```env
-FLASK_ENV              # development, production, testing
+<CodeHeader title="ENV">
+{`FLASK_ENV              # development, production, testing
 JWT_SECRET             # Secret key for JWT tokens
 DATABASE_URL           # Database connection string
 CORS_ORIGINS           # Allowed frontend origins
-DEBUG                  # Enable debug mode (True/False)
-```
+DEBUG                  # Enable debug mode (True/False)`}
+</CodeHeader>
 
 ### Frontend (.env in Frontend/)
-```env
-REACT_APP_API_URL      # Backend API base URL
-REACT_APP_VERSION      # Application version
-```
+<CodeHeader title="ENV">
+{`REACT_APP_API_URL      # Backend API base URL
+REACT_APP_VERSION      # Application version`}
+</CodeHeader>
 
 ## Development Workflow
 
 ### With Backend Running
-<div style={{ width: '100%', height: 'auto', backgroundColor: '#1e293b', borderRadius: '10px', display: 'grid', gridTemplateRows: '40px 1fr', marginBottom: '20px', position: 'relative', overflow: 'hidden', fontFamily: 'monospace' }}>
-  <div style={{ display: 'flex', alignItems: 'center', position: 'relative', backgroundColor: 'rgba(51, 65, 85, 0.5)', width: '100%' }}>
-    <span style={{ color: '#7dd3fc', fontSize: '13px', padding: '2px 12px' }}>Terminal</span>
-    <button style={{ position: 'absolute', background: 'transparent', border: 'none', top: '50%', right: '15px', transform: 'translateY(-50%)', color: 'rgb(100, 116, 139)', cursor: 'pointer', fontSize: '12px' }}>Copy</button>
-    <div style={{ content: '""', position: 'absolute', borderTopLeftRadius: '5px', borderTopRightRadius: '5px', border: '1px solid rgba(100, 116, 139, 0.3)', right: '1px', bottom: '0', backgroundColor: 'rgba(51, 65, 85, 0.5)', width: 'calc(100% - 2px)', height: '33px', zIndex: '100', pointerEvents: 'none' }}></div>
-    <div style={{ content: '""', position: 'absolute', width: '100%', height: '1px', backgroundColor: '#f97316', bottom: '0', opacity: '0.5' }}></div>
-  </div>
-  <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', padding: '15px 10px', backgroundColor: '#1e293b' }}>
-    <div style={{ display: 'flex', alignItems: 'center' }}>
-      <span style={{ color: 'rgb(244, 114, 182)', paddingTop: '3px', marginRight: '5px' }}>$</span>
-      <span style={{ color: '#f8fafc' }}>cd algo</span>
-    </div>
-    <div style={{ display: 'flex', alignItems: 'center' }}>
-      <span style={{ color: 'rgb(244, 114, 182)', paddingTop: '3px', marginRight: '5px' }}>$</span>
-      <span style={{ color: '#f8fafc' }}>python app.py</span>
-    </div>
-  </div>
-</div>
+<CodeHeader title="BASH">
+{`$ cd algo
+$ python app.py`}
+</CodeHeader>
 Runs on `http://localhost:5000`
 
 ### With Frontend Running
-<div style={{ width: '100%', height: 'auto', backgroundColor: '#1e293b', borderRadius: '10px', display: 'grid', gridTemplateRows: '40px 1fr', marginBottom: '20px', position: 'relative', overflow: 'hidden', fontFamily: 'monospace' }}>
-  <div style={{ display: 'flex', alignItems: 'center', position: 'relative', backgroundColor: 'rgba(51, 65, 85, 0.5)', width: '100%' }}>
-    <span style={{ color: '#7dd3fc', fontSize: '13px', padding: '2px 12px' }}>Terminal</span>
-    <button style={{ position: 'absolute', background: 'transparent', border: 'none', top: '50%', right: '15px', transform: 'translateY(-50%)', color: 'rgb(100, 116, 139)', cursor: 'pointer', fontSize: '12px' }}>Copy</button>
-    <div style={{ content: '""', position: 'absolute', borderTopLeftRadius: '5px', borderTopRightRadius: '5px', border: '1px solid rgba(100, 116, 139, 0.3)', right: '1px', bottom: '0', backgroundColor: 'rgba(51, 65, 85, 0.5)', width: 'calc(100% - 2px)', height: '33px', zIndex: '100', pointerEvents: 'none' }}></div>
-    <div style={{ content: '""', position: 'absolute', width: '100%', height: '1px', backgroundColor: '#f97316', bottom: '0', opacity: '0.5' }}></div>
-  </div>
-  <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', padding: '15px 10px', backgroundColor: '#1e293b' }}>
-    <div style={{ display: 'flex', alignItems: 'center' }}>
-      <span style={{ color: 'rgb(244, 114, 182)', paddingTop: '3px', marginRight: '5px' }}>$</span>
-      <span style={{ color: '#f8fafc' }}>cd Frontend</span>
-    </div>
-    <div style={{ display: 'flex', alignItems: 'center' }}>
-      <span style={{ color: 'rgb(244, 114, 182)', paddingTop: '3px', marginRight: '5px' }}>$</span>
-      <span style={{ color: '#f8fafc' }}>npm start</span>
-    </div>
-  </div>
-</div>
+<CodeHeader title="BASH">
+{`$ cd Frontend
+$ npm start`}
+</CodeHeader>
 Runs on `http://localhost:3000`
 
 ### With Documentation Running
-<div style={{ width: '100%', height: 'auto', backgroundColor: '#1e293b', borderRadius: '10px', display: 'grid', gridTemplateRows: '40px 1fr', marginBottom: '20px', position: 'relative', overflow: 'hidden', fontFamily: 'monospace' }}>
-  <div style={{ display: 'flex', alignItems: 'center', position: 'relative', backgroundColor: 'rgba(51, 65, 85, 0.5)', width: '100%' }}>
-    <span style={{ color: '#7dd3fc', fontSize: '13px', padding: '2px 12px' }}>Terminal</span>
-    <button style={{ position: 'absolute', background: 'transparent', border: 'none', top: '50%', right: '15px', transform: 'translateY(-50%)', color: 'rgb(100, 116, 139)', cursor: 'pointer', fontSize: '12px' }}>Copy</button>
-    <div style={{ content: '""', position: 'absolute', borderTopLeftRadius: '5px', borderTopRightRadius: '5px', border: '1px solid rgba(100, 116, 139, 0.3)', right: '1px', bottom: '0', backgroundColor: 'rgba(51, 65, 85, 0.5)', width: 'calc(100% - 2px)', height: '33px', zIndex: '100', pointerEvents: 'none' }}></div>
-    <div style={{ content: '""', position: 'absolute', width: '100%', height: '1px', backgroundColor: '#f97316', bottom: '0', opacity: '0.5' }}></div>
-  </div>
-  <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', padding: '15px 10px', backgroundColor: '#1e293b' }}>
-    <div style={{ display: 'flex', alignItems: 'center' }}>
-      <span style={{ color: 'rgb(244, 114, 182)', paddingTop: '3px', marginRight: '5px' }}>$</span>
-      <span style={{ color: '#f8fafc' }}>cd Frontend/docs</span>
-    </div>
-    <div style={{ display: 'flex', alignItems: 'center' }}>
-      <span style={{ color: 'rgb(244, 114, 182)', paddingTop: '3px', marginRight: '5px' }}>$</span>
-      <span style={{ color: '#f8fafc' }}>npm start</span>
-    </div>
-  </div>
-</div>
+<CodeHeader title="BASH">
+{`$ cd Frontend/docs
+$ npm start`}
+</CodeHeader>
 Runs on `http://localhost:3000` (different port in docs package.json)
 
 ## Common Tasks
@@ -403,52 +270,33 @@ Runs on `http://localhost:3000` (different port in docs package.json)
 ### Change Port Numbers
 
 **Backend (algo/app.py):**
-```python
-if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5001)
-```
+<CodeHeader title="PYTHON">
+{`if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0', port=5001)`}
+</CodeHeader>
 
 **Frontend (Frontend/package.json):**
-```json
-"scripts": {
+<CodeHeader title="JSON">
+{`"scripts": {
   "start": "PORT=3001 react-scripts start"
-}
-```
+}`}
+</CodeHeader>
 
 ### Access Backend Logs
 
-<div style={{ width: '100%', height: 'auto', backgroundColor: '#1e293b', borderRadius: '10px', display: 'grid', gridTemplateRows: '40px 1fr', marginBottom: '20px', position: 'relative', overflow: 'hidden', fontFamily: 'monospace' }}>
-  <div style={{ display: 'flex', alignItems: 'center', position: 'relative', backgroundColor: 'rgba(51, 65, 85, 0.5)', width: '100%' }}>
-    <span style={{ color: '#7dd3fc', fontSize: '13px', padding: '2px 12px' }}>Terminal</span>
-    <button style={{ position: 'absolute', background: 'transparent', border: 'none', top: '50%', right: '15px', transform: 'translateY(-50%)', color: 'rgb(100, 116, 139)', cursor: 'pointer', fontSize: '12px' }}>Copy</button>
-    <div style={{ content: '""', position: 'absolute', borderTopLeftRadius: '5px', borderTopRightRadius: '5px', border: '1px solid rgba(100, 116, 139, 0.3)', right: '1px', bottom: '0', backgroundColor: 'rgba(51, 65, 85, 0.5)', width: 'calc(100% - 2px)', height: '33px', zIndex: '100', pointerEvents: 'none' }}></div>
-    <div style={{ content: '""', position: 'absolute', width: '100%', height: '1px', backgroundColor: '#f97316', bottom: '0', opacity: '0.5' }}></div>
-  </div>
-  <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', padding: '15px 10px', backgroundColor: '#1e293b' }}>
-    <div style={{ display: 'flex', alignItems: 'center', color: '#94a3b8' }}># The Flask server will show logs in the terminal</div>
-    <div style={{ display: 'flex', alignItems: 'center', color: '#94a3b8' }}># Look for:</div>
-     <div style={{ display: 'flex', alignItems: 'center', color: '#94a3b8' }}># - POST /api/generate-seating</div>
-     <div style={{ display: 'flex', alignItems: 'center', color: '#94a3b8' }}># - GET /api/auth/profile</div>
-  </div>
-</div>
+<CodeHeader title="BASH">
+{`# The Flask server will show logs in the terminal
+# Look for:
+# - POST /api/generate-seating
+# - GET /api/auth/profile`}
+</CodeHeader>
 
 
 ### Check Database Status
 
-<div style={{ width: '100%', height: 'auto', backgroundColor: '#1e293b', borderRadius: '10px', display: 'grid', gridTemplateRows: '40px 1fr', marginBottom: '20px', position: 'relative', overflow: 'hidden', fontFamily: 'monospace' }}>
-  <div style={{ display: 'flex', alignItems: 'center', position: 'relative', backgroundColor: 'rgba(51, 65, 85, 0.5)', width: '100%' }}>
-    <span style={{ color: '#7dd3fc', fontSize: '13px', padding: '2px 12px' }}>Terminal</span>
-    <button style={{ position: 'absolute', background: 'transparent', border: 'none', top: '50%', right: '15px', transform: 'translateY(-50%)', color: 'rgb(100, 116, 139)', cursor: 'pointer', fontSize: '12px' }}>Copy</button>
-    <div style={{ content: '""', position: 'absolute', borderTopLeftRadius: '5px', borderTopRightRadius: '5px', border: '1px solid rgba(100, 116, 139, 0.3)', right: '1px', bottom: '0', backgroundColor: 'rgba(51, 65, 85, 0.5)', width: 'calc(100% - 2px)', height: '33px', zIndex: '100', pointerEvents: 'none' }}></div>
-    <div style={{ content: '""', position: 'absolute', width: '100%', height: '1px', backgroundColor: '#f97316', bottom: '0', opacity: '0.5' }}></div>
-  </div>
-  <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', padding: '15px 10px', backgroundColor: '#1e293b' }}>
-    <div style={{ display: 'flex', alignItems: 'center' }}>
-      <span style={{ color: 'rgb(244, 114, 182)', paddingTop: '3px', marginRight: '5px' }}>$</span>
-      <span style={{ color: '#f8fafc' }}>ls -la Backend/user_auth.db</span>
-    </div>
-  </div>
-</div>
+<CodeHeader title="BASH">
+{`$ ls -la Backend/user_auth.db`}
+</CodeHeader>
 
 ## File Descriptions
 
@@ -486,109 +334,44 @@ if __name__ == '__main__':
 ### Issue: "Port 3000 already in use"
 
 **Solution:**
-<div style={{ width: '100%', height: 'auto', backgroundColor: '#1e293b', borderRadius: '10px', display: 'grid', gridTemplateRows: '40px 1fr', marginBottom: '20px', position: 'relative', overflow: 'hidden', fontFamily: 'monospace' }}>
-  <div style={{ display: 'flex', alignItems: 'center', position: 'relative', backgroundColor: 'rgba(51, 65, 85, 0.5)', width: '100%' }}>
-    <span style={{ color: '#7dd3fc', fontSize: '13px', padding: '2px 12px' }}>Terminal</span>
-    <button style={{ position: 'absolute', background: 'transparent', border: 'none', top: '50%', right: '15px', transform: 'translateY(-50%)', color: 'rgb(100, 116, 139)', cursor: 'pointer', fontSize: '12px' }}>Copy</button>
-    <div style={{ content: '""', position: 'absolute', borderTopLeftRadius: '5px', borderTopRightRadius: '5px', border: '1px solid rgba(100, 116, 139, 0.3)', right: '1px', bottom: '0', backgroundColor: 'rgba(51, 65, 85, 0.5)', width: 'calc(100% - 2px)', height: '33px', zIndex: '100', pointerEvents: 'none' }}></div>
-    <div style={{ content: '""', position: 'absolute', width: '100%', height: '1px', backgroundColor: '#f97316', bottom: '0', opacity: '0.5' }}></div>
-  </div>
-  <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', padding: '15px 10px', backgroundColor: '#1e293b' }}>
-    <div style={{ display: 'flex', alignItems: 'center', color: '#94a3b8' }}># Kill process on port 3000</div>
-    <div style={{ display: 'flex', alignItems: 'center', color: '#94a3b8' }}># On macOS/Linux:</div>
-    <div style={{ display: 'flex', alignItems: 'center' }}>
-      <span style={{ color: 'rgb(244, 114, 182)', paddingTop: '3px', marginRight: '5px' }}>$</span>
-      <span style={{ color: '#f8fafc' }}>lsof -ti:3000 | xargs kill -9</span>
-    </div>
-    <br/>
-    <div style={{ display: 'flex', alignItems: 'center', color: '#94a3b8' }}># On Windows:</div>
-    <div style={{ display: 'flex', alignItems: 'center' }}>
-      <span style={{ color: 'rgb(244, 114, 182)', paddingTop: '3px', marginRight: '5px' }}>$</span>
-      <span style={{ color: '#f8fafc' }}>netstat -ano | findstr :3000</span>
-    </div>
-    <div style={{ display: 'flex', alignItems: 'center' }}>
-      <span style={{ color: 'rgb(244, 114, 182)', paddingTop: '3px', marginRight: '5px' }}>$</span>
-      <span style={{ color: '#f8fafc' }}>taskkill /PID &lt;PID&gt; /F</span>
-    </div>
-  </div>
-</div>
+<CodeHeader title="BASH">
+{`# Kill process on port 3000
+# On macOS/Linux:
+$ lsof -ti:3000 | xargs kill -9
+
+# On Windows:
+$ netstat -ano | findstr :3000
+$ taskkill /PID <PID> /F`}
+</CodeHeader>
 
 ### Issue: "Cannot find module 'flask'"
 
 **Solution:**
-<div style={{ width: '100%', height: 'auto', backgroundColor: '#1e293b', borderRadius: '10px', display: 'grid', gridTemplateRows: '40px 1fr', marginBottom: '20px', position: 'relative', overflow: 'hidden', fontFamily: 'monospace' }}>
-  <div style={{ display: 'flex', alignItems: 'center', position: 'relative', backgroundColor: 'rgba(51, 65, 85, 0.5)', width: '100%' }}>
-    <span style={{ color: '#7dd3fc', fontSize: '13px', padding: '2px 12px' }}>Terminal</span>
-    <button style={{ position: 'absolute', background: 'transparent', border: 'none', top: '50%', right: '15px', transform: 'translateY(-50%)', color: 'rgb(100, 116, 139)', cursor: 'pointer', fontSize: '12px' }}>Copy</button>
-    <div style={{ content: '""', position: 'absolute', borderTopLeftRadius: '5px', borderTopRightRadius: '5px', border: '1px solid rgba(100, 116, 139, 0.3)', right: '1px', bottom: '0', backgroundColor: 'rgba(51, 65, 85, 0.5)', width: 'calc(100% - 2px)', height: '33px', zIndex: '100', pointerEvents: 'none' }}></div>
-    <div style={{ content: '""', position: 'absolute', width: '100%', height: '1px', backgroundColor: '#f97316', bottom: '0', opacity: '0.5' }}></div>
-  </div>
-  <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', padding: '15px 10px', backgroundColor: '#1e293b' }}>
-    <div style={{ display: 'flex', alignItems: 'center' }}>
-      <span style={{ color: 'rgb(244, 114, 182)', paddingTop: '3px', marginRight: '5px' }}>$</span>
-      <span style={{ color: '#f8fafc' }}>pip install -r requirements.txt</span>
-    </div>
-    <br/>
-    <div style={{ display: 'flex', alignItems: 'center', color: '#94a3b8' }}># Or install individually</div>
-    <div style={{ display: 'flex', alignItems: 'center' }}>
-      <span style={{ color: 'rgb(244, 114, 182)', paddingTop: '3px', marginRight: '5px' }}>$</span>
-      <span style={{ color: '#f8fafc' }}>pip install Flask Flask-CORS</span>
-    </div>
-  </div>
-</div>
+<CodeHeader title="BASH">
+{`$ pip install -r requirements.txt
+
+# Or install individually
+$ pip install Flask Flask-CORS`}
+</CodeHeader>
 
 ### Issue: "npm ERR! Cannot find module"
 
 **Solution:**
-<div style={{ width: '100%', height: 'auto', backgroundColor: '#1e293b', borderRadius: '10px', display: 'grid', gridTemplateRows: '40px 1fr', marginBottom: '20px', position: 'relative', overflow: 'hidden', fontFamily: 'monospace' }}>
-  <div style={{ display: 'flex', alignItems: 'center', position: 'relative', backgroundColor: 'rgba(51, 65, 85, 0.5)', width: '100%' }}>
-    <span style={{ color: '#7dd3fc', fontSize: '13px', padding: '2px 12px' }}>Terminal</span>
-    <button style={{ position: 'absolute', background: 'transparent', border: 'none', top: '50%', right: '15px', transform: 'translateY(-50%)', color: 'rgb(100, 116, 139)', cursor: 'pointer', fontSize: '12px' }}>Copy</button>
-    <div style={{ content: '""', position: 'absolute', borderTopLeftRadius: '5px', borderTopRightRadius: '5px', border: '1px solid rgba(100, 116, 139, 0.3)', right: '1px', bottom: '0', backgroundColor: 'rgba(51, 65, 85, 0.5)', width: 'calc(100% - 2px)', height: '33px', zIndex: '100', pointerEvents: 'none' }}></div>
-    <div style={{ content: '""', position: 'absolute', width: '100%', height: '1px', backgroundColor: '#f97316', bottom: '0', opacity: '0.5' }}></div>
-  </div>
-  <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', padding: '15px 10px', backgroundColor: '#1e293b' }}>
-    <div style={{ display: 'flex', alignItems: 'center', color: '#94a3b8' }}># Clear npm cache and reinstall</div>
-    <div style={{ display: 'flex', alignItems: 'center' }}>
-      <span style={{ color: 'rgb(244, 114, 182)', paddingTop: '3px', marginRight: '5px' }}>$</span>
-      <span style={{ color: '#f8fafc' }}>rm -rf node_modules package-lock.json</span>
-    </div>
-    <div style={{ display: 'flex', alignItems: 'center' }}>
-      <span style={{ color: 'rgb(244, 114, 182)', paddingTop: '3px', marginRight: '5px' }}>$</span>
-      <span style={{ color: '#f8fafc' }}>npm install</span>
-    </div>
-  </div>
-</div>
+<CodeHeader title="BASH">
+{`# Clear npm cache and reinstall
+$ rm -rf node_modules package-lock.json
+$ npm install`}
+</CodeHeader>
 
 ### Issue: "Database locked" Error
 
 **Solution:**
-<div style={{ width: '100%', height: 'auto', backgroundColor: '#1e293b', borderRadius: '10px', display: 'grid', gridTemplateRows: '40px 1fr', marginBottom: '20px', position: 'relative', overflow: 'hidden', fontFamily: 'monospace' }}>
-  <div style={{ display: 'flex', alignItems: 'center', position: 'relative', backgroundColor: 'rgba(51, 65, 85, 0.5)', width: '100%' }}>
-    <span style={{ color: '#7dd3fc', fontSize: '13px', padding: '2px 12px' }}>Terminal</span>
-    <button style={{ position: 'absolute', background: 'transparent', border: 'none', top: '50%', right: '15px', transform: 'translateY(-50%)', color: 'rgb(100, 116, 139)', cursor: 'pointer', fontSize: '12px' }}>Copy</button>
-    <div style={{ content: '""', position: 'absolute', borderTopLeftRadius: '5px', borderTopRightRadius: '5px', border: '1px solid rgba(100, 116, 139, 0.3)', right: '1px', bottom: '0', backgroundColor: 'rgba(51, 65, 85, 0.5)', width: 'calc(100% - 2px)', height: '33px', zIndex: '100', pointerEvents: 'none' }}></div>
-    <div style={{ content: '""', position: 'absolute', width: '100%', height: '1px', backgroundColor: '#f97316', bottom: '0', opacity: '0.5' }}></div>
-  </div>
-  <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', padding: '15px 10px', backgroundColor: '#1e293b' }}>
-    <div style={{ display: 'flex', alignItems: 'center' }}>
-      <span style={{ color: 'rgb(244, 114, 182)', paddingTop: '3px', marginRight: '5px' }}>$</span>
-      <span style={{ color: '#f8fafc' }}>rm Backend/user_auth.db</span>
-    </div>
-    <div style={{ display: 'flex', alignItems: 'center' }}>
-      <span style={{ color: 'rgb(244, 114, 182)', paddingTop: '3px', marginRight: '5px' }}>$</span>
-      <span style={{ color: '#f8fafc' }}>cd Backend</span>
-    </div>
-    <div style={{ display: 'flex', alignItems: 'center' }}>
-      <span style={{ color: 'rgb(244, 114, 182)', paddingTop: '3px', marginRight: '5px' }}>$</span>
-      <span style={{ color: '#f8fafc' }}>python database.py</span>
-    </div>
-    <div style={{ display: 'flex', alignItems: 'center' }}>
-      <span style={{ color: 'rgb(244, 114, 182)', paddingTop: '3px', marginRight: '5px' }}>$</span>
-      <span style={{ color: '#f8fafc' }}>cd ../algo</span>
-    </div>
-  </div>
-</div>
+<CodeHeader title="BASH">
+{`$ rm Backend/user_auth.db
+$ cd Backend
+$ python database.py
+$ cd ../algo`}
+</CodeHeader>
 
 ### Issue: Backend and Frontend not connecting
 
@@ -632,32 +415,18 @@ if __name__ == '__main__':
 
 ## Next: Run Your First Seating Generation
 
-<div style={{ width: '100%', height: 'auto', backgroundColor: '#1e293b', borderRadius: '10px', display: 'grid', gridTemplateRows: '40px 1fr', marginBottom: '20px', position: 'relative', overflow: 'hidden', fontFamily: 'monospace' }}>
-  <div style={{ display: 'flex', alignItems: 'center', position: 'relative', backgroundColor: 'rgba(51, 65, 85, 0.5)', width: '100%' }}>
-    <span style={{ color: '#7dd3fc', fontSize: '13px', padding: '2px 12px' }}>Terminal</span>
-    <button style={{ position: 'absolute', background: 'transparent', border: 'none', top: '50%', right: '15px', transform: 'translateY(-50%)', color: 'rgb(100, 116, 139)', cursor: 'pointer', fontSize: '12px' }}>Copy</button>
-    <div style={{ content: '""', position: 'absolute', borderTopLeftRadius: '5px', borderTopRightRadius: '5px', border: '1px solid rgba(100, 116, 139, 0.3)', right: '1px', bottom: '0', backgroundColor: 'rgba(51, 65, 85, 0.5)', width: 'calc(100% - 2px)', height: '33px', zIndex: '100', pointerEvents: 'none' }}></div>
-    <div style={{ content: '""', position: 'absolute', width: '100%', height: '1px', backgroundColor: '#f97316', bottom: '0', opacity: '0.5' }}></div>
-  </div>
-  <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', padding: '15px 10px', backgroundColor: '#1e293b' }}>
-    <div style={{ display: 'flex', alignItems: 'center', color: '#94a3b8' }}># 1. Backend running?</div>
-    <div style={{ display: 'flex', alignItems: 'center' }}>
-      <span style={{ color: 'rgb(244, 114, 182)', paddingTop: '3px', marginRight: '5px' }}>$</span>
-      <span style={{ color: '#f8fafc' }}>cd algo && python app.py</span>
-    </div>
-    <br/>
-    <div style={{ display: 'flex', alignItems: 'center', color: '#94a3b8' }}># 2. Frontend running?</div>
-    <div style={{ display: 'flex', alignItems: 'center' }}>
-      <span style={{ color: 'rgb(244, 114, 182)', paddingTop: '3px', marginRight: '5px' }}>$</span>
-      <span style={{ color: '#f8fafc' }}>cd Frontend && npm start</span>
-    </div>
-    <br/>
-    <div style={{ display: 'flex', alignItems: 'center', color: '#94a3b8' }}># 3. Open browser</div>
-    <div style={{ display: 'flex', alignItems: 'center', color: '#94a3b8' }}># http://localhost:3000</div>
-    <br/>
-    <div style={{ display: 'flex', alignItems: 'center', color: '#94a3b8' }}># 4. Sign up and generate seating!</div>
-  </div>
-</div>
+<CodeHeader title="BASH">
+{`# 1. Backend running?
+$ cd algo && python app.py
+
+# 2. Frontend running?
+$ cd Frontend && npm start
+
+# 3. Open browser
+# http://localhost:3000
+
+# 4. Sign up and generate seating!`}
+</CodeHeader>
 
 ---
 

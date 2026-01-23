@@ -2,160 +2,158 @@
 sidebar_position: 6
 ---
 
+import CodeHeader from '@site/src/components/filetypeheaderstyle';
+
 # Authentication Setup Guide
 
-Complete guide for user authentication and database integration.
+Comprehensive documentation for user authentication, database integration, and security protocols within the Seat Allocation System.
 
-## Overview
+---
 
-Your seat allocation system includes full authentication with a SQLite database backend, JWT tokens, and bcrypt password hashing.
+## 📋 System Overview
 
-## What's Been Implemented
+The authentication system is built on a secure, modular architecture combining SQLite persistence with JWT-based session management.
 
-### Backend (Python/Flask)
+<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', marginBottom: '3rem' }}>
+  <div style={{ padding: '1.5rem', borderRadius: '0.75rem', border: '1px solid #334155', backgroundColor: '#1e293b' }}>
+    <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#f8fafc', marginBottom: '0.5rem' }}>Backend (Python/Flask)</h3>
+    <ul style={{ margin: 0, paddingLeft: '1.2rem', color: '#94a3b8', fontSize: '0.9rem' }}>
+      <li>SQLite Database Handler</li>
+      <li>JWT Authentication Service</li>
+      <li>Secure REST API Endpoints</li>
+      <li>Bcrypt Password Hashing</li>
+    </ul>
+  </div>
+  <div style={{ padding: '1.5rem', borderRadius: '0.75rem', border: '1px solid #334155', backgroundColor: '#1e293b' }}>
+    <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#f8fafc', marginBottom: '0.5rem' }}>Frontend (React)</h3>
+    <ul style={{ margin: 0, paddingLeft: '1.2rem', color: '#94a3b8', fontSize: '0.9rem' }}>
+      <li>Authentication Context API</li>
+      <li>Token & User Persistence</li>
+      <li>Secure Login/Signup Flows</li>
+      <li>Profile Management UI</li>
+    </ul>
+  </div>
+</div>
 
-#### 1. **Backend/database.py** - SQLite Database Handler
-- Creates and manages users and sessions tables
-- Handles database connections
-- Manages schema initialization
+## 🚀 Installation & Setup Guide
 
-#### 2. **Backend/auth_service.py** - Authentication Service
-- Password hashing with bcrypt
-- JWT token generation and verification
-- User management (signup, login, profile)
-- Session handling
+Follow this timeline to initialize the authentication infrastructure and launch the system.
 
-#### 3. **algo/app.py** - Updated Flask Application
-- REST API endpoints with authentication
-- CORS configuration
-- Error handling
-- Session management
+<div style={{ position: 'relative' }}>
+  <div style={{ position: 'absolute', left: '15px', top: '24px', bottom: '0', width: '1px', backgroundColor: '#334155' }}></div>
 
-### Frontend (React)
-
-#### 1. **Frontend/src/context/AuthContext.jsx** - Authentication Context
-- Real API calls to backend
-- Token storage in localStorage
-- User data persistence
-- Profile update methods
-- Login/logout functionality
-
-#### 2. **Frontend/src/pages/LoginPage.jsx** - Login Page
-- Form validation
-- Real backend authentication
-- Error handling
-- Redirect on success
-
-#### 3. **Frontend/src/pages/ProfilePage.jsx** - Profile Page
-- Display user information
-- Edit profile functionality
-- Real-time data updates
-- Password management
-
-#### 4. **Frontend/src/pages/SignupPage.jsx** - Signup Page
-- Account creation form
-- Input validation
-- Role assignment (STUDENT, ADMIN, FACULTY)
-- Error feedback
-
-## Installation & Running
-
-### Backend Setup
-
-```bash
-# Navigate to backend directory
+  {/* Step 1: Backend Setup */}
+  <div style={{ position: 'relative', paddingLeft: '3.5rem', paddingBottom: '3rem' }}>
+    <div style={{ position: 'absolute', left: '0', top: '0', width: '30px', height: '30px', borderRadius: '50%', backgroundColor: '#f97316', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '14px', border: '4px solid var(--ifm-background-color)' }}>1</div>
+    <h3 style={{ marginTop: '0', marginBottom: '1rem', fontSize: '1.25rem' }}>Backend Initialization</h3>
+    <p style={{ color: '#94a3b8', marginBottom: '1rem' }}>Configure the Python environment and install core authentication dependencies.</p>
+    <CodeHeader title="BASH">
+{`# Navigate to backend directory
 cd algo
 
 # Install dependencies
-pip install -r requirements.txt
+pip install -r requirements.txt`}
+    </CodeHeader>
+  </div>
 
-# Initialize database (if needed)
+  {/* Step 2: Database Initialization */}
+  <div style={{ position: 'relative', paddingLeft: '3.5rem', paddingBottom: '3rem' }}>
+    <div style={{ position: 'absolute', left: '0', top: '0', width: '30px', height: '30px', borderRadius: '50%', backgroundColor: '#f97316', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '14px', border: '4px solid var(--ifm-background-color)' }}>2</div>
+    <h3 style={{ marginTop: '0', marginBottom: '1rem', fontSize: '1.25rem' }}>Schema Deployment</h3>
+    <p style={{ color: '#94a3b8', marginBottom: '1rem' }}>Deploy the SQLite schema for user and session management.</p>
+    <CodeHeader title="BASH">
+{`# Initialize database (if needed)
 cd ../Backend
 python database.py
 
-# Go back to algo directory
+# Return to application directory
 cd ../algo
 
 # Run Flask server
-python app.py
-```
+python app.py`}
+    </CodeHeader>
+    :::tip Expected Output
+    The server should report: `* Running on http://localhost:5000`
+    :::
+  </div>
 
-**Expected Output:**
-```
- * Running on http://localhost:5000
- * Press CTRL+C to quit
-```
-
-### Frontend Setup
-
-```bash
-# Navigate to frontend directory
+  {/* Step 3: Frontend Setup */}
+  <div style={{ position: 'relative', paddingLeft: '3.5rem', paddingBottom: '0' }}>
+    <div style={{ position: 'absolute', left: '0', top: '0', width: '30px', height: '30px', borderRadius: '50%', backgroundColor: '#f97316', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '14px', border: '4px solid var(--ifm-background-color)' }}>3</div>
+    <h3 style={{ marginTop: '0', marginBottom: '1rem', fontSize: '1.25rem' }}>Frontend Activation</h3>
+    <p style={{ color: '#94a3b8', marginBottom: '1rem' }}>Launch the React development server to interact with the authentication UI.</p>
+    <CodeHeader title="BASH">
+{`# Navigate to frontend directory
 cd Frontend
 
-# Install dependencies
+# Install node dependencies
 npm install
 
 # Start development server
-npm start
-```
+npm start`}
+    </CodeHeader>
+  </div>
+</div>
 
-**Expected Output:**
-```
-Compiled successfully!
-You can now view your app in the browser.
-```
+---
 
-## Database Schema
+## 💾 Database Architecture
 
-### Users Table
+The system uses SQLite for lightweight, reliable persistence.
 
-```sql
-CREATE TABLE users (
+### User Repository (`users`)
+
+<CodeHeader title="SQL">
+{`CREATE TABLE users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username VARCHAR(80) UNIQUE NOT NULL,
     email VARCHAR(120) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
     role VARCHAR(20) NOT NULL DEFAULT 'STUDENT',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-)
-```
+)`}
+</CodeHeader>
 
-| Column | Type | Description |
-|---|---|---|
+| Attribute | Data Type | Description |
+|:---|:---|:---|
 | `id` | INTEGER | Primary key (auto-increment) |
-| `username` | VARCHAR(80) | Unique username |
-| `email` | VARCHAR(120) | Unique email address |
-| `password` | VARCHAR(255) | Hashed password (bcrypt) |
-| `role` | VARCHAR(20) | User role (STUDENT, ADMIN, FACULTY) |
-| `created_at` | TIMESTAMP | Account creation timestamp |
+| `username` | VARCHAR(80) | Unique username handler |
+| `email` | VARCHAR(120) | Unique contact email address |
+| `password` | VARCHAR(255) | Securely hashed password (Bcrypt) |
+| `role` | VARCHAR(20) | Access level (STUDENT, ADMIN, FACULTY) |
+| `created_at` | TIMESTAMP | Account registration timestamp |
 
-### Sessions Table
+### Session Management (`sessions`)
 
-```sql
-CREATE TABLE sessions (
+<CodeHeader title="SQL">
+{`CREATE TABLE sessions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
     token VARCHAR(500) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id)
-)
-```
+)`}
+</CodeHeader>
 
-| Column | Type | Description |
-|---|---|---|
-| `id` | INTEGER | Primary key (auto-increment) |
-| `user_id` | INTEGER | Foreign key to users table |
-| `token` | VARCHAR(500) | JWT authentication token |
-| `created_at` | TIMESTAMP | Token creation timestamp |
+| Attribute | Data Type | Description |
+|:---|:---|:---|
+| `id` | INTEGER | Session primary key |
+| `user_id` | INTEGER | Foreign key reference to `users(id)` |
+| `token` | VARCHAR(500) | Active JWT authentication token |
+| `created_at` | TIMESTAMP | Session initiation timestamp |
 
-## API Endpoints
+---
 
-### Authentication Endpoints
+## 🔌 API Reference (Authentication)
 
-#### 1. **Signup** - Create New Account
+### 1. User Registration
 
-```http
-POST /api/auth/signup
+:::info Purpose
+Registers a new system account. Default access level is `STUDENT`.
+:::
+
+<CodeHeader title="HTTP">
+{`POST /api/auth/signup
 Content-Type: application/json
 
 {
@@ -163,12 +161,12 @@ Content-Type: application/json
   "email": "john@example.com",
   "password": "secure_password_123",
   "role": "STUDENT"
-}
-```
+}`}
+</CodeHeader>
 
-**Success Response (201):**
-```json
-{
+**Expected Response (201 Created):**
+<CodeHeader title="JSON">
+{`{
   "success": true,
   "message": "Account created successfully",
   "user": {
@@ -178,32 +176,28 @@ Content-Type: application/json
     "role": "STUDENT",
     "created_at": "2024-01-15T10:30:00"
   }
-}
-```
+}`}
+</CodeHeader>
 
-**Error Response (400):**
-```json
-{
-  "success": false,
-  "error": "Username already exists"
-}
-```
+### 2. User Authentication
 
-#### 2. **Login** - Authenticate User
+:::info Purpose
+Validates credentials and issues a JWT session token.
+:::
 
-```http
-POST /api/auth/login
+<CodeHeader title="HTTP">
+{`POST /api/auth/login
 Content-Type: application/json
 
 {
   "username": "john_doe",
   "password": "secure_password_123"
-}
-```
+}`}
+</CodeHeader>
 
-**Success Response (200):**
-```json
-{
+**Expected Response (200 OK):**
+<CodeHeader title="JSON">
+{`{
   "success": true,
   "message": "Login successful",
   "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
@@ -213,421 +207,147 @@ Content-Type: application/json
     "email": "john@example.com",
     "role": "STUDENT"
   }
-}
-```
+}`}
+</CodeHeader>
 
-**Error Response (401):**
-```json
-{
-  "success": false,
-  "error": "Invalid credentials"
-}
-```
+### 3. Profile Management
 
-#### 3. **Get Profile** - Retrieve Current User (Protected)
+:::warning Authorization Required
+A valid `Bearer` token must be provided in the `Authorization` header.
+:::
 
-```http
-GET /api/auth/profile
-Authorization: Bearer <token>
-```
+<CodeHeader title="HTTP">
+{`GET /api/auth/profile
+Authorization: Bearer <token>`}
+</CodeHeader>
 
-**Success Response (200):**
-```json
-{
-  "success": true,
-  "user": {
-    "id": 1,
-    "username": "john_doe",
-    "email": "john@example.com",
-    "role": "STUDENT",
-    "created_at": "2024-01-15T10:30:00"
-  }
-}
-```
-
-**Error Response (401):**
-```json
-{
-  "success": false,
-  "error": "Unauthorized"
-}
-```
-
-#### 4. **Update Profile** - Modify User Info (Protected)
-
-```http
-PUT /api/auth/profile
+**Update Profile (PUT):**
+<CodeHeader title="HTTP">
+{`PUT /api/auth/profile
 Authorization: Bearer <token>
 Content-Type: application/json
 
 {
   "email": "newemail@example.com",
   "role": "FACULTY"
-}
-```
+}`}
+</CodeHeader>
 
-**Success Response (200):**
-```json
-{
-  "success": true,
-  "message": "Profile updated successfully",
-  "user": {
-    "id": 1,
-    "username": "john_doe",
-    "email": "newemail@example.com",
-    "role": "FACULTY"
-  }
-}
-```
+### 4. Session Termination
 
-#### 5. **Logout** - End Session (Protected)
+<CodeHeader title="HTTP">
+{`POST /api/auth/logout
+Authorization: Bearer <token>`}
+</CodeHeader>
 
-```http
-POST /api/auth/logout
-Authorization: Bearer <token>
-```
+---
 
-**Success Response (200):**
-```json
-{
-  "success": true,
-  "message": "Logged out successfully"
-}
-```
+## 🔐 Google OAuth Integration
 
+The system supports Google Sign-In for streamlined user onboarding.
 
-## Google OAuth Integration
+### Workflow Orchestration
+1.  **Identity Request**: User triggers "Sign in with Google".
+2.  **Verification**: Google verifies user identity and issues an ID token.
+3.  **Exchange**: Token is transmitted to the backend for final verification.
+4.  **Provisioning**: Backend registers or authenticates the user and issues a system JWT.
 
-The system supports Google Sign-In for easier access.
+:::tip Environmental Configuration
+Add the following keys to your `.env` file to enable OAuth functionality:
+:::
 
-### 1. Setup
-- Backend uses `google_auth_handler`
-- Frontend uses `GoogleLoginComponent.jsx`
+<CodeHeader title="ENV">
+{`GOOGLE_CLIENT_ID=your_client_id_here
+GOOGLE_CLIENT_SECRET=your_client_secret_here`}
+</CodeHeader>
 
-### 2. Flow
-1. User clicks "Sign in with Google"
-2. Google popup handles authentication
-3. Token sent to `/api/auth/google`
-4. Backend verifies token with Google
-5. If valid email:
-   - Registers user (if new)
-   - Logs in user (if exists)
-   - Returns standard JWT token
+---
 
-### 3. Configuration
-Add to `.env`:
-```env
-GOOGLE_CLIENT_ID=your_client_id
-GOOGLE_CLIENT_SECRET=your_client_secret
-```
+## 💻 Frontend Implementation
 
-## Frontend Implementation
+### Authentication Guard
 
-### Authentication Context Usage
+Protect your routes and components using the `useAuth` hook.
 
-```javascript
-// In your React component
-import { useAuth } from '../context/AuthContext';
+<CodeHeader title="JAVASCRIPT">
+{`import { useAuth } from '../context/AuthContext';
 
-function MyComponent() {
-  const { user, login, logout, isAuthenticated } = useAuth();
+function ProtectedDashboard() {
+  const { user, isAuthenticated, logout } = useAuth();
   
   if (!isAuthenticated) {
-    return <div>Please log in</div>;
+    return <Redirect to="/login" />;
   }
   
   return (
     <div>
-      <h1>Welcome, {user.username}!</h1>
-      <button onClick={logout}>Logout</button>
+      <h1>Welcome back, {user.username}!</h1>
+      <button onClick={logout}>Sign Out</button>
     </div>
   );
-}
-```
+}`}
+</CodeHeader>
 
-### Login Flow
+### Role-Based Access Control (RBAC)
 
-```javascript
-const handleLogin = async (username, password) => {
-  try {
-    const response = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password })
-    });
-    
-    const data = await response.json();
-    
-    if (data.success) {
-      // Token is stored by AuthContext
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
-      // Redirect to dashboard
-    } else {
-      console.error(data.error);
-    }
-  } catch (error) {
-    console.error('Login failed:', error);
-  }
-};
-```
+| Role | Permissions | Primary Domain |
+|:---|:---|:---|
+| `STUDENT` | View current seating | Student Self-Service |
+| `FACULTY` | Manage seating & generation | Academic Staff |
+| `ADMIN` | Global configuration & audits | System Administrators |
 
-### Protected API Calls
+---
 
-```javascript
-const makeAuthenticatedRequest = async (endpoint, method = 'GET', body = null) => {
-  const token = localStorage.getItem('token');
-  
-  const options = {
-    method,
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    }
-  };
-  
-  if (body) {
-    options.body = JSON.stringify(body);
-  }
-  
-  const response = await fetch(endpoint, options);
-  return response.json();
-};
+## 🛡️ Security Protocols
 
-// Usage
-const profile = await makeAuthenticatedRequest('/api/auth/profile');
-```
+:::caution Critical Security Notice
+Ensure the following security standards are maintained at all times.
+:::
 
-## User Roles
+### Data Integrity
+- **Password Hashing**: All passwords are processed with a 10-round Bcrypt salt.
+- **Transport Security**: HTTPS is mandatory for production environments.
 
-### Supported Roles
+### Session Security
+- **JWT Expiration**: Tokens are issued with a restricted lifespan.
+- **Client Storage**: Tokens are securely managed within the persistent browser state.
 
-| Role | Permissions | Use Case |
-|---|---|---|
-| **STUDENT** | View seating, generate for self | Student accessing their seating |
-| **FACULTY** | Generate and manage seating | Faculty managing examinations |
-| **ADMIN** | Full system access | System administrator |
+### Cross-Origin Security
+The backend restricts API access to authorized frontend origins only.
 
-### Role-Based Access Control
-
-```javascript
-// Check user role in component
-function AdminPanel() {
-  const { user } = useAuth();
-  
-  if (user.role !== 'ADMIN') {
-    return <div>Access Denied</div>;
-  }
-  
-  return <div>Admin Panel Content</div>;
-}
-```
-
-## Security Considerations
-
-### Password Security
-- Passwords hashed with bcrypt (10 salt rounds)
-- Passwords never stored in plaintext
-- Never transmitted over unencrypted connections
-
-### Token Security
-- JWT tokens have expiration time
-- Tokens stored in localStorage (client-side)
-- Tokens sent in Authorization header
-- HTTPS recommended for production
-
-### CORS Configuration
-```python
-# In Flask app
+<CodeHeader title="PYTHON">
+{`# Centralized CORS Configuration in app.py
 CORS(app, resources={
     r"/api/*": {
         "origins": ["http://localhost:3000"],
         "methods": ["GET", "POST", "PUT", "DELETE"],
         "allow_headers": ["Content-Type", "Authorization"]
     }
-})
-```
-
-### Environment Variables
-
-Create `.env` file in `algo` directory:
-```
-FLASK_ENV=development
-JWT_SECRET=your_secret_key_here
-DATABASE_URL=sqlite:///user_auth.db
-```
-
-## Common Tasks
-
-### Creating User Accounts Programmatically
-
-```python
-# In Python backend
-from auth_service import signup
-
-user = signup(
-    username="alice",
-    email="alice@example.com",
-    password="secure_pass",
-    role="FACULTY"
-)
-```
-
-### Verifying Tokens
-
-```python
-from auth_service import verify_token
-
-user_id = verify_token(token)
-if user_id:
-    # Token is valid
-else:
-    # Token is invalid or expired
-```
-
-### Changing User Password
-
-```javascript
-// Frontend
-const changePassword = async (oldPassword, newPassword) => {
-  const response = await fetch('/api/auth/change-password', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${localStorage.getItem('token')}`
-    },
-    body: JSON.stringify({ oldPassword, newPassword })
-  });
-  return response.json();
-};
-```
-
-## Troubleshooting
-
-### Issue: "No module named 'flask'"
-
-**Solution:**
-```bash
-pip install Flask Flask-CORS
-```
-
-### Issue: "Database locked" Error
-
-**Solution:**
-```bash
-# Close all connections and reinitialize
-rm user_auth.db
-python Backend/database.py
-```
-
-### Issue: Token Invalid/Expired
-
-**Solution:**
-- User needs to log in again
-- Frontend should redirect to login page
-- Token should be refreshed automatically
-
-### Issue: CORS Error
-
-**Solution:**
-- Ensure CORS is enabled in Flask app
-- Check frontend URL matches CORS origins
-- Verify headers are correct
-
-## Testing Authentication
-
-### Manual Testing with cURL
-
-```bash
-# Signup
-curl -X POST http://localhost:5000/api/auth/signup \
-  -H "Content-Type: application/json" \
-  -d '{
-    "username": "testuser",
-    "email": "test@example.com",
-    "password": "password123",
-    "role": "STUDENT"
-  }'
-
-# Login
-curl -X POST http://localhost:5000/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "username": "testuser",
-    "password": "password123"
-  }'
-
-# Get Profile (replace TOKEN with actual token)
-curl -X GET http://localhost:5000/api/auth/profile \
-  -H "Authorization: Bearer TOKEN"
-```
-
-### Frontend Testing
-
-```javascript
-// Test signup
-async function testSignup() {
-  const response = await fetch('/api/auth/signup', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      username: 'testuser',
-      email: 'test@example.com',
-      password: 'password123',
-      role: 'STUDENT'
-    })
-  });
-  console.log(await response.json());
-}
-
-// Test login
-async function testLogin() {
-  const response = await fetch('/api/auth/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      username: 'testuser',
-      password: 'password123'
-    })
-  });
-  const data = await response.json();
-  console.log('Token:', data.token);
-}
-```
-
-## Production Deployment
-
-### Checklist
-
-- [ ] Set `FLASK_ENV=production`
-- [ ] Use strong JWT secret key
-- [ ] Enable HTTPS only
-- [ ] Set secure cookie flags
-- [ ] Configure proper CORS origins
-- [ ] Implement rate limiting
-- [ ] Set up database backups
-- [ ] Enable logging and monitoring
-- [ ] Use environment variables for secrets
-- [ ] Test all authentication flows
-
-### Example Production Config
-
-```python
-# config.py
-import os
-
-class Config:
-    FLASK_ENV = os.environ.get('FLASK_ENV', 'production')
-    JWT_SECRET = os.environ.get('JWT_SECRET')
-    DATABASE_URL = os.environ.get('DATABASE_URL', 'sqlite:///user_auth.db')
-    
-    # Security
-    SESSION_COOKIE_SECURE = True
-    SESSION_COOKIE_HTTPONLY = True
-    SESSION_COOKIE_SAMESITE = 'Lax'
-```
+})`}
+</CodeHeader>
 
 ---
 
-**Version**: 2.1  
+## 🔍 Troubleshooting & Support
+
+| Incident | Probable Cause | Recommended Action |
+|:---|:---|:---|
+| `Flask module not found` | Environment mismatch | Execute `pip install Flask Flask-CORS` in your active venv. |
+| `Database Locked` | Concurrent access | Close all active database connections and restart the server. |
+| `401 Unauthorized` | Expired Session | Clear browser cache and perform a new login. |
+| `CORS Error` | Origin mismatch | Verify that your frontend URL is correctly listed in the `origins` array. |
+
+---
+
+## 🚀 Production Deployment Checklist
+
+- [ ] **Environment**: Switch `FLASK_ENV` to `production`.
+- [ ] **Secrets**: Rotate the `JWT_SECRET` key to a high-entropy string.
+- [ ] **Protocol**: Enable `HTTPS` for all infrastructure components.
+- [ ] **Snapshots**: Configure automated daily database backups.
+- [ ] **Observability**: Set up centralized logging for authentication events.
+
+---
+
+**Version**: 2.2  
 **Last Updated**: January 2026
