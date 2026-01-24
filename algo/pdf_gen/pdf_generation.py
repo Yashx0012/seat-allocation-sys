@@ -19,8 +19,10 @@ except ImportError:
         print("⚠️ Template manager not available, using fallback mode")
         template_manager = None
 
-CACHE_DIR = "pdf_gen/seat_plan_generated"
-IMAGE_PATH = "pdf_gen/data/banner.png"
+# Resolve absolute paths relative to this file
+PDF_GEN_DIR = os.path.dirname(os.path.abspath(__file__))
+CACHE_DIR = os.path.join(PDF_GEN_DIR, "seat_plan_generated")
+IMAGE_PATH = os.path.join(PDF_GEN_DIR, "data", "banner.png")
 CUSTOM_PAGE_SIZE = (304 * mm, 235 * mm)
 
 def seating_payload_digest(data: dict, user_id: str = 'system', template_name: str = 'default') -> str:
@@ -62,32 +64,26 @@ def get_or_create_seating_pdf(data: dict, user_id: str = 'system', template_name
     return filename
 
 def process_seating_data(json_data):
-    """Returns matrix of cell dicts: {'text': str, 'bg': color_or_None}"""
+    """Returns (matrix, summary) where matrix is cell dicts and summary has counts"""
     seating_rows = json_data.get('seating', [])
     metadata = json_data.get('metadata', {})
     
-    # Debug logging
-    print(f"📊 Processing seating data - metadata: {metadata}")
-    
-    num_rows = metadata.get('rows', 0)
-    num_cols = metadata.get('cols', 0)
-
-    actual_rows = len(seating_rows)
-    actual_cols = max((len(r) for r in seating_rows), default=0)
-    if num_rows == 0:
-        num_rows = actual_rows
-    if num_cols == 0:
-        num_cols = actual_cols
+    num_rows = metadata.get('rows', 0) or len(seating_rows)
+    num_cols = metadata.get('cols', 0) or (len(seating_rows[0]) if seating_rows else 0)
 
     matrix = [[{'text': '', 'bg': None} for _ in range(num_cols)] for _ in range(num_rows)]
+    
+    # Initialize summary
+    summary = {
+        'total_allocated': 0,
+        'batch_counts': {} # batch_label -> count
+    }
 
     for r in range(num_rows):
-        if r >= len(seating_rows):
-            continue
+        if r >= len(seating_rows): continue
         row = seating_rows[r]
         for c in range(num_cols):
-            if c >= len(row):
-                continue
+            if c >= len(row): continue
             seat = row[c]
             
             if seat.get('is_broken'):
@@ -102,8 +98,13 @@ def process_seating_data(json_data):
                 content = f"{roll}\nSET {pset}" if roll else ''
                 bg = seat.get('color')
                 
+                if roll:
+                    summary['total_allocated'] += 1
+                    label = seat.get('batch_label') or f"Batch {seat.get('batch', 'Unknown')}"
+                    summary['batch_counts'][label] = summary['batch_counts'].get(label, 0) + 1
+                
             matrix[r][c] = {'text': content, 'bg': bg}
-    return matrix
+    return matrix, summary
 def format_cell_content(raw, style):
     if not raw.strip():
         return ''
@@ -136,6 +137,9 @@ def create_seating_pdf(filename="algo/pdf_gen/seat_plan_generated/seating_plan.p
             'banner_image_path': IMAGE_PATH
         }
     
+    seating_matrix, summary_stats = process_seating_data(data)
+    metadata = data.get('metadata', {})
+    
     def header_and_footer(c, doc):
         c.saveState()
         page_width, page_height = CUSTOM_PAGE_SIZE
@@ -143,19 +147,67 @@ def create_seating_pdf(filename="algo/pdf_gen/seat_plan_generated/seating_plan.p
         CONTENT_WIDTH = page_width - doc.leftMargin - doc.rightMargin
         
         # Use template's banner image path
-        banner_path = template_config.get('banner_image_path', IMAGE_PATH)
+        banner_path = template_config.get('banner_image_path')
+        
+        # Robust path resolution
+        resolved_path = None
+        
+        # 1. Try stored path if it exists and is valid
+        if banner_path and isinstance(banner_path, str) and banner_path.strip():
+            candidate = banner_path
+            if not os.path.isabs(candidate):
+                candidate = os.path.join(PDF_GEN_DIR, candidate)
+            
+            if os.path.exists(candidate) and os.path.isfile(candidate):
+                resolved_path = candidate
+        
+        # 2. Fallback to system default if storage check failed
+        if not resolved_path:
+            resolved_path = IMAGE_PATH
+            
         try:
-            c.drawImage(banner_path,
-                        x=doc.leftMargin,
-                        y=page_height - doc.topMargin - 0.3 * cm,
-                        width=CONTENT_WIDTH,
-                        height=BANNER_HEIGHT,
-                        preserveAspectRatio=True)
-        except Exception:
+            if resolved_path and os.path.exists(resolved_path) and os.path.isfile(resolved_path):
+                c.drawImage(resolved_path,
+                            x=doc.leftMargin,
+                            y=page_height - doc.topMargin - 0.3 * cm,
+                            width=CONTENT_WIDTH,
+                            height=BANNER_HEIGHT,
+                            preserveAspectRatio=True)
+            else:
+                raise FileNotFoundError(f"Banner file not found: {resolved_path}")
+        except Exception as e:
+            print(f"⚠️ PDF Header Error: {e}")
             c.setFont('Helvetica-Bold', 12)
             c.drawCentredString(page_width / 2, page_height - doc.topMargin + 1.2 * cm,
-                                "Header image missing")
+                                f"Header image missing")
         
+        # --- STATISTICS SUMMARY (BOTTOM LEFT) ---
+        stats_x = doc.leftMargin
+        stats_y = doc.bottomMargin / 2 + 10
+        
+        c.setFont('Helvetica-Bold', 9)
+        c.drawString(stats_x, stats_y + 12, "ALLOCATION SUMMARY")
+        
+        c.setFont('Helvetica', 8.5)
+        current_y = stats_y + 2
+        c.drawString(stats_x, current_y, f"Total Students: {summary_stats['total_allocated']}")
+        
+        # Draw batch breakdown
+        batch_line_items = []
+        for label, count in summary_stats['batch_counts'].items():
+            batch_line_items.append(f"{label}: {count}")
+        
+        # Combine batches if there are many, or draw in sequence if few
+        if len(batch_line_items) > 0:
+            current_y -= 10
+            batch_text = " | ".join(batch_line_items)
+            # Simple wrapping if extremely long?
+            if len(batch_text) > 80:
+                c.drawString(stats_x, current_y, batch_text[:80] + "...")
+            else:
+                c.drawString(stats_x, current_y, batch_text)
+
+        # --- COORDINATOR (BOTTOM RIGHT) ---
         c.setFont('Helvetica', 9)
         footer_x = page_width - doc.rightMargin
         footer_y = doc.bottomMargin / 2
@@ -163,8 +215,7 @@ def create_seating_pdf(filename="algo/pdf_gen/seat_plan_generated/seating_plan.p
         c.drawRightString(footer_x, footer_y, template_config.get('coordinator_title', 'Dept. Exam Coordinator'))
         c.restoreState()
     
-    seating_matrix = process_seating_data(data)
-    metadata = data.get('metadata', {})
+    # Parameters for layout
     num_cols = metadata.get('cols', 0) or (len(seating_matrix[0]) if seating_matrix else 0)
     num_rows = metadata.get('rows', 0) or len(seating_matrix)
     

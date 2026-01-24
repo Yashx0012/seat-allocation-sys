@@ -33,6 +33,8 @@ def init_database():
         )
     ''')
     
+    system_banner_path = os.path.join(BASE_DIR, "data", "banner.png")
+    
     # Insert system default template if not exists
     cursor.execute('''
         INSERT OR IGNORE INTO user_templates (
@@ -49,12 +51,12 @@ def init_database():
         'Room no. 103A',
         'Dr. Dheeraj K. Dixit',
         'Dept. Exam Coordinator',
-        'pdf_gen/data/banner.png'
+        os.path.join(BASE_DIR, 'data', 'banner.png')
     ))
     
     conn.commit()
     conn.close()
-    print("✅ Database initialized successfully")
+    print("✅ Database initialized and repaired successfully")
 
 # Initialize on import
 try:

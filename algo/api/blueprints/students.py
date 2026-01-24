@@ -119,7 +119,7 @@ def commit_upload():
             parse_data = json.load(f)
             
         batch_name = parse_data['batch_name']
-        batch_color = parse_data.get('batch_color', '#3b82f6')
+        batch_color = parse_data.get('batch_color', '#BFDBFE')
         filename = parse_data.get('source_filename', 'uploaded_file')
         students_raw = parse_data['data'].get(batch_name, [])
         

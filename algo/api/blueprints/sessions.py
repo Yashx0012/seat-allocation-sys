@@ -13,6 +13,9 @@ from algo.auth_service import token_required
 
 # Service layer imports (Phase 1 migration)
 from algo.services import SessionService, AllocationService
+from algo.core.cache.cache_manager import CacheManager
+
+CACHE_MGR = CacheManager()
 
 session_bp = Blueprint('sessions', __name__, url_prefix='/api/sessions')
 
@@ -675,6 +678,18 @@ def finalize_session(session_id):
         conn.commit()
         conn.close()
         
+        # ✅ FIX: Finalize rooms in Cache (Prune experimental rooms and mark as FINALIZED)
+        plan_id = session['plan_id']
+        if plan_id:
+            try:
+                success = CACHE_MGR.finalize_rooms(plan_id, allocated_rooms)
+                if success:
+                    print(f"✅ Cache finalized for plan: {plan_id}")
+                else:
+                    print(f"⚠️ Cache finalization returned False for plan: {plan_id}")
+            except Exception as cache_err:
+                print(f"❌ Cache finalization error: {cache_err}")
+
         print(f"🏁 Finalized session {session_id} ({session['plan_id']})")
         
         return jsonify({

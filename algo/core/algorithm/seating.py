@@ -13,11 +13,11 @@ logger = logging.getLogger(__name__)
 class SeatingAlgorithm:
     # Default batch colors (can be customized)
     DEFAULT_BATCH_COLORS = {
-        1: "#DBEAFE",  # Light blue
-        2: "#DCFCE7",  # Light green
-        3: "#FEE2E2",  # Light red/pink
-        4: "#FEF3C7",  # Light yellow
-        5: "#E9D5FF",  # Light purple
+        1: "#BFDBFE",  # Blue (Tailwind 200)
+        2: "#BBF7D0",  # Green
+        3: "#FECACA",  # Red/Pink
+        4: "#FDE68A",  # Amber/Yellow
+        5: "#E9D5FF",  # Purple
     }
 
     def __init__(

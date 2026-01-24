@@ -76,7 +76,7 @@ def ensure_demo_db():
                 session_id INTEGER,
                 batch_id TEXT UNIQUE NOT NULL,
                 batch_name TEXT NOT NULL,
-                batch_color TEXT DEFAULT '#3b82f6',
+                batch_color TEXT DEFAULT '#BFDBFE',
                 original_filename TEXT,
                 file_size INTEGER,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -93,7 +93,7 @@ def ensure_demo_db():
                 upload_id INTEGER NOT NULL,
                 batch_id TEXT NOT NULL,
                 batch_name TEXT NOT NULL,
-                batch_color TEXT DEFAULT '#3b82f6',
+                batch_color TEXT DEFAULT '#BFDBFE',
                 enrollment TEXT NOT NULL,
                 name TEXT,
                 department TEXT,
@@ -195,8 +195,8 @@ def ensure_demo_db():
         # 10. ENSURE COLUMNS EXIST (FOR MIGRATION FROM OLDER VERSIONS)
         # ====================================================================
         migration_queries = [
-            ("ALTER TABLE uploads ADD COLUMN batch_color TEXT DEFAULT '#3b82f6'", "uploads.batch_color"),
-            ("ALTER TABLE students ADD COLUMN batch_color TEXT DEFAULT '#3b82f6'", "students.batch_color"),
+            ("ALTER TABLE uploads ADD COLUMN batch_color TEXT DEFAULT '#BFDBFE'", "uploads.batch_color"),
+            ("ALTER TABLE students ADD COLUMN batch_color TEXT DEFAULT '#BFDBFE'", "students.batch_color"),
             ("ALTER TABLE students ADD COLUMN department TEXT", "students.department"),
             ("ALTER TABLE allocation_sessions ADD COLUMN user_id INTEGER DEFAULT 1", "sessions.user_id"),
             ("ALTER TABLE allocation_sessions ADD COLUMN name TEXT", "sessions.name"),

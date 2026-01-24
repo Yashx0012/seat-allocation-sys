@@ -29,7 +29,7 @@ class StudentService:
             session_id=5,
             file_obj=uploaded_file,
             batch_name="CSE-2024",
-            batch_color="#3b82f6"
+            batch_color="#BFDBFE"
         )
         
         # Get students for a session

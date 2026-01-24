@@ -140,7 +140,7 @@ def get_seating_from_database(session_id, room_name=None):
                         'roll_number': r['enrollment'],
                         'student_name': r['student_name'],
                         'batch_label': r['batch_name'],
-                        'color': r['batch_color'] or '#cccccc',
+                        'color': r['batch_color'] or '#F3F4F6',
                         'paper_set': r['paper_set'],
                         'status': 'allocated'
                     }

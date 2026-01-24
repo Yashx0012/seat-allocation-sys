@@ -21,14 +21,14 @@ export const toPrintFriendlyColor = (color) => {
 
 // Predefined print-friendly palette
 export const PRINT_FRIENDLY_COLORS = {
-  '#3b82f6': '#DBEAFE', // Blue → Light blue
-  '#ef4444': '#FEE2E2', // Red → Light red
-  '#22c55e': '#DCFCE7', // Green → Light green
-  '#f97316': '#FFEDD5', // Orange → Light orange
-  '#8b5cf6': '#EDE9FE', // Purple → Light purple
-  '#ec4899': '#FCE7F3', // Pink → Light pink
-  '#14b8a6': '#CCFBF1', // Teal → Light teal
-  '#eab308': '#FEF9C3', // Yellow → Light yellow
+  '#3b82f6': '#BFDBFE', // Standard Blue → Light Blue (Tailwind 200)
+  '#ef4444': '#FECACA', // Standard Red → Light Red
+  '#22c55e': '#BBF7D0', // Standard Green → Light Green
+  '#f97316': '#FED7AA', // Standard Orange → Light Orange
+  '#8b5cf6': '#E9D5FF', // Standard Purple → Light Purple
+  '#ec4899': '#FBCFE8', // Standard Pink → Light Pink
+  '#14b8a6': '#99F6E4', // Standard Teal → Light Teal
+  '#eab308': '#FDE68A', // Standard Yellow → Light Yellow
 };
 
 export const getPrintFriendlyColor = (color) => {

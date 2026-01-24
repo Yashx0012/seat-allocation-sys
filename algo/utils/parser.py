@@ -21,16 +21,16 @@ logger.setLevel(logging.INFO)
 # COLOR PALETTE FOR BATCH GENERATION
 # ============================================================================
 BATCH_COLORS = [
-    '#3b82f6',  # Blue
-    '#ef4444',  # Red
-    '#10b981',  # Green
-    '#f59e0b',  # Amber
-    '#8b5cf6',  # Purple
-    '#ec4899',  # Pink
-    '#06b6d4',  # Cyan
-    '#f97316',  # Orange
-    '#14b8a6',  # Teal
-    '#a855f7',  # Violet
+    '#BFDBFE',  # Blue
+    '#FECACA',  # Red
+    '#BBF7D0',  # Green
+    '#FDE68A',  # Amber
+    '#E9D5FF',  # Purple
+    '#FBCFE8',  # Pink
+    '#A5F3FC',  # Cyan
+    '#FED7AA',  # Orange
+    '#99F6E4',  # Teal
+    '#DDD6FE',  # Violet
 ]
 
 def _norm_col_name(x: Any) -> str:

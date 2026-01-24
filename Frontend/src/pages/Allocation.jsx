@@ -1166,7 +1166,7 @@ if (initializing) {
                                   }`}
                                 >
                                   {isAllocated && (
-                                    <div className="absolute top-0 inset-x-0 h-1.5 rounded-t-xl" style={{ backgroundColor: getPrintFriendlyColor(seat.color) }} />
+                                    <div className="absolute top-0 inset-x-0 h-1.5 rounded-t-xl" style={{ backgroundColor: seat.color }} />
                                   )}
                                   {isAllocated ? (
                                     <>

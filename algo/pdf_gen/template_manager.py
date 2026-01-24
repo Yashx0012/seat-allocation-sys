@@ -44,7 +44,7 @@ class TemplateManager:
             'room_number': 'Room no. 103A',
             'coordinator_name': 'Dr. Dheeraj K. Dixit',
             'coordinator_title': 'Dept. Exam Coordinator',
-            'banner_image_path': 'pdf_gen/data/banner.png'
+            'banner_image_path': os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'banner.png')
         }
 
     def get_user_template(self, user_id, template_name='default'):
