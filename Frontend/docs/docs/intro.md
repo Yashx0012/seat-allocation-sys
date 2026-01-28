@@ -30,7 +30,7 @@ import CodeHeader from '@site/src/components/filetypeheaderstyle';
       <p style={{ fontSize: '1.1rem', color: 'var(--ifm-color-content-secondary)', minHeight: '80px' }}>
         Learn how to use the application to generate seating plans, manage students, and export PDFs for your classes.
       </p>
-      <a href="/docs/user-guide/manual" className="cta-button cta-button-primary" style={{ display: 'block', textAlign: 'center', backgroundColor: '#3b82f6' }}>
+      <a href="/docs/user-guide/manual" className="cta-button cta-button-secondary" style={{ display: 'block', textAlign: 'center', borderColor: '#3b82f6', color: '#3b82f6' }}>
         View User Manual
       </a>
     </div>

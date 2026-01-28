@@ -7,90 +7,184 @@ import CodeHeader from '@site/src/components/filetypeheaderstyle';
 
 # 📖 User Manual
 
-Welcome to the **Seat Allocation System**. This guide will help you navigate the platform and generate professional seating arrangements for your examinations.
+Welcome to the **Seat Allocation System**. Transform your examination management with our intelligent, automated seating engine. This guide provides everything you need to know to move from raw rosters to professional layouts.
 
 ---
 
 ## 🚀 Quick Workflow
+*A high-level view of the standard process.*
 
-<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
-  <div style={{ padding: '1.5rem', borderRadius: '12px', background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
-    <h4 style={{ color: '#3b82f6', marginBottom: '0.5rem' }}>1. Initialize</h4>
-    <p style={{ margin: 0, fontSize: '0.9rem' }}>Set room dimensions and basic constraints.</p>
+<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.5rem', marginBottom: '3rem' }}>
+  <MagicBento glowColor="59, 130, 246" enableStars={true}>
+    <h4 style={{ color: '#3b82f6', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+      <span style={{ fontSize: '1.2rem' }}>1️⃣</span> Initialize
+    </h4>
+    <p style={{ margin: 0, fontSize: '0.9rem', opacity: 0.8 }}>Define your room canvas and set the baseline constraints.</p>
+  </MagicBento>
+
+  <MagicBento glowColor="16, 185, 129" enableStars={true}>
+    <h4 style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+      <span style={{ fontSize: '1.2rem' }}>2️⃣</span> Upload
+    </h4>
+    <p style={{ margin: 0, fontSize: '0.9rem', opacity: 0.8 }}>Sync student data via secure Excel or CSV imports.</p>
+  </MagicBento>
+
+  <MagicBento glowColor="245, 158, 11" enableStars={true}>
+    <h4 style={{ color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+      <span style={{ fontSize: '1.2rem' }}>3️⃣</span> Generate
+    </h4>
+    <p style={{ margin: 0, fontSize: '0.9rem', opacity: 0.8 }}>Let the engine solve the allocation matrix instantly.</p>
+  </MagicBento>
+
+  <MagicBento glowColor="139, 92, 246" enableStars={true}>
+    <h4 style={{ color: '#8b5cf6', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+      <span style={{ fontSize: '1.2rem' }}>4️⃣</span> Export
+    </h4>
+    <p style={{ margin: 0, fontSize: '0.9rem', opacity: 0.8 }}>Generate print-ready PDFs and attendance reports.</p>
+  </MagicBento>
+</div>
+
+---
+
+## 🏠 Core Management
+
+<MagicBento enableStars={true} glowColor="139, 92, 246">
+  <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap', alignItems: 'center' }}>
+    <div style={{ flex: 1, minWidth: '300px' }}>
+      <h3 style={{ color: '#8b5cf6' }}>📊 Plan-Based Architecture</h3>
+      <p>Every examination is treated as a <b>"Plan"</b>. This ensures total data isolation, version history, and specific room targeting. You can clone existing plans to save time on recurring examinations.</p>
+    </div>
+    <div style={{ borderLeft: '2px solid rgba(139, 92, 246, 0.3)', paddingLeft: '2rem' }}>
+      <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+        <li>✅ Isolated Data Storage</li>
+        <li>✅ Room-Specific Templates</li>
+        <li>✅ Historical Analytics</li>
+      </ul>
+    </div>
   </div>
-  <div style={{ padding: '1.5rem', borderRadius: '12px', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
-    <h4 style={{ color: '#10b981', marginBottom: '0.5rem' }}>2. Upload</h4>
-    <p style={{ margin: 0, fontSize: '0.9rem' }}>Import your student Excel/CSV rosters.</p>
+</MagicBento>
+
+---
+
+## 📝 Detailed Configuration
+*Follow these steps to configure your seating arrangement with precision.*
+
+<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', marginTop: '1rem', marginBottom: '2rem' }}>
+  
+  <MagicBento glowColor="59, 130, 246" enableStars={false}>
+    <h4 style={{ borderBottom: '1px solid rgba(59, 130, 246, 0.2)', paddingBottom: '0.5rem' }}>🏗️ Room Setup</h4>
+    <ul style={{ fontSize: '0.9rem', paddingLeft: '1.2rem' }}>
+      <li>Define <b>Rows & Columns</b>.</li>
+      <li>Identify <b>Broken Seats</b> to exclude them.</li>
+      <li>Specify <b>Block Widths</b> for logical grouping.</li>
+    </ul>
+  </MagicBento>
+
+  <MagicBento glowColor="16, 185, 129" enableStars={false}>
+    <h4 style={{ borderBottom: '1px solid rgba(16, 185, 129, 0.2)', paddingBottom: '0.5rem' }}>📂 Data Ingestion</h4>
+    <ul style={{ fontSize: '0.9rem', paddingLeft: '1.2rem' }}>
+      <li>Upload <b>CSV/Excel</b> rosters.</li>
+      <li>Map headers like <b>"Roll No"</b> and <b>"Name"</b>.</li>
+      <li>Validate data integrity before processing.</li>
+    </ul>
+  </MagicBento>
+
+  <MagicBento glowColor="245, 158, 11" enableStars={false}>
+    <h4 style={{ borderBottom: '1px solid rgba(245, 158, 11, 0.2)', paddingBottom: '0.5rem' }}>⚖️ Constraint Engine</h4>
+    <ul style={{ fontSize: '0.9rem', paddingLeft: '1.2rem' }}>
+      <li>Set <b>Paper Set Priorities</b> (A/B logic).</li>
+      <li>Toggle <b>Sequence-Centric</b> mode.</li>
+      <li>Add <b>Buffer Seats</b> between batches.</li>
+    </ul>
+  </MagicBento>
+
+  <MagicBento glowColor="236, 72, 153" enableStars={false}>
+    <h4 style={{ borderBottom: '1px solid rgba(236, 72, 153, 0.2)', paddingBottom: '0.5rem' }}>⚡ Generation</h4>
+    <ul style={{ fontSize: '0.9rem', paddingLeft: '1.2rem' }}>
+      <li>Run <b>Pragmatic Validation</b>.</li>
+      <li>View real-time engine processing.</li>
+      <li>Resolve detected sequence gaps.</li>
+    </ul>
+  </MagicBento>
+
+</div>
+
+<MagicBento glowColor="245, 158, 11" enableStars={true}>
+  <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', padding: '0.5rem' }}>
+    <div style={{ fontSize: '2.5rem', opacity: 0.9 }}>💡</div>
+    <div>
+      <h4 style={{ color: '#f59e0b', margin: '0 0 0.25rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        Pro-Tip
+      </h4>
+      <p style={{ margin: 0, fontSize: '0.95rem', opacity: 0.8, lineHeight: '1.5' }}>
+        Use the <b>Broken Seats</b> feature to mirror the physical reality of your classroom, ensuring the algorithm never places a student on a damaged chair.
+      </p>
+    </div>
   </div>
-  <div style={{ padding: '1.5rem', borderRadius: '12px', background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
-    <h4 style={{ color: '#f59e0b', marginBottom: '0.5rem' }}>3. Generate</h4>
-    <p style={{ margin: 0, fontSize: '0.9rem' }}>Run the algorithm and verify the layout.</p>
-  </div>
-  <div style={{ padding: '1.5rem', borderRadius: '12px', background: 'rgba(139, 92, 246, 0.1)', border: '1px solid rgba(139, 92, 246, 0.2)' }}>
-    <h4 style={{ color: '#8b5cf6', marginBottom: '0.5rem' }}>4. Export</h4>
-    <p style={{ margin: 0, fontSize: '0.9rem' }}>Download official PDF seating charts.</p>
+</MagicBento>
+
+---
+
+## 🖱️ Interactive Management
+*The dashboard isn't just for viewing—it's a fully interactive canvas.*
+
+<div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+     <div style={{ textAlign: 'center', padding: '1rem', borderRadius: '8px', background: 'rgba(255,255,255,0.05)' }}>
+        <b style={{ color: '#3b82f6' }}>Drag & Drop</b>
+        <p style={{ margin: 0, fontSize: '0.8rem' }}>Move students between seats</p>
+     </div>
+     <div style={{ textAlign: 'center', padding: '1rem', borderRadius: '8px', background: 'rgba(255,255,255,0.05)' }}>
+        <b style={{ color: '#10b981' }}>Instant Swap</b>
+        <p style={{ margin: 0, fontSize: '0.8rem' }}>Switch two student positions</p>
+     </div>
+     <div style={{ textAlign: 'center', padding: '1rem', borderRadius: '8px', background: 'rgba(255,255,255,0.05)' }}>
+        <b style={{ color: '#f59e0b' }}>Quick Unallocate</b>
+        <p style={{ margin: 0, fontSize: '0.8rem' }}>Remove specific allocations</p>
+     </div>
   </div>
 </div>
 
 ---
 
-## 🏠 Dashboard Overview
+## 📄 Reporting & Outputs
+*Professional documentation is just one click away.*
 
-The **Admin Dashboard** is your command center. From here, you can manage multiple seating plans and track overall system status.
+| Report Type | Format | Content |
+| :--- | :--- | :--- |
+| **Seating Plan** | PDF / Image | Visual map for entrance doors. |
+| **Attendance Sheet** | PDF / Excel | Roll-number sorted list for signatures. |
+| **Statistics** | JSON / CSV | Breakdown of batches and room utilization. |
 
-<MagicBento enableStars={true} glowColor="59, 130, 246">
-  <h3>📊 Plan Management</h3>
-  <p>Every examination session is saved as a <b>"Plan"</b>. You can create multiple plans for different rooms or exam dates, each preserving its own history and data isolation.</p>
+<MagicBento glowColor="239, 68, 68" enableStars={true} style={{ marginTop: '2rem' }}>
+  <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', padding: '0.5rem' }}>
+    <div style={{ fontSize: '2.5rem', opacity: 0.9 }}>🛡️</div>
+    <div>
+      <h4 style={{ color: '#ef4444', margin: '0 0 0.25rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        Important
+      </h4>
+      <p style={{ margin: 0, fontSize: '0.95rem', opacity: 0.8, lineHeight: '1.5' }}>
+        Verify the <b>Total Allocation Count</b> against your original roster before finalizing the export. Discrepancies usually indicate unallocated students due to strict constraints.
+      </p>
+    </div>
+  </div>
 </MagicBento>
 
 ---
 
-## 📝 Step-by-Step Instructions
+## 🧭 Developer Quick Links
 
-### 1. Creating a New Plan
-1. Navigate to the **"New Plan"** section.
-2. Enter a descriptive name (e.g., *Midterm Nov 2025*).
-3. Specify the **Room Number** and select the predefined classroom template if available.
-
-### 2. Uploading Rosters
-The system matches students to seats using their **Roll Number** or **Enrollment ID**.
-- Go to the **Upload** tab.
-- Select your CSV or Excel file.
-- **Tip**: Ensure your header names are clear (e.g., "Roll No", "Name", "Batch").
-
-### 3. Configuring Constraints
-Fine-tune how the algorithm behaves:
-- **Block Width**: Controls how many seats are grouped together before a gap.
-- **Paper Sets**: Enable **Sequence-Centric** mode to ensure A/B sets alternate strictly by roll number order.
-- **Broken Seats**: Mark specific chairs as unusable to avoid allocations there.
-
-### 4. Generation & Verification
-Click the **Generate Seating** button. The system will:
-1. Validate your constraints.
-2. Run the allocation engine.
-3. Show **Pragmatic Notifications** (Errors vs Warnings).
-
-> [!TIP]
-> **Warnings** indicate sequence gaps (e.g., 1 seat skipped), but still allow you to proceed with a valid (though not mathematically perfect) plan.
-
----
-
-## 🖱️ Manual Adjustments
-
-If the algorithm's result needs minor tweaks:
-- **Drag & Drop**: Simply pick a student and move them to an empty seat.
-- **Swap**: Drag one student onto another to swap their positions instantly.
-- **Unallocate**: Remove a student from a seat if they are no longer attending.
-
----
-
-## 📄 Official Documentation Export
-
-Once satisfied, generate your final reports:
-- **Seating Plan PDF**: A visual map for room entrances.
-- **Attendance Sheet**: A structured list for signatures, sorted by roll number.
-
----
-
-> [!IMPORTANT]
-> Always verify the **Total Allocation Count** matches your provided roster before printing.
+<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+  <a href="./frontend-setup" style={{ textDecoration: 'none', color: 'inherit' }}>
+    <MagicBento glowColor="59, 130, 246">
+      <h4>🖥️ Frontend Setup</h4>
+      <p style={{ fontSize: '0.8rem', margin: 0 }}>React, Vite, Docusaurus integration guide.</p>
+    </MagicBento>
+  </a>
+  <a href="./backend-setup" style={{ textDecoration: 'none', color: 'inherit' }}>
+    <MagicBento glowColor="236, 72, 153">
+      <h4>⚙️ Backend Setup</h4>
+      <p style={{ fontSize: '0.8rem', margin: 0 }}>Python, Flask, SQLite configuration guide.</p>
+    </MagicBento>
+  </a>
+</div>

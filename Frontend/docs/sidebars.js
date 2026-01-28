@@ -28,6 +28,47 @@ const sidebars = {
       items: [
         'user-guide/manual',
         'user-guide/troubleshooting',
+        {
+          type: 'category',
+          label: '🧭 Quick Navigation',
+          collapsed: true,
+          items: [
+            {
+              type: 'doc',
+              id: 'user-guide/frontend-setup',
+              label: '🖥️ Frontend Setup',
+            },
+            {
+              type: 'doc',
+              id: 'user-guide/backend-setup',
+              label: '⚙️ Backend Setup',
+            },
+          ],
+        },
+      ],
+    },
+    {
+      type: 'category',
+      label: '🧠 Algorithm',
+      collapsed: false,
+      items: [
+        {
+          type: 'doc',
+          id: 'developers/Algorithm/index',
+          label: '🧠 Overview'
+        },
+        {
+          type: 'category',
+          label: '🧩 Core Modules',
+          collapsed: false,
+          items: [
+            'developers/Algorithm/data-structures',
+            'developers/Algorithm/distribution-logic',
+            'developers/Algorithm/allocation-engine',
+            'developers/Algorithm/paper-set-priority',
+            'developers/Algorithm/validation-system',
+          ],
+        },
       ],
     },
     {
@@ -37,7 +78,6 @@ const sidebars = {
       items: [
         'developers/setup',
         'developers/architecture',
-        'developers/algorithm',
         'developers/api',
         'developers/auth',
       ],

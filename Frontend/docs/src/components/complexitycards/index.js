@@ -1,9 +1,9 @@
 import React from 'react';
 
 export default function App() {
-    return (
-        <div id="ca-isolated-wrapper" className="ca-wrapper">
-            <style>{`
+  return (
+    <div id="ca-isolated-wrapper" className="ca-wrapper">
+      <style>{`
         /* --- HIGH SPECIFICITY ISOLATION --- 
            Using #ca-isolated-wrapper ensures these styles override Docusaurus/Infima 
         */
@@ -244,127 +244,127 @@ export default function App() {
         [data-theme='dark'] #ca-isolated-wrapper .ca-text-amber { color: #fbbf24; }
       `}</style>
 
-            <div className="ca-content">
+      <div className="ca-content">
 
-                <div className="ca-grid">
+        <div className="ca-grid">
 
-                    {/* Card 1: Time Complexity */}
-                    <div className="ca-card ca-theme-indigo">
-                        <div className="ca-header">
-                            <h3>Time Complexity</h3>
-                        </div>
-                        <div className="ca-table-responsive">
-                            <table className="ca-table">
-                                <thead>
-                                    <tr>
-                                        <th>Operation</th>
-                                        <th>Complexity</th>
-                                        <th>Details</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td>Initialization</td>
-                                        <td className="ca-font-mono ca-text-pink ca-font-semibold">O(R × C)</td>
-                                        <td className="ca-text-details">Grid creation</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Batch Assign</td>
-                                        <td className="ca-font-mono ca-text-pink ca-font-semibold">O(C)</td>
-                                        <td className="ca-text-details">Col dist.</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Allocation</td>
-                                        <td className="ca-font-mono ca-text-pink ca-font-semibold">O(R × C)</td>
-                                        <td className="ca-text-details">Fill seats</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Validation</td>
-                                        <td className="ca-font-mono ca-text-pink ca-font-semibold">O(R × C)</td>
-                                        <td className="ca-text-details">Constraints</td>
-                                    </tr>
-                                    <tr className="ca-row-highlight">
-                                        <td>Overall</td>
-                                        <td className="ca-font-mono">O(R × C)</td>
-                                        <td>Linear</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    {/* Card 2: Space Complexity */}
-                    <div className="ca-card ca-theme-emerald">
-                        <div className="ca-header">
-                            <h3>Space Complexity</h3>
-                        </div>
-                        <div className="ca-table-responsive">
-                            <table className="ca-table">
-                                <thead>
-                                    <tr>
-                                        <th>Component</th>
-                                        <th>Complexity</th>
-                                        <th>Details</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td>Seating Grid</td>
-                                        <td className="ca-font-mono ca-text-pink ca-font-semibold">O(R × C)</td>
-                                        <td className="ca-text-details">2D array</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Mapping</td>
-                                        <td className="ca-font-mono ca-text-pink ca-font-semibold">O(N)</td>
-                                        <td className="ca-text-details">Tracking</td>
-                                    </tr>
-                                    <tr className="ca-row-highlight">
-                                        <td>Overall</td>
-                                        <td className="ca-font-mono">O(R × C)</td>
-                                        <td>Dominated</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    {/* Card 3: Benchmarks */}
-                    <div className="ca-card ca-theme-amber">
-                        <div className="ca-header">
-                            <h3>Benchmarks</h3>
-                        </div>
-                        <div className="ca-table-responsive">
-                            <table className="ca-table">
-                                <thead>
-                                    <tr>
-                                        <th>Size</th>
-                                        <th>Time</th>
-                                        <th>Memory</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td className="ca-font-mono ca-text-xs">10×10</td>
-                                        <td className="ca-text-emerald ca-font-bold">&lt; 10ms</td>
-                                        <td className="ca-text-details">&lt; 1MB</td>
-                                    </tr>
-                                    <tr>
-                                        <td className="ca-font-mono ca-text-xs">50×50</td>
-                                        <td className="ca-text-emerald ca-font-bold">&lt; 50ms</td>
-                                        <td className="ca-text-details">&lt; 5MB</td>
-                                    </tr>
-                                    <tr>
-                                        <td className="ca-font-mono ca-text-xs">100×100</td>
-                                        <td className="ca-text-amber ca-font-bold">&lt; 100ms</td>
-                                        <td className="ca-text-details">&lt; 15MB</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                </div>
+          {/* Card 1: Time Complexity */}
+          <div className="ca-card ca-theme-indigo">
+            <div className="ca-header">
+              <h3>Time Complexity</h3>
             </div>
+            <div className="ca-table-responsive">
+              <table className="ca-table">
+                <thead>
+                  <tr>
+                    <th>Operation</th>
+                    <th>Complexity</th>
+                    <th>Details</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Initialization</td>
+                    <td className="ca-font-mono ca-text-pink ca-font-semibold">O(R × C)</td>
+                    <td className="ca-text-details">Grid creation</td>
+                  </tr>
+                  <tr>
+                    <td>Batch Assign</td>
+                    <td className="ca-font-mono ca-text-pink ca-font-semibold">O(C)</td>
+                    <td className="ca-text-details">Col dist.</td>
+                  </tr>
+                  <tr>
+                    <td>Allocation</td>
+                    <td className="ca-font-mono ca-text-pink ca-font-semibold">O(R × C)</td>
+                    <td className="ca-text-details">Fill seats</td>
+                  </tr>
+                  <tr>
+                    <td>Validation</td>
+                    <td className="ca-font-mono ca-text-pink ca-font-semibold">O(R × C)</td>
+                    <td className="ca-text-details">Constraints</td>
+                  </tr>
+                  <tr className="ca-row-highlight">
+                    <td>Overall</td>
+                    <td className="ca-font-mono">O(R × C)</td>
+                    <td>Linear</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Card 2: Space Complexity */}
+          <div className="ca-card ca-theme-emerald">
+            <div className="ca-header">
+              <h3>Space Complexity</h3>
+            </div>
+            <div className="ca-table-responsive">
+              <table className="ca-table">
+                <thead>
+                  <tr>
+                    <th>Component</th>
+                    <th>Complexity</th>
+                    <th>Details</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Seating Grid</td>
+                    <td className="ca-font-mono ca-text-pink ca-font-semibold">O(R × C)</td>
+                    <td className="ca-text-details">2D array</td>
+                  </tr>
+                  <tr>
+                    <td>Mapping</td>
+                    <td className="ca-font-mono ca-text-pink ca-font-semibold">O(N)</td>
+                    <td className="ca-text-details">Tracking</td>
+                  </tr>
+                  <tr className="ca-row-highlight">
+                    <td>Overall</td>
+                    <td className="ca-font-mono">O(R × C)</td>
+                    <td>Dominated</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Card 3: Benchmarks */}
+          <div className="ca-card ca-theme-amber">
+            <div className="ca-header">
+              <h3>Benchmarks</h3>
+            </div>
+            <div className="ca-table-responsive">
+              <table className="ca-table">
+                <thead>
+                  <tr>
+                    <th>Size</th>
+                    <th>Time</th>
+                    <th>Memory</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td className="ca-font-mono ca-text-xs">10×10</td>
+                    <td className="ca-text-emerald ca-font-bold">&lt; 10ms</td>
+                    <td className="ca-text-details">&lt; 1MB</td>
+                  </tr>
+                  <tr>
+                    <td className="ca-font-mono ca-text-xs">50×50</td>
+                    <td className="ca-text-emerald ca-font-bold">&lt; 50ms</td>
+                    <td className="ca-text-details">&lt; 5MB</td>
+                  </tr>
+                  <tr>
+                    <td className="ca-font-mono ca-text-xs">100×100</td>
+                    <td className="ca-text-amber ca-font-bold">&lt; 100ms</td>
+                    <td className="ca-text-details">&lt; 15MB</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
         </div>
-    );
+      </div>
+    </div>
+  );
 }

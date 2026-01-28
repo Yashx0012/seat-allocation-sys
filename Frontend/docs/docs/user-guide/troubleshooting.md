@@ -2,61 +2,90 @@
 sidebar_position: 2
 ---
 
+import MagicBento from '@site/src/components/MagicBento';
+
 # 🛠️ User Troubleshooting
 
-Common issues and their quick solutions for teachers and administrators.
+Resolve common hurdles and system messages with this interactive guide. If you encounter an issue not listed here, please use the system feedback tool.
 
 ---
 
-## 📤 Upload Issues
+## 📂 Data & Intake
+*Issues related to student rosters and file processing.*
 
-### "File format not supported"
-- **Cause**: You uploaded a file with an extension other than `.csv`, `.xls`, or `.xlsx`.
-- **Solution**: Save your Excel sheet as a **CSV (Comma Delimited)** file and try again.
+<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
+  <MagicBento glowColor="59, 130, 246" enableStars={true}>
+    <h4 style={{ color: '#3b82f6', marginBottom: '1rem' }}>❌ Unsupported Format</h4>
+    <div style={{ fontSize: '0.9rem' }}>
+      <p><b>Cause:</b> Attempting to upload non-standard extensions (.pdf, .txt).</p>
+      <div style={{ background: 'rgba(59, 130, 246, 0.1)', padding: '0.8rem', borderRadius: '8px', borderLeft: '3px solid #3b82f6' }}>
+        <b>Solution:</b> Use <code>.csv</code> or <code>.xlsx</code>. We highly recommend <b>CSV (Comma Delimited)</b> for the fastest processing.
+      </div>
+    </div>
+  </MagicBento>
 
-### "Required columns missing"
-- **Cause**: The system couldn't find "Roll No" or "Name".
-- **Solution**: Ensure your spreadsheet has clear headers in the first row.
-
----
-
-## 🎯 Algorithm & Validation
-
-### "Critical Error: Classroom Overfilled"
-- **Cause**: You have more students than available seats (after accounting for broken seats).
-- **Solution**: 
-  1. Reduce the number of students in the current batch.
-  2. Increase the classroom dimensions (Rows/Cols).
-  3. Repair "Broken Seats" in the visual editor.
-
-### "Warning: Paper Set Sequence Gap"
-- **Cause**: To respect physical distance or broken seats, the algorithm had to skip a student in the A/B alternation sequence.
-- **Solution**: This is often safe to ignore. It just means the student sequence isn't perfectly alternating (e.g., A - [gap] - A).
-
----
-
-## 🎨 UI & Display
-
-### "Seating Grid looks distorted"
-- **Cause**: Browser zoom or very large classroom dimensions (e.g., 50x50) on a small screen.
-- **Solution**: 
-  1. Use **Ctrl + 0** to reset browser zoom.
-  2. Use the **Full Screen** toggle in the dashboard.
-
-### "Dashboard is not loading"
-- **Cause**: Local session data might be outdated.
-- **Solution**: Perform a **Hard Refresh** (Ctrl + F5) or clear browser cache for this site.
+  <MagicBento glowColor="236, 72, 153" enableStars={true}>
+    <h4 style={{ color: '#ec4899', marginBottom: '1rem' }}>⚠️ Missing Columns</h4>
+    <div style={{ fontSize: '0.9rem' }}>
+      <p><b>Cause:</b> Missing "Roll No" or "Name" headers.</p>
+      <div style={{ background: 'rgba(236, 72, 153, 0.1)', padding: '0.8rem', borderRadius: '8px', borderLeft: '3px solid #ec4899' }}>
+        <b>Solution:</b> Ensure your file's first row contains clear headers. The engine is case-insensitive but requires these exact identifiers.
+      </div>
+    </div>
+  </MagicBento>
+</div>
 
 ---
 
-## 🔑 Authentication
+## ⚙️ Engine & Logic
+*Troubleshooting the allocation algorithm and constraints.*
 
-### "Session Expired"
-- **Cause**: Your security token has timed out (usually after 24 hours).
-- **Solution**: Log out and log back in. Your active plan progress is **saved automatically**.
+<MagicBento glowColor="16, 185, 129" enableStars={true}>
+  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', flexWrap: 'wrap' }}>
+    <div>
+      <h4 style={{ color: '#10b981' }}>🚨 Critical: Overfilled Room</h4>
+      <p style={{ fontSize: '0.9rem' }}>This occurs when the student count exceeds the net capacity of your room layout (accounting for broken seats).</p>
+      <ul style={{ fontSize: '0.85rem', opacity: 0.9 }}>
+        <li>Reduce batch size per plan.</li>
+        <li>Expand grid dimensions in <b>Room Setup</b>.</li>
+        <li>Check for accidentally marked "Broken Seats".</li>
+      </ul>
+    </div>
+    <div style={{ borderLeft: '1px solid rgba(16, 185, 129, 0.2)', paddingLeft: '2rem' }}>
+      <h4 style={{ color: '#f59e0b' }}>⚖️ Sequence Gaps</h4>
+      <p style={{ fontSize: '0.9rem' }}>Algorithms sometimes skip seats to preserve A/B paper set isolation or buffer zones.</p>
+      <blockquote style={{ fontSize: '0.85rem', border: 'none', background: 'rgba(245, 158, 11, 0.05)', margin: 0, padding: '1rem', borderRadius: '8px' }}>
+        <b>Note:</b> These are "Warnings", not errors. You can proceed with generation, but the sequence may not be perfectly contiguous.
+      </blockquote>
+    </div>
+  </div>
+</MagicBento>
 
 ---
 
-:::tip Need more help?
-Contact your department's technical coordinator or report a bug via the **Feedback** button in the sidebar.
+## 🖥️ Interface & Access
+*Display issues and session management.*
+
+<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
+  <MagicBento glowColor="139, 92, 246">
+    <h5 style={{ color: '#8b5cf6' }}>Distorted Grid</h5>
+    <p style={{ fontSize: '0.85rem' }}>Reset zoom with <b>Ctrl + 0</b> or use <b>Fullscreen Mode</b>.</p>
+  </MagicBento>
+  
+  <MagicBento glowColor="245, 158, 11">
+    <h5 style={{ color: '#f59e0b' }}>Session Timeout</h5>
+    <p style={{ fontSize: '0.85rem' }}>Security tokens expire every 24h. Simply <b>Relogin</b>; your plan is auto-saved.</p>
+  </MagicBento>
+
+  <MagicBento glowColor="239, 68, 68">
+    <h5 style={{ color: '#ef4444' }}>Stale Data</h5>
+    <p style={{ fontSize: '0.85rem' }}>Perform a <b>Hard Refresh (Ctrl + F5)</b> to clear local frontend cache.</p>
+  </MagicBento>
+</div>
+
+---
+
+:::tip Still Stuck?
+Our technical support team is available for departmental escalations.
+**Email:** support@allocation-sys.edu | **Extension:** 404
 :::

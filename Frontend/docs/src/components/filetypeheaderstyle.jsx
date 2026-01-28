@@ -54,6 +54,7 @@ const CodeHeader = ({ title = "Code", children }) => {
         if (lower.includes('ts') || lower.includes('angular')) return 'typescript';
         if (lower.includes('bash') || lower === 'sh') return 'bash';
         if (lower === 'json') return 'json';
+        if (lower.includes('python')) return 'python';
         return 'javascript'; // default
     };
 
