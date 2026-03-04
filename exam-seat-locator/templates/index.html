@@ -120,25 +120,36 @@
 
     <div class="info-strip">
       <div class="info-item">
+        <span class="info-num">{{ file_count }}</span>
+        <span class="info-label">Plan Files</span>
+      </div>
+      <div class="info-divider"></div>
+      <div class="info-item">
+        <span class="info-num">{{ student_count }}</span>
+        <span class="info-label">Total Students</span>
+      </div>
+      <div class="info-divider"></div>
+      <div class="info-item">
         <span class="info-num">{{ dates | length }}</span>
         <span class="info-label">Exam Dates</span>
-      </div>
-      <div class="info-divider"></div>
-      <div class="info-item">
-        <span class="info-num">{{ times | length }}</span>
-        <span class="info-label">Time Slots</span>
-      </div>
-      <div class="info-divider"></div>
-      <div class="info-item">
-        <span class="info-num">Live</span>
-        <span class="info-label">Auto-synced Data</span>
       </div>
     </div>
   </main>
 
   <footer>
     <form action="/reload" method="POST" style="display:inline;">
-      <button type="submit" class="reload-btn">⟳ Reload Sessions</button>
+      <button type="submit" class="reload-btn">&#8635; Rebuild Index</button>
+    </form>
+    <form action="/upload" method="POST" enctype="multipart/form-data" style="display:inline; margin-left:1rem;">
+      <label for="plan_file_input" class="reload-btn" style="cursor:pointer;">&#8679; Upload Plan</label>
+      <input
+        id="plan_file_input"
+        type="file"
+        name="plan_file"
+        accept=".json"
+        style="display:none;"
+        onchange="this.form.submit()"
+      />
     </form>
     <span class="footer-text">Exam Seat Locator System &copy; 2026</span>
   </footer>

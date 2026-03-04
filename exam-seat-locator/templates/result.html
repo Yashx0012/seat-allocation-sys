@@ -61,6 +61,40 @@
     </div>
 
     <!-- Classroom Layout -->
+
+    {# ── Compute column-block separator positions ────────────────────────────
+       Priority 1: block_structure  e.g. [3,4,3] → separators after col 3, 7
+       Priority 2: block_width      e.g. 2, cols=10 → separators after col 2,4,6,8
+       break_cols holds the cumulative 1-based column indices where a separator
+       is inserted AFTER that column.
+    ──────────────────────────────────────────────────────────────────────── #}
+    {%- set ns = namespace(break_cols=[], running=0) -%}
+    {%- if seat.block_structure and seat.block_structure | length > 1 -%}
+      {%- for blk in seat.block_structure[:-1] -%}
+        {%- set ns.running = ns.running + blk -%}
+        {%- set ns.break_cols = ns.break_cols + [ns.running] -%}
+      {%- endfor -%}
+    {%- elif seat.block_width and seat.block_width > 0 -%}
+      {%- set ns2 = namespace(cur=seat.block_width) -%}
+      {%- for _ in range((seat.columns // seat.block_width) - 1) -%}
+        {%- set ns.break_cols = ns.break_cols + [ns2.cur] -%}
+        {%- set ns2.cur = ns2.cur + seat.block_width -%}
+      {%- endfor -%}
+    {%- endif -%}
+
+    {# Build CSS grid-template-columns string: each seat col is minmax(70px,1fr),
+       each separator slot is 18px. #}
+    {%- set gtc_ns = namespace(gtc="") -%}
+    {%- for c in range(seat.columns) -%}
+      {%- if not loop.first -%}{%- set gtc_ns.gtc = gtc_ns.gtc + " " -%}{%- endif -%}
+      {%- set gtc_ns.gtc = gtc_ns.gtc + "minmax(85px, 1fr)" -%}
+      {%- if (c + 1) in ns.break_cols -%}
+        {%- set gtc_ns.gtc = gtc_ns.gtc + " 33px" -%}
+      {%- endif -%}
+    {%- endfor -%}
+
+    {%- set total_grid_cols = seat.columns + (ns.break_cols | length) -%}
+
     <div class="layout-section">
       <div class="layout-header">
         <h2 class="layout-title">Classroom Layout — {{ seat.classroom_number }}</h2>
@@ -72,53 +106,63 @@
         <span>◼ BLACKBOARD / FRONT</span>
       </div>
 
-      <!-- Seat Grid -->
-      <div class="seat-grid"
-           style="--cols: {{ seat.columns }}; --rows: {{ seat.rows }};">
-        {% for r in range(seat.rows) %}
-          {% for c in range(seat.columns) %}
-            {% set cell = seat.seats[r][c] %}
-            {% if r == seat.row and c == seat.col %}
-              {# Student's own seat #}
-              <div class="seat seat-mine" title="{{ cell.roll_number }} - Set {{ cell.paper_set }} (Your Seat)">
-                <span class="seat-label">{{ cell.roll_number }}</span>
-                <span class="seat-set">{{ cell.paper_set }}</span>
-                <span class="seat-badge">YOU</span>
-              </div>
-            {% elif cell %}
-              {# Other occupied seats or special states #}
-              {% if cell.status == "broken" %}
-                <div class="seat seat-broken" title="Broken/Unavailable">
-                  <span class="seat-label">✕</span>
-                </div>
-              {% elif cell.is_unallocated %}
-                <div class="seat seat-unallocated" title="Unallocated Seat">
-                  <span class="seat-label">-</span>
-                </div>
-              {% else %}
-                {# Normal occupied seat #}
-                <div class="seat seat-occupied" title="{{ cell.roll_number }} - Set {{ cell.paper_set }}">
+      <!-- Seat Grid (wrapped in scroller so first column never clips on mobile) -->
+      <div class="grid-scroller">
+        <div class="seat-grid"
+             style="--cols: {{ total_grid_cols }}; --rows: {{ seat.rows }}; grid-template-columns: {{ gtc_ns.gtc }};">
+          {% for r in range(seat.rows) %}
+            {% for c in range(seat.columns) %}
+              {% set cell = seat.seats[r][c] %}
+              {% if r == seat.row and c == seat.col %}
+                {# Student's own seat #}
+                <div class="seat seat-mine" style="{% if cell.color %}--seat-color: {{ cell.color }};{% endif %}" title="{{ cell.roll_number }} - Set {{ cell.paper_set }} (Your Seat)">
                   <span class="seat-label">{{ cell.roll_number }}</span>
                   <span class="seat-set">{{ cell.paper_set }}</span>
+                  <span class="seat-badge">YOU</span>
+                </div>
+              {% elif cell %}
+                {# Other occupied seats or special states #}
+                {% if cell.status == "broken" %}
+                  <div class="seat seat-broken" title="Broken/Unavailable">
+                    <span class="seat-label">✕</span>
+                  </div>
+                {% elif cell.is_unallocated %}
+                  <div class="seat seat-unallocated" title="Unallocated Seat">
+                    <span class="seat-label">-</span>
+                  </div>
+                {% else %}
+                  {# Normal occupied seat #}
+                  <div class="seat seat-occupied" style="{% if cell.color %}--seat-color: {{ cell.color }};{% endif %}" title="{{ cell.roll_number }} - Set {{ cell.paper_set }}">
+                    <span class="seat-label">{{ cell.roll_number }}</span>
+                    <span class="seat-set">{{ cell.paper_set }}</span>
+                  </div>
+                {% endif %}
+              {% else %}
+                {# Empty seat #}
+                <div class="seat seat-empty" title="Empty">
+                  <span class="seat-label">-</span>
                 </div>
               {% endif %}
-            {% else %}
-              {# Empty seat #}
-              <div class="seat seat-empty" title="Empty">
-                <span class="seat-label">-</span>
-              </div>
+              {# Insert aisle separator after this column if it ends a block #}
+              {% if (c + 1) in ns.break_cols %}
+                <div class="block-sep-col" aria-hidden="true"></div>
+              {% endif %}
+            {% endfor %}
+          {% endfor %}
+        </div>
+
+        <!-- Column indicators (mirrors the seat grid column structure) -->
+        <div class="axis-row" style="grid-template-columns: {{ gtc_ns.gtc }};">
+          {% for c in range(seat.columns) %}
+            <div class="axis-label">C{{ c + 1 }}</div>
+            {% if (c + 1) in ns.break_cols %}
+              <div class="block-sep-col block-sep-axis" aria-hidden="true"></div>
             {% endif %}
           {% endfor %}
-        {% endfor %}
-      </div>
-
-      <!-- Row/Column indicators -->
-      <div class="axis-row">
-        {% for c in range(seat.columns) %}
-          <div class="axis-label">C{{ c + 1 }}</div>
-        {% endfor %}
-      </div>
-    </div>
+        </div>
+      </div><!-- /.grid-scroller -->
+      <div class="scroll-hint" aria-hidden="true">← swipe to scroll →</div>
+    </div><!-- /.layout-section -->
 
     <!-- Legend -->
     <div class="legend">
