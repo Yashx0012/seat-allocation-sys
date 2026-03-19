@@ -699,7 +699,7 @@ const UploadPage = ({ showToast }) => {
               </div>
 
               <div
-                className="relative overflow-hidden rounded-2xl h-[590px]"
+                className="relative overflow-hidden rounded-2xl h-[660px]"
                 onMouseEnter={() => setIsTemplatePaused(true)}
                 onMouseLeave={() => setIsTemplatePaused(false)}
               >
@@ -710,44 +710,44 @@ const UploadPage = ({ showToast }) => {
                 >
                   {/* Format 1 Template */}
                   <div className="min-w-full h-full">
-                    <div className="glass-card rounded-2xl border-2 border-gray-500/70 bg-[#0b0b0f] dark:bg-white overflow-hidden relative h-full flex flex-col">
-                      <div className="bg-black p-4 border-b border-gray-500/70">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-gray-800 flex items-center justify-center border border-gray-600">
-                            <span className="text-sm font-bold text-gray-100">1</span>
-                          </div>
-                          <div>
-                            <h3 className="font-sans font-bold text-gray-100 dark:text-gray-100 text-sm">FORMAT 1 — Enrollment Only</h3>
-                            <p className="text-xs text-gray-300 mt-0.5">Single column with enrollment numbers</p>
-                          </div>
-                        </div>
-                      </div>
-
+                    <div className="rounded-2xl border-0 bg-transparent dark:bg-transparent overflow-hidden relative h-full flex flex-col">
                       <div className="relative overflow-hidden flex-1">
-                          <div className="absolute inset-0 pointer-events-none z-10 bg-gradient-to-br from-transparent via-[#0b0b0f]/28 to-[#0b0b0f]/75 dark:from-transparent dark:via-white/22 dark:to-white/60 blur-lg" />
-                          <div className="absolute inset-x-0 bottom-0 h-14 pointer-events-none z-[11] bg-gradient-to-b from-transparent to-[#10121c]" />
+                        <div className="absolute inset-0 pointer-events-none z-10 bg-gradient-to-br from-transparent via-white/26 to-white/70 dark:from-transparent dark:via-black/26 dark:to-black/70 blur-lg" />
+                        <div className="absolute left-0 top-0 bottom-0 w-24 pointer-events-none z-[12] bg-gradient-to-r from-white via-white/70 to-transparent dark:from-black dark:via-black/70 dark:to-transparent" />
+                        <div className="absolute right-0 top-0 bottom-0 w-24 pointer-events-none z-[12] bg-gradient-to-l from-white via-white/70 to-transparent dark:from-black dark:via-black/70 dark:to-transparent" />
+                        <div className="absolute inset-x-0 bottom-0 h-20 pointer-events-none z-[11] bg-gradient-to-b from-transparent via-white/80 to-white dark:from-transparent dark:via-black/80 dark:to-black" />
 
-                        <div className="p-4">
-                          <div className="w-full border border-gray-500/80 rounded-lg overflow-hidden bg-[#0b0b0f] dark:bg-white shadow-sm">
-                            <div className="flex bg-black border-b border-gray-500/80">
-                              <div className="w-10 h-11 flex items-center justify-center border-r border-gray-500/80 text-xs font-bold text-gray-100 bg-black"></div>
-                              <div className="flex-1 h-11 flex items-center justify-center border-r border-gray-500/80 font-bold text-sm uppercase tracking-widest text-gray-100 bg-black text-center">
+                        <div
+                          className="p-4 pb-28"
+                          style={{
+                            WebkitMaskImage: 'radial-gradient(ellipse 92% 88% at center, rgba(0,0,0,1) 62%, rgba(0,0,0,0.85) 78%, rgba(0,0,0,0) 100%)',
+                            maskImage: 'radial-gradient(ellipse 92% 88% at center, rgba(0,0,0,1) 62%, rgba(0,0,0,0.85) 78%, rgba(0,0,0,0) 100%)',
+                            WebkitMaskRepeat: 'no-repeat',
+                            maskRepeat: 'no-repeat',
+                            WebkitMaskSize: '100% 100%',
+                            maskSize: '100% 100%'
+                          }}
+                        >
+                          <div className="w-full border-0 rounded-none overflow-hidden bg-[#0b0b0f] dark:bg-transparent shadow-none [&_*]:border-0">
+                            <div className="flex bg-black dark:bg-black">
+                              <div className="w-10 h-11 flex items-center justify-center text-xs font-bold text-gray-100 bg-black dark:bg-black"></div>
+                              <div className="flex-1 h-11 flex items-center justify-center font-bold text-sm uppercase tracking-widest text-gray-100 bg-black dark:bg-black text-center">
                                 A
                               </div>
-                              <div className="flex-1 h-11 flex items-center justify-center border-r border-gray-500/80 font-bold text-sm uppercase tracking-widest text-gray-500 bg-black text-center">
+                              <div className="flex-1 h-11 flex items-center justify-center font-bold text-sm uppercase tracking-widest text-gray-500 dark:text-gray-500 bg-black dark:bg-black text-center">
                                 B
                               </div>
-                              <div className="flex-1 h-11 flex items-center justify-center font-bold text-sm uppercase tracking-widest text-gray-500 bg-black text-center">
+                              <div className="flex-1 h-11 flex items-center justify-center font-bold text-sm uppercase tracking-widest text-gray-500 dark:text-gray-500 bg-black dark:bg-black text-center">
                                 C
                               </div>
                             </div>
 
-                            <div className="flex bg-gray-200 dark:bg-gray-200 border-b border-gray-500/80">
-                              <div className="w-10 h-11 flex items-center justify-center border-r border-gray-500/80 text-xs font-bold text-black dark:text-black bg-gray-300 dark:bg-gray-300"></div>
-                              <div className="flex-1 h-11 flex items-center px-4 border-r border-gray-500/80 font-sans font-extrabold text-sm text-black dark:text-black">
+                            <div className="flex bg-gray-200 dark:bg-gray-200">
+                              <div className="w-10 h-11 flex items-center justify-center text-xs font-bold text-black dark:text-black bg-gray-300 dark:bg-gray-300"></div>
+                              <div className="flex-1 h-11 flex items-center px-4 font-sans font-extrabold text-sm text-black dark:text-black">
                                 Enrollment No
                               </div>
-                              <div className="flex-1 h-11 border-r border-gray-500/80"></div>
+                              <div className="flex-1 h-11"></div>
                               <div className="flex-1 h-11"></div>
                             </div>
 
@@ -763,81 +763,76 @@ const UploadPage = ({ showToast }) => {
                               { num: 9, value: 'BTCS25O1009' },
                               { num: 10, value: 'BTCS25O1010' }
                             ].map((row) => (
-                              <div key={row.num} className="flex border-b border-gray-500/80 hover:bg-[#171922] dark:hover:bg-gray-50 transition-colors">
-                                <div className="w-10 h-11 flex items-center justify-center border-r border-gray-500/80 text-xs font-bold text-black dark:text-black bg-white dark:bg-white">
+                              <div key={row.num} className="flex hover:bg-[#171922] dark:hover:bg-gray-50 transition-colors">
+                                <div className="w-10 h-11 flex items-center justify-center text-xs font-bold text-black dark:text-black bg-white dark:bg-white">
                                   {row.num}
                                 </div>
-                                <div className="flex-1 h-11 flex items-center px-4 border-r border-gray-500/80 font-extrabold text-sm text-black dark:text-black bg-white dark:bg-white truncate">
+                                <div className="flex-1 h-11 flex items-center px-4 font-extrabold text-sm text-black dark:text-black bg-white dark:bg-white truncate">
                                   {row.value}
                                 </div>
-                                <div className="flex-1 h-11 border-r border-gray-500/80 bg-white dark:bg-white"></div>
+                                <div className="flex-1 h-11 bg-white dark:bg-white"></div>
                                 <div className="flex-1 h-11 bg-white dark:bg-white"></div>
                               </div>
                             ))}
 
-                            <div className="flex border-b border-gray-500/80 hover:bg-[#171922] dark:hover:bg-gray-50 transition-colors">
-                              <div className="w-10 h-11 flex items-center justify-center border-r border-gray-500/80 text-xs font-semibold text-gray-400 dark:text-gray-500 bg-[#161824] dark:bg-gray-100">
-                                ...
+                            {Array.from({ length: 30 }).map((_, idx) => (
+                              <div key={`empty-f1-${idx}`} className="flex">
+                                <div className="w-10 h-11 bg-white dark:bg-white"></div>
+                                <div className="flex-1 h-11 bg-white dark:bg-white"></div>
+                                <div className="flex-1 h-11 bg-white dark:bg-white"></div>
+                                <div className="flex-1 h-11 bg-white dark:bg-white"></div>
                               </div>
-                              <div className="flex-1 h-11 flex items-center px-4 border-r border-gray-500/80 font-mono text-sm text-gray-400 dark:text-gray-500 italic font-semibold">
-                                ... more rows
-                              </div>
-                              <div className="flex-1 h-11 border-r border-gray-500/80"></div>
-                              <div className="flex-1 h-11"></div>
-                            </div>
+                            ))}
                           </div>
                         </div>
-                      </div>
 
-                      <div className="relative px-5 py-4 bg-gradient-to-b from-[#10121c] via-[#0d0f17] to-[#0b0b0f] dark:from-[#10121c] dark:via-[#0d0f17] dark:to-[#0b0b0f] border-t border-transparent overflow-hidden">
-                        <div className="absolute inset-x-0 top-0 h-8 bg-gradient-to-b from-[#171a26]/80 via-[#121521]/45 to-transparent pointer-events-none" />
-                        <p className="relative z-10 text-xs text-gray-300 dark:text-gray-300">
-                          <span className="font-bold text-gray-100 dark:text-gray-100">💡 Tip:</span> A1 is the header. A2 onwards contains enrollment numbers.
-                        </p>
+                        <div className="absolute left-1/2 -translate-x-1/2 -translate-y-1 bottom-10 z-20 px-5 py-1.5 rounded-full bg-orange-50 dark:bg-orange-500/10 border-2 border-orange-500 dark:border-orange-400 ring-2 ring-orange-200 dark:ring-orange-900 backdrop-blur-lg shadow-xl">
+                          <p className="text-sm md:text-base font-black tracking-wider text-gray-900 dark:text-white whitespace-nowrap">FORMAT 1 — Enrollment Only</p>
+                        </div>
                       </div>
                     </div>
                   </div>
 
                   {/* Format 2 Template */}
                   <div className="min-w-full h-full">
-                    <div className="glass-card rounded-2xl border-2 border-gray-500/70 bg-[#0b0b0f] dark:bg-white overflow-hidden relative h-full flex flex-col">
-                      <div className="bg-black p-4 border-b border-gray-500/70">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-gray-800 flex items-center justify-center border border-gray-600">
-                            <span className="text-sm font-bold text-gray-100">2</span>
-                          </div>
-                          <div>
-                            <h3 className="font-sans font-bold text-gray-100 dark:text-gray-100 text-sm">FORMAT 2 — Name + Enrollment + Department</h3>
-                            <p className="text-xs text-gray-300 mt-0.5">Three columns with complete student information</p>
-                          </div>
-                        </div>
-                      </div>
-
+                    <div className="rounded-2xl border-0 bg-transparent dark:bg-transparent overflow-hidden relative h-full flex flex-col">
                       <div className="relative overflow-hidden flex-1">
-                        <div className="absolute inset-0 pointer-events-none z-10 bg-gradient-to-br from-transparent via-[#0b0b0f]/28 to-[#0b0b0f]/75 dark:from-transparent dark:via-white/22 dark:to-white/60 blur-lg" />
-                        <div className="absolute inset-x-0 bottom-0 h-14 pointer-events-none z-[11] bg-gradient-to-b from-transparent to-[#10121c]" />
+                        <div className="absolute inset-0 pointer-events-none z-10 bg-gradient-to-br from-transparent via-white/26 to-white/70 dark:from-transparent dark:via-black/26 dark:to-black/70 blur-lg" />
+                        <div className="absolute left-0 top-0 bottom-0 w-24 pointer-events-none z-[12] bg-gradient-to-r from-white via-white/70 to-transparent dark:from-black dark:via-black/70 dark:to-transparent" />
+                        <div className="absolute right-0 top-0 bottom-0 w-24 pointer-events-none z-[12] bg-gradient-to-l from-white via-white/70 to-transparent dark:from-black dark:via-black/70 dark:to-transparent" />
+                        <div className="absolute inset-x-0 bottom-0 h-20 pointer-events-none z-[11] bg-gradient-to-b from-transparent via-white/80 to-white dark:from-transparent dark:via-black/80 dark:to-black" />
 
-                        <div className="p-4">
-                          <div className="w-full border border-gray-500/80 rounded-lg overflow-hidden bg-[#0b0b0f] dark:bg-white shadow-sm">
-                            <div className="flex bg-black border-b border-gray-500/80">
-                              <div className="w-10 h-11 flex items-center justify-center border-r border-gray-500/80 text-xs font-bold text-gray-100 bg-black"></div>
-                              <div className="flex-1 h-11 flex items-center justify-center border-r border-gray-500/80 font-bold text-sm uppercase tracking-widest text-gray-100 bg-black text-center">
+                        <div
+                          className="p-4 pb-28"
+                          style={{
+                            WebkitMaskImage: 'radial-gradient(ellipse 92% 88% at center, rgba(0,0,0,1) 62%, rgba(0,0,0,0.85) 78%, rgba(0,0,0,0) 100%)',
+                            maskImage: 'radial-gradient(ellipse 92% 88% at center, rgba(0,0,0,1) 62%, rgba(0,0,0,0.85) 78%, rgba(0,0,0,0) 100%)',
+                            WebkitMaskRepeat: 'no-repeat',
+                            maskRepeat: 'no-repeat',
+                            WebkitMaskSize: '100% 100%',
+                            maskSize: '100% 100%'
+                          }}
+                        >
+                          <div className="w-full border-0 rounded-none overflow-hidden bg-[#0b0b0f] dark:bg-transparent shadow-none [&_*]:border-0">
+                            <div className="flex bg-black dark:bg-black">
+                              <div className="w-10 h-11 flex items-center justify-center text-xs font-bold text-gray-100 bg-black dark:bg-black"></div>
+                              <div className="flex-1 h-11 flex items-center justify-center font-bold text-sm uppercase tracking-widest text-gray-100 bg-black dark:bg-black text-center">
                                 A
                               </div>
-                              <div className="flex-1 h-11 flex items-center justify-center border-r border-gray-500/80 font-bold text-sm uppercase tracking-widest text-gray-100 bg-black text-center">
+                              <div className="flex-1 h-11 flex items-center justify-center font-bold text-sm uppercase tracking-widest text-gray-100 bg-black dark:bg-black text-center">
                                 B
                               </div>
-                              <div className="flex-1 h-11 flex items-center justify-center font-bold text-sm uppercase tracking-widest text-gray-100 bg-black text-center">
+                              <div className="flex-1 h-11 flex items-center justify-center font-bold text-sm uppercase tracking-widest text-gray-100 bg-black dark:bg-black text-center">
                                 C
                               </div>
                             </div>
 
-                            <div className="flex bg-gray-200 dark:bg-gray-200 border-b border-gray-500/80">
-                              <div className="w-10 h-11 flex items-center justify-center border-r border-gray-500/80 text-xs font-bold text-black dark:text-black bg-gray-300 dark:bg-gray-300"></div>
-                              <div className="flex-1 h-11 flex items-center px-4 border-r border-gray-500/80 font-sans font-extrabold text-sm text-black dark:text-black">
+                            <div className="flex bg-gray-200 dark:bg-gray-200">
+                              <div className="w-10 h-11 flex items-center justify-center text-xs font-bold text-black dark:text-black bg-gray-300 dark:bg-gray-300"></div>
+                              <div className="flex-1 h-11 flex items-center px-4 font-sans font-extrabold text-sm text-black dark:text-black">
                                 Name
                               </div>
-                              <div className="flex-1 h-11 flex items-center px-4 border-r border-gray-500/80 font-sans font-extrabold text-sm text-black dark:text-black">
+                              <div className="flex-1 h-11 flex items-center px-4 font-sans font-extrabold text-sm text-black dark:text-black">
                                 Enrollment
                               </div>
                               <div className="flex-1 h-11 flex items-center px-4 font-sans font-extrabold text-sm text-black dark:text-black">
@@ -857,14 +852,14 @@ const UploadPage = ({ showToast }) => {
                               { num: 9, name: 'Ishita Gupta', enrollment: 'BTME25O1003', dept: 'Mechanical' },
                               { num: 10, name: 'Arjun Menon', enrollment: 'BTCS25O1008', dept: 'Computer Science' }
                             ].map((row) => (
-                              <div key={row.num} className="flex border-b border-gray-500/80 hover:bg-[#171922] dark:hover:bg-gray-50 transition-colors">
-                                <div className="w-10 h-11 flex items-center justify-center border-r border-gray-500/80 text-xs font-bold text-black dark:text-black bg-white dark:bg-white">
+                              <div key={row.num} className="flex hover:bg-[#171922] dark:hover:bg-gray-50 transition-colors">
+                                <div className="w-10 h-11 flex items-center justify-center text-xs font-bold text-black dark:text-black bg-white dark:bg-white">
                                   {row.num}
                                 </div>
-                                <div className="flex-1 h-11 flex items-center px-4 border-r border-gray-500/80 font-extrabold text-sm text-black dark:text-black bg-white dark:bg-white truncate">
+                                <div className="flex-1 h-11 flex items-center px-4 font-extrabold text-sm text-black dark:text-black bg-white dark:bg-white truncate">
                                   {row.name}
                                 </div>
-                                <div className="flex-1 h-11 flex items-center px-4 border-r border-gray-500/80 font-extrabold text-sm text-black dark:text-black bg-white dark:bg-white truncate">
+                                <div className="flex-1 h-11 flex items-center px-4 font-extrabold text-sm text-black dark:text-black bg-white dark:bg-white truncate">
                                   {row.enrollment}
                                 </div>
                                 <div className="flex-1 h-11 flex items-center px-4 text-sm text-black dark:text-black font-extrabold bg-white dark:bg-white truncate">
@@ -873,43 +868,40 @@ const UploadPage = ({ showToast }) => {
                               </div>
                             ))}
 
-                            <div className="flex border-b border-gray-500/80 hover:bg-[#171922] dark:hover:bg-gray-50 transition-colors">
-                              <div className="w-10 h-11 flex items-center justify-center border-r border-gray-500/80 text-xs font-semibold text-gray-400 dark:text-gray-500 bg-[#161824] dark:bg-gray-100">
-                                ...
+                            {Array.from({ length: 30 }).map((_, idx) => (
+                              <div key={`empty-f2-${idx}`} className="flex">
+                                <div className="w-10 h-11 bg-white dark:bg-white"></div>
+                                <div className="flex-1 h-11 bg-white dark:bg-white"></div>
+                                <div className="flex-1 h-11 bg-white dark:bg-white"></div>
+                                <div className="flex-1 h-11 bg-white dark:bg-white"></div>
                               </div>
-                              <div className="flex-1 h-11 flex items-center px-4 border-r border-gray-500/80 text-sm text-gray-400 dark:text-gray-500 italic"></div>
-                              <div className="flex-1 h-11 flex items-center px-4 border-r border-gray-500/80 text-sm text-gray-400 dark:text-gray-500 italic"></div>
-                              <div className="flex-1 h-11 flex items-center px-4 text-sm text-gray-400 dark:text-gray-500 italic font-semibold">... more rows</div>
-                            </div>
+                            ))}
                           </div>
                         </div>
-                      </div>
 
-                      <div className="relative px-5 py-4 bg-gradient-to-b from-[#10121c] via-[#0d0f17] to-[#0b0b0f] dark:from-[#10121c] dark:via-[#0d0f17] dark:to-[#0b0b0f] border-t border-transparent overflow-hidden">
-                        <div className="absolute inset-x-0 top-0 h-8 bg-gradient-to-b from-[#171a26]/80 via-[#121521]/45 to-transparent pointer-events-none" />
-                        <p className="relative z-10 text-xs text-gray-300 dark:text-gray-300">
-                          <span className="font-bold text-gray-100 dark:text-gray-100">💡 Tip:</span> Row 1 is headers. A2:C2 onwards contains student data.
-                        </p>
+                        <div className="absolute left-1/2 -translate-x-1/2 -translate-y-1 bottom-10 z-20 px-5 py-1.5 rounded-full bg-orange-50 dark:bg-orange-500/10 border-2 border-orange-500 dark:border-orange-400 ring-2 ring-orange-200 dark:ring-orange-900 backdrop-blur-lg shadow-xl">
+                          <p className="text-sm md:text-base font-black tracking-wider text-gray-900 dark:text-white whitespace-nowrap">FORMAT 2 — Name + Enrollment + Department</p>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </motion.div>
-              </div>
 
-              <div className="flex items-center justify-center gap-2">
-                {[0, 1].map((index) => (
-                  <button
-                    key={index}
-                    type="button"
-                    onClick={() => setActiveTemplateSlide(index)}
-                    className={`h-2.5 rounded-full transition-all ${
-                      activeTemplateSlide === index
-                        ? 'w-8 bg-orange-500'
-                        : 'w-2.5 bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500'
-                    }`}
-                    aria-label={`Show template ${index + 1}`}
-                  />
-                ))}
+                <div className="absolute bottom-1 left-1/2 -translate-x-1/2 flex items-center justify-center gap-2 z-30">
+                  {[0, 1].map((index) => (
+                    <button
+                      key={index}
+                      type="button"
+                      onClick={() => setActiveTemplateSlide(index)}
+                      className={`h-2.5 rounded-full transition-all ${
+                        activeTemplateSlide === index
+                          ? 'w-8 bg-orange-500'
+                          : 'w-2.5 bg-orange-300/70 dark:bg-orange-500/50 hover:bg-orange-400 dark:hover:bg-orange-400'
+                      }`}
+                      aria-label={`Show template ${index + 1}`}
+                    />
+                  ))}
+                </div>
               </div>
             </motion.div>
           )}
