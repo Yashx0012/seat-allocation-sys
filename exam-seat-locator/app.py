@@ -12,6 +12,7 @@ the pre-built AppCache that was loaded once at process startup.
 """
 
 import os
+import json
 import logging
 from datetime import date, timedelta
 
@@ -35,10 +36,17 @@ from core.cleanup import start_cleanup_daemon
 from core.backend_sync import sync_backend_plans
 from core.cloud_sync import start_sync_worker, verify_signature, enqueue_notification
 from core.sync_queue import stats as sync_queue_stats
+from core.rate_limit import FixedWindowRateLimiter, get_client_ip
 
 # Start the background cleanup daemon as soon as the process is up.
 # Runs cleanup immediately, then repeats every config.CLEANUP_INTERVAL_DAYS days.
 start_cleanup_daemon(cache)
+
+_upload_rl = FixedWindowRateLimiter(getattr(config, 'UPLOAD_RATE_LIMIT_PER_MIN', 10))
+_sync_notify_rl = FixedWindowRateLimiter(getattr(config, 'SYNC_NOTIFY_RATE_LIMIT_PER_MIN', 60))
+
+def _client_ip() -> str:
+    return get_client_ip(request.headers.get("X-Forwarded-For"), request.remote_addr)
 
 
 def _allowed_file(filename: str) -> bool:
@@ -71,7 +79,8 @@ start_sync_worker(cache)
 
 @app.route("/", methods=["GET"])
 def index():
-    date_options = _next_three_dates()
+    # Use dates that we actually have exam plans for
+    date_options = sorted(cache.unique_dates) if hasattr(cache, 'unique_dates') and cache.unique_dates else _next_three_dates()
     return render_template(
         "index.html",
         dates=date_options,
@@ -142,6 +151,10 @@ def upload_plan():
     Accept a new PLAN-*.json file, save it to DATA_DIR, rebuild the summary
     index so the new plan is immediately searchable — no restart needed.
     """
+    if not _upload_rl.allow(_client_ip()):
+        flash("Rate limit exceeded. Please try again later.", "error")
+        return redirect(url_for("index"))
+
     if "plan_file" not in request.files:
         flash("No file part in the request.", "error")
         return redirect(url_for("index"))
@@ -203,20 +216,32 @@ def fetch_backend_plans():
     return redirect(url_for("index"))
 
 
+logger = logging.getLogger(__name__)
+
 @app.route("/api/sync/notify", methods=["POST"])
 def sync_notify():
     """Receive signed cloud notification and enqueue for async processing."""
+    client_ip = _client_ip()
+    if not _sync_notify_rl.allow(client_ip):
+        logger.warning(f"Rate limit exceeded for IP {client_ip} on /api/sync/notify")
+        return jsonify({"accepted": False, "error": "rate limit exceeded"}), 429
+
     raw = request.get_data(cache=False)
-    sig = request.headers.get("X-Signature")
+    payload = json.loads(raw.decode("utf-8")) if raw else {}
+    sig = (
+        request.headers.get("X-Signature")
+        or request.headers.get("X-Hub-Signature-256")
+        or request.headers.get("X-Sync-Signature")
+    )
     if not verify_signature(raw, sig):
+        logger.warning(f"Invalid signature from {client_ip}. Headers: {dict(request.headers)}")
         return jsonify({"accepted": False, "error": "invalid signature"}), 401
 
-    payload = request.get_json(silent=True) or {}
     ok, state = enqueue_notification(payload)
     if not ok:
         return jsonify({"accepted": False, "error": state}), 400
 
-    code = 200 if state == "duplicate" else 202
+    code = 200 if state in ("duplicate", "coalesced") else 202
     return jsonify({
         "accepted": True,
         "state": state,

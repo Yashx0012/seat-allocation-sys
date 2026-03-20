@@ -249,4 +249,14 @@ Only if:
 - Students exceed **~500,000** (RAM pressure)
 - Need queries like _"show all students in room 103"_
 - Seats change live during exam (real-time writes)
-- Multiple app servers need shared state
+- Multiple app servers need shared state## 6. Recent Stability Enhancements
+- **Memory Bounds:** Webhook payloads and S3/R2 downloads are chunked () and capped by  to prevent OOM vulnerabilities.
+- **Cache Debouncing:** The `_ReloadBatcher` defers `cache.reload()` execution until either a batch limit is met or a timeout expires, cutting down overhead during bulk downloads.
+- **Queue Heartbeat:** Worker threads now have a `recover_stuck_processing` heartbeat that detects timeout exceptions and safely reverts pending jobs for a retry.
+- **API Rate Limiting:** Applied dictionaries-based `FixedWindowRateLimiter` to `/upload` and `/api/sync/notify` to prevent DoS attacks.
+- **Cache Debouncing:** The `_ReloadBatcher` defers cache reloading until a batch limit is reached, minimizing CPU thrash during bulk plan synchronization.
+- **Queue Heartbeat:** Stuck sync jobs are automatically flagged and requeued through `recover_stuck_processing` logic.
+- **UI Realism:** The frontend index dropdowns now only render strict valid `cache.unique_dates` directly scanned from active JSON plans.
+- **API Rate Limiting:** A custom `FixedWindowRateLimiter` protects against DoS attempts on uploads and webhook endpoints.
+- **UI Realism:** The frontend index dropdowns now only render strict valid `cache.unique_dates` directly scanned from active JSON plans.
+- **API Rate Limiting:** A custom `FixedWindowRateLimiter` protects against DoS attempts on uploads and webhook endpoints.

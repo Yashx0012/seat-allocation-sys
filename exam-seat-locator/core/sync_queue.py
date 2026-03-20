@@ -16,6 +16,9 @@ def _conn():
     c = sqlite3.connect(DB_PATH, timeout=15)
     c.row_factory = sqlite3.Row
     c.execute("PRAGMA journal_mode=WAL")
+    c.execute("PRAGMA synchronous=NORMAL")
+    c.execute("PRAGMA temp_store=MEMORY")
+    c.execute("PRAGMA cache_size=-10000")
     return c
 
 
@@ -42,6 +45,9 @@ def init_db() -> None:
 def enqueue(event_id: str, plan_id: str, payload: dict) -> bool:
     now = int(time.time())
     with _conn() as con:
+        existing = con.execute("SELECT event_id FROM sync_jobs WHERE plan_id=? AND status='PENDING'", (plan_id,)).fetchone()
+        if existing:
+            return False
         try:
             con.execute(
                 """
@@ -111,15 +117,73 @@ def mark_failed(event_id: str, attempts: int, error: str, max_attempts: int, bas
             """,
             (status, next_attempts, next_retry_at, error[:1000], now, event_id),
         )
+def delete_old_jobs(cutoff_time: int) -> int:
+    with _conn() as con:
+        cursor = con.execute(
+            "DELETE FROM sync_jobs WHERE status IN ('DONE', 'DEAD') AND updated_at < ?",
+            (cutoff_time,)
+        )
+        return cursor.rowcount
 
+def recover_stuck_processing(timeout_seconds: int = 300, max_attempts: int = 6) -> int:
+    now = int(time.time())
+    cutoff = now - timeout_seconds
+    
+    with _conn() as con:
+        rows = con.execute(
+            "SELECT event_id, attempts FROM sync_jobs WHERE status='PROCESSING' AND updated_at < ?",
+            (cutoff,)
+        ).fetchall()
+        
+        recovered_count = 0
+        for r in rows:
+            eid = r["event_id"]
+            attempts = r["attempts"]
+            
+            # Use mark_failed to handle backoff and DEAD states
+            if attempts + 1 >= max_attempts:
+                # Need custom DEAD logic because mark_failed doesn't return count
+                con.execute(
+                    "UPDATE sync_jobs SET status='DEAD', next_retry_at=?, updated_at=?, last_error='stuck_processing_aborted' WHERE event_id=?",
+                    (now, now, eid)
+                )
+            else:
+                next_retry = now  # Immediate retry for stuck
+                con.execute(
+                    "UPDATE sync_jobs SET status='FAILED', attempts=?, next_retry_at=?, updated_at=?, last_error='stuck_processing_recovered' WHERE event_id=?",
+                    (attempts + 1, next_retry, now, eid)
+                )
+            recovered_count += 1
+            
+        return recovered_count
+
+def cleanup_terminal(done_retention_seconds: int = 86400 * 7, dead_retention_seconds: int = 86400 * 14) -> int:
+    now = int(time.time())
+    done_cutoff = now - done_retention_seconds
+    dead_cutoff = now - dead_retention_seconds
+    with _conn() as con:
+        cursor = con.execute(
+            """
+            DELETE FROM sync_jobs 
+            WHERE (status = 'DONE' AND updated_at < ?)
+               OR (status = 'DEAD' AND updated_at < ?)
+            """,
+            (done_cutoff, dead_cutoff)
+        )
+        return cursor.rowcount
 
 def stats() -> dict:
     with _conn() as con:
         rows = con.execute(
             "SELECT status, COUNT(*) AS c FROM sync_jobs GROUP BY status"
         ).fetchall()
+        retry_count = con.execute("SELECT COUNT(*) AS c FROM sync_jobs WHERE status='FAILED'").fetchone()[0]
 
-    out = {"PENDING": 0, "PROCESSING": 0, "FAILED": 0, "DONE": 0, "DEAD": 0}
+    out = {"PENDING": 0, "PROCESSING": 0, "FAILED": 0, "DONE": 0, "DEAD": 0, "total_jobs": 0, "retry_jobs": retry_count, "fail_rate": 0.0}
     for r in rows:
         out[r["status"]] = r["c"]
+        out["total_jobs"] += r["c"]
+        
+    if out["total_jobs"] > 0:
+        out["fail_rate"] = out["FAILED"] / out["total_jobs"]
     return out

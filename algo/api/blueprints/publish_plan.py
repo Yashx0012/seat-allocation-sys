@@ -6,11 +6,7 @@ POST /api/plans/<plan_id>/publish
 Reads the plan from the in-memory / JSON cache (algo/cache/PLAN-*.json),
 transforms it to the exam-seat-locator schema (strips batch nesting,
 keeps only the fields the locator needs, injects date + time_slot from
-the request form), then writes the result to a local "fake object-bucket"
-folder: algo/published_plans/<filename>.
-
-This fake bucket mimics the GCS / S3 upload pattern so swapping it for a
-real SDK call later is a one-liner.
+the request form), then pushes the payload via CloudSyncService.
 
 Target schema (exam-seat-locator format):
 {
@@ -46,7 +42,6 @@ Target schema (exam-seat-locator format):
 }
 """
 
-import os
 import json
 import logging
 from datetime import datetime
@@ -59,14 +54,6 @@ from algo.services.cloud_sync_service import CloudSyncService
 logger = logging.getLogger(__name__)
 
 publish_plan_bp = Blueprint("publish_plan", __name__, url_prefix="/api/plans")
-
-# ── Fake object-bucket ────────────────────────────────────────────────────────
-# In production replace this path with a GCS / S3 bucket upload call.
-BUCKET_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(__file__))),  # → algo/
-    "published_plans",
-)
-os.makedirs(BUCKET_DIR, exist_ok=True)
 
 _CACHE_MGR = CacheManager()
 
@@ -159,18 +146,6 @@ def _transform(plan: dict, date: str, time_slot: str) -> dict:
     }
 
 
-def _fake_bucket_upload(filename: str, data: dict) -> str:
-    """
-    Simulate an object-bucket PUT.
-    Writes the JSON file to BUCKET_DIR and returns the object "URI".
-    Replace this function body with e.g. storage_client.bucket(<name>).blob(<path>).upload_from_string(...)
-    """
-    dest = os.path.join(BUCKET_DIR, filename)
-    with open(dest, "w", encoding="utf-8") as fh:
-        json.dump(data, fh, indent=4, ensure_ascii=False)
-    return f"bucket://published_plans/{filename}"   # fake URI
-
-
 # ─────────────────────────────────────────────────────────────────────────────
 # Route
 # ─────────────────────────────────────────────────────────────────────────────
@@ -207,15 +182,7 @@ def publish_plan(plan_id: str):
         logger.error(f"Transform failed for {plan_id}: {exc}", exc_info=True)
         return jsonify({"success": False, "error": f"Transform error: {exc}"}), 500
 
-    # ── upload to local bucket mirror (for local/dev workflows) ─────────────
-    filename = f"{plan_id}.json"
-    try:
-        object_uri = _fake_bucket_upload(filename, transformed)
-    except Exception as exc:
-        logger.error(f"Bucket upload failed for {plan_id}: {exc}", exc_info=True)
-        return jsonify({"success": False, "error": f"Upload error: {exc}"}), 500
-
-    # ── notify cloud ingress (queue producer path) ───────────────────────────
+    # ── push plan to cloud sync path ─────────────────────────────────────────
     sync_result = CloudSyncService.push_plan(
         plan_id=plan_id,
         transformed_payload=transformed,
@@ -223,11 +190,28 @@ def publish_plan(plan_id: str):
         time_slot=time_slot,
     )
 
+    if not sync_result.get("success", False):
+        logger.error(f"Cloud sync failed for {plan_id}: {sync_result}")
+        return jsonify({
+            "success": False,
+            "plan_id": plan_id,
+            "cloud_sync": sync_result,
+            "error": "Cloud sync failed; plan was not published.",
+        }), 502
+
     total_students = transformed["metadata"]["total_students"]
     rooms = list(transformed["rooms"].keys())
 
+    filename = f"{plan_id}.json"
+    object_uri = sync_result.get("object_uri")
+    if not object_uri and sync_result.get("mode") == "s3":
+        bucket = sync_result.get("bucket")
+        key = sync_result.get("object_key")
+        if bucket and key:
+            object_uri = f"r2://{bucket}/{key}"
+
     logger.info(
-        f"✅ Published {plan_id} → {object_uri} "
+        f"✅ Published {plan_id} via cloud sync "
         f"(students={total_students}, rooms={rooms})"
     )
 

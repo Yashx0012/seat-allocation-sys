@@ -22,7 +22,11 @@ exam-seat-locator/
 │   ├── indexer.py           # Builds O(1) student_index + session_index
 │   ├── loader.py            # Reads PLAN-*.json from disk, parses dates
 │   ├── matrix.py            # Builds 2-D seat grid from room config + students
-│   └── cleanup.py           # Daemon thread — removes PLAN files older than PLAN_RETENTION_DAYS
+│   ├── cleanup.py           # Daemon thread — removes PLAN files older than PLAN_RETENTION_DAYS
+│   ├── cloud_sync.py        # Webhook handler, HMAC verification, background worker for S3/R2 downloads
+│   ├── sync_queue.py        # SQLite queue for tracking webhook jobs with heartbeat/recovery
+│   ├── rate_limit.py        # Fixed-window memory-based rate limiting for API endpoints
+│   └── backend_sync.py      # Direct file sync for single-VM/local setups
 ├── data/                    # PLAN-*.json files + summary_index.json (auto-generated)
 ├── templates/
 │   ├── index.html           # Search form — date/time from dynamic dropdowns
@@ -70,10 +74,22 @@ python app.py
 
 | Route | Method | Description |
 |---|---|---|
-| `/` | GET | Search form with dynamic date/time dropdowns |
+| `/` | GET | Search form with dynamic date/time dropdowns (shows only non-stale dates) |
 | `/search` | POST | Look up seat by roll number + date + time |
 | `/upload` | POST | Upload a new `PLAN-*.json` file |
 | `/reload` | POST | Rebuild index + clear LRU; returns stats JSON |
+| `/api/sync/notify` | POST | Cloud webhook receiver for published S3/R2 plans (HMAC-verified) |
+| `/api/sync/stats` | GET | Check lag, retry metrics, and worker queue health |
+
+---
+
+## Reliability & Performance Improvements
+
+- **Debounced Re-indexing:** A `_ReloadBatcher` intercepts webhook mass-downloads, grouping cache rebuilds to prevent high CPU overhead during bulk plan syncing.
+- **Queue Heartbeat & Recovery:** `sync_queue` runs a native heartbeat that detects and aborts jobs stuck in `PROCESSING` over a specific timeout to ensure queue integrity.
+- **Memory Safety:** `cloud_sync` employs 8KB chunk-streaming constraints to prevent large `PLAN-*.json` downloads from creating Out-Of-Memory (OOM) failures.
+- **API Guardrails:** Endpoints are protected by a native, dictionary-based `FixedWindowRateLimiter`.
+- **Database Concurrency:** The SQLite webhook task queue operates in `WAL` journaling with memory temp storage to completely eliminate "database is locked" bottlenecks under burst loads.
 
 ---
 
