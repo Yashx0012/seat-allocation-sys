@@ -33,7 +33,6 @@ from werkzeug.utils import secure_filename
 import config
 from core import cache          # pre-loaded singleton — logs now visible
 from core.cleanup import start_cleanup_daemon
-from core.backend_sync import sync_backend_plans
 from core.cloud_sync import verify_signature
 from core.rate_limit import FixedWindowRateLimiter, get_client_ip
 
@@ -64,11 +63,6 @@ def _next_three_dates() -> list[str]:
         (today + timedelta(days=offset)).strftime("%Y-%m-%d")
         for offset in range(3)
     ]
-
-# Initial sync so newly published backend plans are available immediately.
-sync_stats = sync_backend_plans()
-if sync_stats.get("copied") or sync_stats.get("updated"):
-    cache.reload()
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 
@@ -199,12 +193,10 @@ def reload_data():
 
 @app.route("/fetch-backend-plans", methods=["POST"])
 def fetch_backend_plans():
-    """Sync PLAN-*.json from backend publish directory and rebuild indexes."""
-    stats = sync_backend_plans()
+    """Trigger an index rebuild manually if needed."""
     cache.reload()
     flash(
-        f"✅ Backend sync done — copied={stats['copied']}, updated={stats['updated']}, "
-        f"skipped={stats['skipped']}. "
+        f"✅ Reindexed locally available files. "
         f"Now indexed {cache.student_count} students across {cache.file_count} plan file(s).",
         "success",
     )

@@ -5,6 +5,7 @@ __pycache__/
 *.pyd
 *.db
 *.log
+*.obsidian
 
 # Application cache and temporary files
 algo/cache/

@@ -30,15 +30,15 @@ def sync_backend_plans() -> dict:
     dest_dir = config.DATA_DIR
 
     stats = {
-        "source_exists": os.path.isdir(source_dir),
+        "source_exists": False,
         "copied": 0,
         "updated": 0,
         "skipped": 0,
         "files": [],
     }
 
-    if not stats["source_exists"]:
-        logger.warning(f"SYNC  source missing: {source_dir}")
+    if not source_dir or not os.path.isdir(source_dir):
+        # We don't log a warning anymore since cloud is the primary mechanism
         return stats
 
     os.makedirs(dest_dir, exist_ok=True)
