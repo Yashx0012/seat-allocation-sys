@@ -28,7 +28,7 @@ const MajorNavbar = () => {
     await logout();
     setExamType(null);
     localStorage.removeItem('examType');
-    navigate('/landing');
+    navigate('/');
     setMobileMenuOpen(false);
   };
 
@@ -44,7 +44,8 @@ const MajorNavbar = () => {
       { name: 'Dashboard', page: '/dashboard', icon: LayoutDashboard },
       { name: 'Create Plan', page: '/major-exam/create-plan', icon: Layout },
       { name: 'Feedback', page: '/feedback', icon: MessageSquare },
-      { name: 'About us', page: '/aboutus', icon: Info }
+      { name: 'About us', page: '/aboutus', icon: Info },
+      { name: 'Profile', page: '/profile', icon: User }
     ];
   }, []);
 

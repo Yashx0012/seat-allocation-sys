@@ -214,7 +214,7 @@ const MajorExamCreatePlan = ({ showToast }) => {
       setMetadataLoading(true);
       const token = getToken();
 
-      // Save metadata to backend
+      // Save metadata to backend (C4: All 9 fields)
       const metadataResponse = await fetch(`/api/major-exam/metadata/${pendingDownloadPlanId}`, {
         method: 'POST',
         headers: {
@@ -223,6 +223,11 @@ const MajorExamCreatePlan = ({ showToast }) => {
         },
         body: JSON.stringify({
           examDate: formData.examDate,
+          exam_name: formData.exam_name,
+          department: formData.department,
+          course_name: formData.course_name,
+          course_code: formData.course_code,
+          notes: formData.notes,
           invigilator1: formData.invigilator1,
           invigilator2: formData.invigilator2,
           invigilator3: formData.invigilator3
@@ -736,10 +741,17 @@ const MajorExamCreatePlan = ({ showToast }) => {
                     </div>
                   </div>
 
-                  <div className="pt-4 border-t border-slate-200 dark:border-slate-700">
+                  <div className="pt-4 border-t border-slate-200 dark:border-slate-700 flex gap-3">
+                    <button
+                      onClick={() => navigate(`/major-exam/more-options/${viewingPlan}`)}
+                      className="flex-1 py-3 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-semibold rounded-lg transition-all duration-200"
+                      title="More Options"
+                    >
+                      More Options
+                    </button>
                     <button
                       onClick={() => setViewingPlan(null)}
-                      className="w-full py-3 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white font-semibold rounded-lg transition-all duration-200"
+                      className="flex-1 py-3 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white font-semibold rounded-lg transition-all duration-200"
                     >
                       Close
                     </button>

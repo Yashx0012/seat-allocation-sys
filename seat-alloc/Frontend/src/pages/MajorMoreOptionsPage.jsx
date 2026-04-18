@@ -123,10 +123,10 @@ const MajorMoreOptionsPage = ({ showToast }) => {
         <div className="text-center">
           <p className="text-gray-600 dark:text-gray-400 mb-4">No plan selected</p>
           <button
-            onClick={() => navigate('/dashboard')}
+            onClick={() => navigate('/major-exam/create-plan')}
             className="text-orange-500 hover:text-orange-600 font-medium"
           >
-            Back to Dashboard
+            Back to Create Plan
           </button>
         </div>
       </div>
@@ -160,7 +160,7 @@ const MajorMoreOptionsPage = ({ showToast }) => {
 
           <div className="flex items-center gap-3">
             <button
-              onClick={() => navigate('/dashboard')}
+              onClick={() => navigate('/major-exam/create-plan')}
               className="px-4 py-2 bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl text-sm font-bold transition-colors flex items-center gap-2"
             >
               <ArrowLeft size={16} />

@@ -14,14 +14,15 @@ import {
   Info,
   FileEdit,
   Plus,
-  Shield
+  Shield,
+  BookMarked
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import PillNav from './PillNav';
 
 const Navbar = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, setExamType } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
@@ -29,7 +30,9 @@ const Navbar = () => {
 
   const handleLogout = async () => {
     await logout();
-    navigate('/landing');
+    setExamType(null);
+    localStorage.removeItem('examType');
+    navigate('/');
     setMobileMenuOpen(false);
   };
 
@@ -140,6 +143,17 @@ const Navbar = () => {
 
             {user ? (
               <div className="flex items-center gap-2">
+                <motion.button
+                  onClick={() => navigate('/major-exam/create-plan')}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-purple-300/60 dark:border-purple-600/60 bg-purple-50/80 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/40 transition-colors text-purple-700 dark:text-purple-300"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  title="Switch to Major Exams"
+                >
+                  <BookMarked className="w-4 h-4" />
+                  <span className="text-xs font-bold uppercase tracking-wide hidden lg:inline">Major</span>
+                </motion.button>
+
                 <motion.button
                   onClick={() => navigate('/profile')}
                   className="w-10 h-10 rounded-full border border-gray-200/60 dark:border-gray-600/60 hover:bg-gray-200/40 dark:hover:bg-gray-700/40 flex items-center justify-center transition-colors"

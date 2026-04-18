@@ -614,11 +614,16 @@ def save_attendance_metadata(plan_id):
             print(f"   ERROR: Plan not found")
             return jsonify({'error': 'Plan not found'}), 404
         
-        # Save metadata
+        # Save metadata (C4: All 9 fields)
         if 'attendance_metadata' not in plan:
             plan['attendance_metadata'] = {}
         
         plan['attendance_metadata']['exam_date'] = data.get('examDate', '')
+        plan['attendance_metadata']['exam_name'] = data.get('exam_name', '')
+        plan['attendance_metadata']['department'] = data.get('department', '')
+        plan['attendance_metadata']['course_name'] = data.get('course_name', '')
+        plan['attendance_metadata']['course_code'] = data.get('course_code', '')
+        plan['attendance_metadata']['notes'] = data.get('notes', '')
         plan['attendance_metadata']['invigilator_1'] = data.get('invigilator1', '')
         plan['attendance_metadata']['invigilator_2'] = data.get('invigilator2', '')
         plan['attendance_metadata']['invigilator_3'] = data.get('invigilator3', '')

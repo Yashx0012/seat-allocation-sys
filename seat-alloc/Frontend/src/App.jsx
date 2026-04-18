@@ -114,12 +114,15 @@ const SessionRecoveryHandler = () => {
 // ROOT LAYOUT (Navbar + Animated Content + Footer)
 // -------------------------------------------------------------------
 const RootLayout = ({ showToast }) => {
-  const { examType } = useAuth();
+  const location = useLocation();
+  
+  // Detect navbar from URL path instead of examType state (C6)
+  const isMajorPath = location.pathname.startsWith('/major-exam/');
   
   return (
     <div className="min-h-screen flex flex-col bg-white dark:bg-[#050505] transition-colors duration-200">
       <SessionRecoveryHandler />
-      {examType === 'major' ? <MajorNavbar /> : <Navbar />}
+      {isMajorPath ? <MajorNavbar /> : <Navbar />}
       <main className="flex-1">
         <AnimatedLayout showToast={showToast} />
       </main>
