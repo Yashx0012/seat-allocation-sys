@@ -18,7 +18,8 @@ import {
   Clock,
   Activity,
   FileText,
-  MoreHorizontal
+  MoreHorizontal,
+  BookMarked
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getToken } from '../utils/tokenStorage';
@@ -322,6 +323,7 @@ const DashboardPage = () => {
   // Quick actions config - matching CreatePlan style
   const quickActions = [
     { label: 'Create Plan', desc: 'Start new allocation', page: 'create-plan', icon: Upload, bgColor: 'bg-orange-500' },
+    { label: 'Major Exams', desc: 'Manage major section', page: 'major-exam/create-plan', icon: BookMarked, bgColor: 'bg-purple-600' },
     { label: 'Database', desc: 'Manage records', page: 'database', icon: Database, bgColor: 'bg-orange-600' },
     { label: 'Templates', desc: 'Edit PDF layout', page: 'template-editor', icon: Layout, bgColor: 'bg-amber-500' },
     { label: 'Classrooms', desc: 'Room layouts', page: 'classroom', icon: MapPin, bgColor: 'bg-orange-500' }

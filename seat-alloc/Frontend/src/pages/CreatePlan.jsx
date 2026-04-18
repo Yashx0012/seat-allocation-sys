@@ -3,22 +3,24 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getToken } from '../utils/tokenStorage';
 import SplitText from '../components/SplitText';
+import ExamTypeSelector from '../components/ExamTypeSelector';
 import { 
   Upload, Layout, Monitor, Clock, ArrowRight, Loader2, AlertCircle, 
   CheckCircle2, Users, Download, Eye, RefreshCw, X, FileText, 
-  BarChart3, Wrench, Building2, FileSpreadsheet, MoreHorizontal, FolderArchive
+  BarChart3, Wrench, Building2, FileSpreadsheet, MoreHorizontal, FolderArchive, BookMarked, ArrowRightLeft
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 
 const CreatePlan = ({ showToast }) => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, examType, setExamType } = useAuth();
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [hoveredCard, setHoveredCard] = useState(null);
   const [hoveredPlan, setHoveredPlan] = useState(null);
+  const [showExamSelector, setShowExamSelector] = useState(false);
 
   // Plan viewer state
   const [viewingPlan, setViewingPlan] = useState(null);
@@ -27,20 +29,14 @@ const CreatePlan = ({ showToast }) => {
   const [exportLoading, setExportLoading] = useState(null); // Track which room is exporting
 
   useEffect(() => {
-    fetchRecentPlans();
-  }, []);
-
-  // Re-fetch when user changes (account switch)
-  const userIdentity = user?.email || user?.id;
-  useEffect(() => {
-    if (userIdentity) {
-      setPlans([]);
-      setError(null);
-      setViewingPlan(null);
-      setPlanDetails(null);
+    // Show exam selector if no exam type selected
+    if (!examType) {
+      setShowExamSelector(true);
+    } else {
+      setShowExamSelector(false);
       fetchRecentPlans();
     }
-  }, [userIdentity]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [examType]);
 
   const fetchRecentPlans = async () => {
     setLoading(true);
@@ -396,6 +392,18 @@ const CreatePlan = ({ showToast }) => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[#050505] py-8 px-4 transition-colors duration-300">
+      {/* Exam Type Selector Modal */}
+      <ExamTypeSelector 
+        isOpen={showExamSelector}
+        onSelect={(type) => {
+          setExamType(type);
+          setShowExamSelector(false);
+          if (type === 'major') {
+            navigate('/major-exam/create-plan');
+          }
+        }}
+      />
+
       <div className="max-w-7xl mx-auto space-y-8">
         
         {/* Hero Section */}
@@ -419,7 +427,7 @@ const CreatePlan = ({ showToast }) => {
             </p>
           </div>
           
-          <div className="flex gap-4">
+          <div className="flex gap-4 items-center">
             <div className="text-right">
               <div className="text-xs text-gray-500 mb-1">Total Plans</div>
               <div className="text-3xl font-black text-orange-600 dark:text-orange-400">
@@ -432,6 +440,17 @@ const CreatePlan = ({ showToast }) => {
                 {plans.filter(p => p.status === 'active').length}
               </div>
             </div>
+            
+            {/* Toggle to Major Exams Button */}
+            <button
+              onClick={() => navigate('/major-exam/create-plan')}
+              className="ml-6 px-4 py-3 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white rounded-lg font-bold transition-all duration-200 flex items-center gap-2 whitespace-nowrap shadow-lg"
+              title="Switch to Major Exams"
+            >
+              <BookMarked size={18} />
+              <span className="hidden sm:inline">Major Exams</span>
+              <ArrowRightLeft size={16} />
+            </button>
           </div>
         </div>
 
