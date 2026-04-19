@@ -1,9 +1,14 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { BookOpen, FileText, ArrowRight, ArrowLeft } from 'lucide-react';
 import SplitText from '../components/SplitText';
 import { useAuth } from '../contexts/AuthContext';
+import {
+  clearCreatePlanStickyMode,
+  getCreatePlanStickyMode,
+  setMinorCreatePlanStickyMode,
+} from '../utils/examTypeRouting';
 
 const examCards = [
   {
@@ -30,12 +35,23 @@ const ExamTypeChooserPage = () => {
   const navigate = useNavigate();
   const { setExamType } = useAuth();
 
+  useEffect(() => {
+    if (getCreatePlanStickyMode() === 'minor') {
+      setExamType('minor');
+      navigate('/minor-exam/create-plan', { replace: true });
+    }
+  }, [navigate, setExamType]);
+
   const handleSelect = (type) => {
     setExamType(type);
+
     if (type === 'major') {
+      clearCreatePlanStickyMode();
       navigate('/major-exam/create-plan');
       return;
     }
+
+    setMinorCreatePlanStickyMode();
     navigate('/minor-exam/create-plan');
   };
 

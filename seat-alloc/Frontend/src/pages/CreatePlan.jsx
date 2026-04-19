@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getToken } from '../utils/tokenStorage';
+import { clearCreatePlanStickyMode, setMinorCreatePlanStickyMode } from '../utils/examTypeRouting';
 import SplitText from '../components/SplitText';
 import { 
   Upload, Layout, Monitor, Clock, ArrowRight, Loader2, AlertCircle, 
@@ -28,6 +29,7 @@ const CreatePlan = ({ showToast }) => {
 
   useEffect(() => {
     setExamType('minor');
+    setMinorCreatePlanStickyMode();
     fetchRecentPlans();
   }, [setExamType]);
 
@@ -424,7 +426,10 @@ const CreatePlan = ({ showToast }) => {
             
             {/* Return to chooser */}
             <button
-              onClick={() => navigate('/create-plan')}
+              onClick={() => {
+                clearCreatePlanStickyMode();
+                navigate('/create-plan');
+              }}
               className="ml-6 px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg font-bold transition-all duration-200 flex items-center gap-2 whitespace-nowrap shadow-lg"
               title="Choose Exam Type"
             >

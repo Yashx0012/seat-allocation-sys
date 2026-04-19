@@ -1,5 +1,5 @@
 // frontend/src/App.jsx
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Outlet } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -13,6 +13,11 @@ import Footer from './components/Footer';
 import Toast from './components/Toast';
 import SessionRecoveryModal from './components/SessionRecoveryModal';
 import ErrorBoundary from './components/ErrorBoundary';
+import {
+  clearCreatePlanStickyMode,
+  getCreatePlanStickyMode,
+  isMinorCreatePlanFlowPath,
+} from './utils/examTypeRouting';
 
 // --- Pages ---
 import LandingPage from './pages/LandingPage';
@@ -118,6 +123,15 @@ const RootLayout = ({ showToast }) => {
   
   // Detect navbar from URL path instead of examType state (C6)
   const isMajorPath = location.pathname.startsWith('/major-exam/');
+
+  // Keep minor mode sticky only while user is inside planning flow pages.
+  useEffect(() => {
+    if (getCreatePlanStickyMode() !== 'minor') return;
+
+    if (!isMinorCreatePlanFlowPath(location.pathname)) {
+      clearCreatePlanStickyMode();
+    }
+  }, [location.pathname]);
   
   return (
     <div className="min-h-screen flex flex-col bg-white dark:bg-[#050505] transition-colors duration-200">
