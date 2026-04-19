@@ -1,6 +1,8 @@
 """
 Major Exam Allocation Blueprint
-Analyzes cached JSON student data and creates room-wise allocation
+Sequential branch-aware room allocation.
+Each room gets assigned branches; students are allocated in enrollment order
+with no student reuse across rooms.
 """
 from flask import Blueprint, request, jsonify
 import logging
@@ -14,174 +16,152 @@ cache_manager = get_major_cache_manager()
 logger = logging.getLogger(__name__)
 
 
-# Default classroom rooms for allocation
-DEFAULT_ROOMS = [
-    {'name': 'Lab M005', 'capacity': 30},
-    {'name': 'Lab 104', 'capacity': 50},
-    {'name': 'Lab 105', 'capacity': 35},
-    {'name': 'Project Lab', 'capacity': 28},
-    {'name': 'CC Lab', 'capacity': 22},
-]
-
-
-def allocate_students_to_rooms(students: list, room_config: list = None) -> dict:
+def allocate_branches_to_rooms(branches_data: dict, rooms_config: list) -> dict:
     """
-    Analyze cached student JSON and allocate to rooms
-    Creates roll number ranges for each room/batch allocation
+    Sequential branch-aware room allocation.
     
     Args:
-        students: List of student dicts from cached JSON
-        room_config: Optional list of room configs, defaults to DEFAULT_ROOMS
-        
+        branches_data: { "CSE": [student_dicts...], "CSD": [student_dicts...] }
+        rooms_config: [ { "name": "Lab 104", "capacity": 50, "branches": ["CSE", "CSD"] } ]
+    
     Returns:
-        Dict with rooms structure: {room_name: {batches: {batch_label: {...}}}}
+        { "rooms": [...], "total_allocated": int }
+    
+    Logic:
+        - For each room, divide capacity among assigned branches (equal split)
+        - Allocate students sequentially from each branch (enrollment order)
+        - Global pointer per branch — once allocated, a student is never reused
+        - If a branch has fewer remaining students than its share, 
+          the extra capacity goes unused (no overflow from other branches)
     """
-    if not students:
-        return {}
+    if not branches_data or not rooms_config:
+        return None
     
-    rooms_config = room_config or DEFAULT_ROOMS
-    rooms = {}
+    # Global pointers: track how many students from each branch have been allocated
+    branch_pointers = {branch: 0 for branch in branches_data}
     
-    # Sort students by enrollment number for consistent ordering
-    sorted_students = sorted(students, key=lambda s: s.get('enrollment', ''))
+    rooms_result = []
+    total_allocated = 0
     
-    # Distribute students across rooms based on capacity
-    total_capacity = sum(r['capacity'] for r in rooms_config)
-    student_idx = 0
-    
-    for room_config_item in rooms_config:
-        room_name = room_config_item['name']
-        room_capacity = room_config_item['capacity']
+    for room_cfg in rooms_config:
+        room_name = room_cfg['name']
+        capacity = int(room_cfg['capacity'])
+        assigned_branches = room_cfg.get('branches', [])
         
-        # Calculate how many students for this room
-        # Distribute proportionally based on capacity
-        proportion = room_capacity / total_capacity
-        students_for_room = int(len(sorted_students) * proportion)
-        
-        # Adjust last room to get all remaining students
-        if room_name == rooms_config[-1]['name']:
-            students_for_room = len(sorted_students) - student_idx
-        
-        room_students = sorted_students[student_idx:student_idx + students_for_room]
-        student_idx += students_for_room
-        
-        if not room_students:
+        if not assigned_branches:
             continue
         
-        # Create batches within room (Batch A, Batch B)
-        batches = {}
+        # Calculate capacity share per branch
+        num_branches = len(assigned_branches)
+        base_share = capacity // num_branches
+        remainder = capacity % num_branches
         
-        # Split into 2 batches per room
-        mid = len(room_students) // 2
-        batch_configs = [
-            ('Batch A', room_students[:mid]),
-            ('Batch B', room_students[mid:])
-        ]
+        room_students = []
+        branch_allocations = {}
         
-        for batch_label, batch_students in batch_configs:
-            if not batch_students:
+        for idx, branch_name in enumerate(assigned_branches):
+            if branch_name not in branches_data:
                 continue
             
-            # Get enrollment numbers for From/To range
-            enrollments = [s.get('enrollment', '') for s in batch_students]
-            enrollments = [e for e in enrollments if e.strip()]  # Filter empty
-            enrollments.sort()
+            all_branch_students = branches_data[branch_name]
+            pointer = branch_pointers[branch_name]
             
-            if enrollments:
-                from_roll = enrollments[0]
-                to_roll = enrollments[-1]
-                
-                batches[batch_label] = {
-                    'info': {
-                        'branch': 'CSE',
-                        'semester': 'IV',
-                        'joining_year': '2024',
-                        'degree': 'B.Tech'
-                    },
-                    'students': batch_students,
-                    'from_roll': from_roll,
-                    'to_roll': to_roll,
-                    'total': len(batch_students)
-                }
-        
-        if batches:
-            rooms[room_name] = {
-                'name': room_name,
-                'capacity': room_capacity,
-                'allocated_count': len(room_students),
-                'batches': batches
+            # This branch's share of the room capacity
+            share = base_share + (1 if idx < remainder else 0)
+            
+            # How many students remain in this branch
+            remaining = len(all_branch_students) - pointer
+            actual_count = min(share, remaining)
+            
+            if actual_count <= 0:
+                continue
+            
+            # Slice the students for this room
+            allocated = all_branch_students[pointer:pointer + actual_count]
+            
+            # Advance the global pointer
+            branch_pointers[branch_name] = pointer + actual_count
+            
+            # Get enrollment range
+            enrollments = [s['enrollment'] for s in allocated if s.get('enrollment')]
+            from_roll = enrollments[0] if enrollments else ''
+            to_roll = enrollments[-1] if enrollments else ''
+            
+            branch_allocations[branch_name] = {
+                'students': allocated,
+                'count': len(allocated),
+                'from_roll': from_roll,
+                'to_roll': to_roll
             }
+            
+            room_students.extend(allocated)
+        
+        if room_students:
+            rooms_result.append({
+                'room_name': room_name,
+                'capacity': capacity,
+                'total_students': len(room_students),
+                'students': room_students,
+                'branch_allocations': branch_allocations
+            })
+            total_allocated += len(room_students)
     
-    return rooms
+    if not rooms_result:
+        return None
+    
+    return {
+        'rooms': rooms_result,
+        'total_allocated': total_allocated
+    }
 
 
 @major_exam_allocation_bp.route('/allocate/<plan_id>', methods=['POST'])
 @token_required
 def allocate_plan(plan_id):
     """
-    Analyze cached JSON student data and allocate to rooms
-    Creates From/To roll number ranges for each room batch
-    Endpoint: POST /api/major-exam/allocate/<plan_id>
+    Re-run allocation on an existing plan (if rooms_config exists).
+    Mostly used internally; the primary flow uses /configure-rooms.
     """
     try:
         user_id = request.user_id
         
-        print(f"\n🏫 MAJOR EXAM ALLOCATE START")
-        print(f"   User ID: {user_id}")
-        print(f"   Plan ID: {plan_id}")
-        
-        # Retrieve plan from cache
         plan = cache_manager.retrieve_plan(user_id, plan_id)
         if not plan:
-            print(f"   ERROR: Plan not found")
-            return jsonify({'error': 'Plan not found', 'plan_id': plan_id}), 404
+            return jsonify({'error': 'Plan not found'}), 404
         
-        students = plan.get('students', [])
-        print(f"   Students in plan: {len(students)}")
+        branches_data = plan.get('branches', {})
+        rooms_config = plan.get('rooms_config', [])
         
-        if not students:
-            return jsonify({'error': 'No students in plan'}), 400
+        if not branches_data:
+            return jsonify({'error': 'No branch data in plan'}), 400
         
-        # Allocate students to rooms (analyze JSON data)
-        rooms = allocate_students_to_rooms(students)
-        print(f"   Allocated to rooms: {len(rooms)}")
+        if not rooms_config:
+            return jsonify({'error': 'No room configuration. Use /configure-rooms first.'}), 400
         
-        if not rooms:
+        result = allocate_branches_to_rooms(branches_data, rooms_config)
+        if not result:
             return jsonify({'error': 'Allocation failed'}), 500
         
-        # Update plan with room allocations
-        plan['rooms'] = rooms
+        # Update plan
+        plan['rooms'] = result['rooms']
         plan['metadata']['status'] = 'FINALIZED'
-        plan['metadata']['room_count'] = len(rooms)
-        plan['metadata']['allocated_count'] = len(students)
+        plan['metadata']['room_count'] = len(result['rooms'])
+        plan['metadata']['allocated_count'] = result['total_allocated']
         plan['metadata']['finalized_at'] = datetime.utcnow().isoformat() + 'Z'
         
-        # Store updated plan back to cache
-        stored = cache_manager.store_plan(user_id, plan_id, plan)
-        print(f"   Store result: {stored}")
-        
-        # Return summary
-        total_allocated = sum(r['allocated_count'] for r in rooms.values())
+        cache_manager.store_plan(user_id, plan_id, plan)
         
         return jsonify({
             'success': True,
             'plan_id': plan_id,
             'status': 'FINALIZED',
-            'rooms_count': len(rooms),
-            'total_allocated': total_allocated,
-            'rooms': {
-                room_name: {
-                    'allocated_count': room_data['allocated_count'],
-                    'batch_count': len(room_data.get('batches', {}))
-                }
-                for room_name, room_data in rooms.items()
-            },
-            'message': f'Plan finalized. {total_allocated} students allocated across {len(rooms)} rooms'
+            'total_allocated': result['total_allocated'],
+            'rooms_count': len(result['rooms']),
+            'message': f'Allocated {result["total_allocated"]} students across {len(result["rooms"])} rooms'
         }), 200
     
     except Exception as e:
         logger.error(f"Allocation error: {e}", exc_info=True)
-        print(f"❌ Allocation error: {e}")
         return jsonify({'error': f'Server error: {str(e)}'}), 500
 
 
@@ -197,7 +177,7 @@ def get_allocation_status(plan_id):
             return jsonify({'error': 'Plan not found'}), 404
         
         metadata = plan.get('metadata', {})
-        rooms = plan.get('rooms', {})
+        rooms = plan.get('rooms', [])
         
         return jsonify({
             'success': True,
@@ -206,13 +186,18 @@ def get_allocation_status(plan_id):
             'total_students': metadata.get('total_students', 0),
             'allocated_count': metadata.get('allocated_count', 0),
             'room_count': len(rooms),
+            'branch_names': metadata.get('branch_names', []),
+            'branch_counts': metadata.get('branch_counts', {}),
             'finalized_at': metadata.get('finalized_at'),
-            'rooms_summary': {
-                'count': len(rooms),
-                'names': list(rooms.keys()) if rooms else []
-            }
+            'rooms_summary': [
+                {
+                    'name': r.get('room_name', ''),
+                    'total': r.get('total_students', 0),
+                    'branches': list(r.get('branch_allocations', {}).keys())
+                }
+                for r in rooms
+            ]
         }), 200
     
     except Exception as e:
-        print(f"❌ Error fetching status: {e}")
         return jsonify({'error': f'Server error: {str(e)}'}), 500

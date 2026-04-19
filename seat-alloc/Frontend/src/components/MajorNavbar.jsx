@@ -12,7 +12,7 @@ import {
   User,
   MessageSquare,
   Info,
-  ArrowRight
+  BookMarked
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -32,13 +32,6 @@ const MajorNavbar = () => {
     setMobileMenuOpen(false);
   };
 
-  const switchToMinor = () => {
-    setExamType('minor');
-    localStorage.setItem('examType', JSON.stringify('minor'));
-    navigate('/create-plan');
-    setMobileMenuOpen(false);
-  };
-
   const navItems = useMemo(() => {
     return [
       { name: 'Dashboard', page: '/dashboard', icon: LayoutDashboard },
@@ -50,6 +43,9 @@ const MajorNavbar = () => {
   }, []);
 
   const isActive = (page) => location.pathname === page;
+  const showMajorModeTag =
+    location.pathname === '/major-exam/create-plan' ||
+    location.pathname === '/major-exam/template-editor';
 
   return (
     <>
@@ -67,14 +63,14 @@ const MajorNavbar = () => {
               className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
               onClick={() => navigate('/dashboard')}
             >
-              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center shadow-lg shadow-orange-500/20">
-                <span className="text-white font-bold text-lg">M</span>
+              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shadow-lg shadow-orange-500/20">
+                <Layout className="text-white w-6 h-6" />
               </div>
               <div>
                 <h1 className="text-lg font-bold leading-none uppercase tracking-tighter bg-gradient-to-r from-gray-900 dark:from-white to-gray-600 dark:to-gray-400 bg-clip-text text-transparent">
                   SeatAlloc
                 </h1>
-                <span className="text-[8px] font-bold uppercase tracking-widest text-orange-600 dark:text-orange-400">Major Exam</span>
+                <span className="text-[8px] font-bold uppercase tracking-widest text-orange-600 dark:text-orange-400"></span>
               </div>
             </div>
 
@@ -123,16 +119,15 @@ const MajorNavbar = () => {
 
               <div className="h-8 w-px bg-gray-200/40 dark:bg-gray-600/40" />
 
-              {/* Switch to Minor Exam */}
-              <motion.button
-                onClick={switchToMinor}
-                className="flex items-center gap-2 px-3 py-2 text-xs font-bold uppercase tracking-wide text-purple-600 dark:text-purple-400 border border-purple-600/60 dark:border-purple-400/60 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <ArrowRight size={14} />
-                Minor
-              </motion.button>
+              {showMajorModeTag && (
+                <div
+                  className="flex items-center gap-2 px-3 py-2 text-xs font-bold uppercase tracking-wide text-orange-700 dark:text-orange-300 border border-orange-500/50 rounded-lg bg-orange-50/70 dark:bg-orange-900/20"
+                  title="Current exam type"
+                >
+                  <BookMarked size={14} />
+                  Major Mode
+                </div>
+              )}
 
               {user ? (
                 <div className="flex items-center gap-2">
@@ -182,7 +177,7 @@ const MajorNavbar = () => {
         <div className="px-4 h-16 flex items-center justify-between">
           {/* Logo */}
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/dashboard')}>
-            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-purple-600 to-indigo-600 flex items-center justify-center shadow-lg">
+            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shadow-lg">
               <Layout className="text-white w-5 h-5" />
             </div>
             <span className="text-lg font-bold uppercase tracking-tighter text-gray-900 dark:text-white">
@@ -192,6 +187,12 @@ const MajorNavbar = () => {
 
           {/* Mobile Actions */}
           <div className="flex items-center gap-2">
+            {user && showMajorModeTag && (
+              <div className="px-2 py-1 rounded-md border border-orange-500/60 bg-orange-50/70 dark:bg-orange-900/20 text-[10px] font-bold uppercase tracking-wide text-orange-700 dark:text-orange-300">
+                Major
+              </div>
+            )}
+
             <motion.button
               onClick={toggleTheme}
               whileHover={{ scale: 1.05 }}
@@ -264,15 +265,6 @@ const MajorNavbar = () => {
                     </motion.button>
                   );
                 })}
-
-                <motion.button
-                  onClick={switchToMinor}
-                  className="w-full text-left px-4 py-3 rounded-lg border border-purple-400/50 text-purple-600 dark:text-purple-400 hover:bg-purple-50/40 dark:hover:bg-purple-900/20 transition-all duration-200 flex items-center gap-3 font-bold text-sm uppercase tracking-wide"
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <ArrowRight className="w-4 h-4" />
-                  Switch to Minor
-                </motion.button>
 
                 <motion.button
                   onClick={handleLogout}

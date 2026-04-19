@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Users, Monitor, CheckCircle2, FileText, Loader2, AlertCircle, Download, FileSpreadsheet } from 'lucide-react';
+import { ArrowLeft, Users, Monitor, CheckCircle2, Loader2, AlertCircle, Download, FileSpreadsheet, FileText } from 'lucide-react';
 import SplitText from '../components/SplitText';
 import { getToken } from '../utils/tokenStorage';
 import StyledButton from '../components/Template/StyledButton';
@@ -8,13 +8,13 @@ import StyledButton from '../components/Template/StyledButton';
 const MajorMoreOptionsPage = ({ showToast }) => {
   const { planId } = useParams();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('master-plan');
+  const [activeTab, setActiveTab] = useState('excel-export');
 
   const [planInfo, setPlanInfo] = useState(null);
   const [loadingPlan, setLoadingPlan] = useState(true);
   const [planError, setPlanError] = useState(null);
-  const [downloadingMaster, setDownloadingMaster] = useState(false);
   const [downloadingExcel, setDownloadingExcel] = useState(false);
+  const [downloadingJson, setDownloadingJson] = useState(false);
 
   useEffect(() => {
     if (!planId) return;
@@ -24,11 +24,9 @@ const MajorMoreOptionsPage = ({ showToast }) => {
       try {
         const token = getToken();
         const headers = token ? { Authorization: `Bearer ${token}` } : {};
-        const res = await fetch(`/api/major-exam/plan-info/${planId}`, { headers });
+        const res = await fetch(`/api/major-exam/plan/${planId}`, { headers });
         
-        // Fallback if endpoint doesn't exist
         if (res.status === 404) {
-          localStorage.setItem('plan_tmp', planId);
           setPlanInfo({
             total_students: 'N/A',
             room_count: 'N/A',
@@ -39,7 +37,7 @@ const MajorMoreOptionsPage = ({ showToast }) => {
           throw new Error('Could not load plan details');
         } else {
           const data = await res.json();
-          setPlanInfo(data.plan_info || {
+          setPlanInfo(data.plan || {
             total_students: 'N/A',
             room_count: 'N/A',
             status: 'FINALIZED'
@@ -55,37 +53,6 @@ const MajorMoreOptionsPage = ({ showToast }) => {
     load();
   }, [planId]);
 
-  const handleMasterPlanDownload = async () => {
-    setDownloadingMaster(true);
-    try {
-      const token = getToken();
-      const headers = {
-        'Authorization': token ? `Bearer ${token}` : ''
-      };
-      
-      const response = await fetch(`/api/major-exam/download/master-plan/${planId}`, { headers });
-      if (!response.ok) {
-        throw new Error('Failed to download master plan');
-      }
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `MAJOR_EXAM_MASTER_PLAN_${planId}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-
-      if (showToast) showToast('✅ Master plan PDF downloaded', 'success');
-    } catch (err) {
-      if (showToast) showToast('❌ Failed to download master plan: ' + err.message, 'error');
-    } finally {
-      setDownloadingMaster(false);
-    }
-  };
-
   const handleExcelExport = async () => {
     setDownloadingExcel(true);
     try {
@@ -94,9 +61,16 @@ const MajorMoreOptionsPage = ({ showToast }) => {
         'Authorization': token ? `Bearer ${token}` : ''
       };
       
-      const response = await fetch(`/api/major-exam/export/excel/${planId}`, { headers });
+      const response = await fetch(`/api/major-exam/download/excel/${planId}`, { headers });
       if (!response.ok) {
-        throw new Error('Failed to export to Excel');
+        let message = 'Failed to export to Excel';
+        try {
+          const data = await response.json();
+          message = data.error || data.message || message;
+        } catch {
+          // Keep fallback message when response body is not JSON
+        }
+        throw new Error(message);
       }
 
       const blob = await response.blob();
@@ -114,6 +88,44 @@ const MajorMoreOptionsPage = ({ showToast }) => {
       if (showToast) showToast('❌ Failed to export Excel: ' + err.message, 'error');
     } finally {
       setDownloadingExcel(false);
+    }
+  };
+
+  const handleJsonExport = async () => {
+    setDownloadingJson(true);
+    try {
+      const token = getToken();
+      const headers = {
+        'Authorization': token ? `Bearer ${token}` : ''
+      };
+
+      const response = await fetch(`/api/major-exam/download/json/${planId}`, { headers });
+      if (!response.ok) {
+        let message = 'Failed to export JSON';
+        try {
+          const data = await response.json();
+          message = data.error || data.message || message;
+        } catch {
+          // Keep fallback message when response body is not JSON
+        }
+        throw new Error(message);
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `MAJOR_EXAM_${planId}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+
+      if (showToast) showToast('✅ Processed plan JSON downloaded', 'success');
+    } catch (err) {
+      if (showToast) showToast('❌ Failed to download JSON: ' + err.message, 'error');
+    } finally {
+      setDownloadingJson(false);
     }
   };
 
@@ -213,20 +225,9 @@ const MajorMoreOptionsPage = ({ showToast }) => {
 
         {/* Main Content Area */}
         <div className="space-y-6">
-          
+
           {/* Tab Navigation */}
           <div className="flex gap-2 p-4 bg-gray-100 dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800">
-            <button
-              onClick={() => setActiveTab('master-plan')}
-              className={`flex-1 py-3 px-4 rounded-lg font-bold transition-all ${
-                activeTab === 'master-plan'
-                  ? 'bg-orange-500 text-white shadow-lg'
-                  : 'bg-transparent text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800'
-              }`}
-            >
-              <FileText size={18} className="inline mr-2" />
-              Master Plan
-            </button>
             <button
               onClick={() => setActiveTab('excel-export')}
               className={`flex-1 py-3 px-4 rounded-lg font-bold transition-all ${
@@ -241,36 +242,6 @@ const MajorMoreOptionsPage = ({ showToast }) => {
           </div>
 
           {/* Content */}
-          {activeTab === 'master-plan' && (
-            <div className="glass-card p-8 border border-gray-200 dark:border-gray-800 rounded-2xl space-y-6">
-              <div className="flex items-center gap-3 pb-4 border-b border-gray-200 dark:border-gray-800">
-                <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
-                  <FileText className="text-purple-600 dark:text-purple-400" size={24} />
-                </div>
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Master Seating Plan</h2>
-              </div>
-
-              <p className="text-gray-600 dark:text-gray-400">
-                Download the institutional master seating plan PDF with room-wise allocations and from/to roll number ranges for all allocated students.
-              </p>
-
-              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                <p className="text-sm text-blue-700 dark:text-blue-300">
-                  ℹ️ The master plan includes: Room allocations, From/To enrollment ranges, Total count per room, and signature sections for exam coordinators and HOD.
-                </p>
-              </div>
-
-              <StyledButton
-                onClick={handleMasterPlanDownload}
-                disabled={downloadingMaster}
-                className="w-full py-4 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700"
-              >
-                <Download size={18} className={downloadingMaster ? 'animate-spin' : ''} />
-                {downloadingMaster ? 'Generating PDF...' : 'Download Master Plan PDF'}
-              </StyledButton>
-            </div>
-          )}
-
           {activeTab === 'excel-export' && (
             <div className="glass-card p-8 border border-gray-200 dark:border-gray-800 rounded-2xl space-y-6">
               <div className="flex items-center gap-3 pb-4 border-b border-gray-200 dark:border-gray-800">
@@ -297,6 +268,15 @@ const MajorMoreOptionsPage = ({ showToast }) => {
               >
                 <Download size={18} className={downloadingExcel ? 'animate-spin' : ''} />
                 {downloadingExcel ? 'Exporting...' : 'Download Excel File'}
+              </StyledButton>
+
+              <StyledButton
+                onClick={handleJsonExport}
+                disabled={downloadingJson}
+                className="w-full py-4 bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800"
+              >
+                <Download size={18} className={downloadingJson ? 'animate-spin' : ''} />
+                {downloadingJson ? 'Downloading JSON...' : 'Download Processed JSON'}
               </StyledButton>
             </div>
           )}

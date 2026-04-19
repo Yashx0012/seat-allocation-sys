@@ -23,6 +23,7 @@ import DashboardPage from './pages/DashboardPage';
 import UploadPage from './pages/UploadPage';
 import Allocation from './pages/Allocation';
 import CreatePlan from './pages/CreatePlan';
+import ExamTypeChooserPage from './pages/ExamTypeChooserPage';
 import MajorExamCreatePlan from './pages/MajorExamCreatePlan';
 import FeedbackPage from './pages/FeedbackPage';
 import AdminFeedbackPage from './pages/AdminFeedbackPage';
@@ -31,7 +32,6 @@ import TemplateEditor from './pages/TemplateEditor';
 import MajorTemplateEditor from './pages/MajorTemplateEditor';
 import AttendancePage from './pages/AttendencePage';
 import MoreOptionsPage from './pages/MoreOptionsPage';
-import MajorMoreOptionsPage from './pages/MajorMoreOptionsPage';
 import ClassroomPage from './pages/ClassroomPage';
 import { DatabaseManager } from './components/database';
 import ManualAllocation from './pages/ManualAllocation';
@@ -160,7 +160,8 @@ const AppRoutes = () => {
           <Route path="/manual-allocation" element={<ProtectedRoute><ManualAllocation showToast={showToast} /></ProtectedRoute>} />
           <Route path="/upload" element={<ProtectedRoute><UploadPage showToast={showToast} /></ProtectedRoute>} />
           <Route path="/allocation" element={<ProtectedRoute><Allocation showToast={showToast} /></ProtectedRoute>} />
-          <Route path="/create-plan" element={<ProtectedRoute><CreatePlan /></ProtectedRoute>} />
+          <Route path="/create-plan" element={<ProtectedRoute><ExamTypeChooserPage /></ProtectedRoute>} />
+          <Route path="/minor-exam/create-plan" element={<ProtectedRoute><CreatePlan showToast={showToast} /></ProtectedRoute>} />
           <Route path="/major-exam/create-plan" element={<ProtectedRoute><MajorExamCreatePlan showToast={showToast} /></ProtectedRoute>} />
           <Route path="/classroom" element={<ProtectedRoute><ClassroomPage /></ProtectedRoute>} />
           <Route path="/feedback" element={<ProtectedRoute><FeedbackPage showToast={showToast} /></ProtectedRoute>} />
@@ -169,7 +170,6 @@ const AppRoutes = () => {
           <Route path="/major-exam/template-editor" element={<ProtectedRoute><MajorTemplateEditor showToast={showToast} /></ProtectedRoute>} />
           <Route path="/attendance/:planId" element={<ProtectedRoute><AttendancePage showToast={showToast} /></ProtectedRoute>} />
           <Route path="/more-options/:planId" element={<ProtectedRoute><MoreOptionsPage showToast={showToast} /></ProtectedRoute>} />
-          <Route path="/major-exam/more-options/:planId" element={<ProtectedRoute><MajorMoreOptionsPage showToast={showToast} /></ProtectedRoute>} />
           <Route path="/database" element={<ProtectedRoute><DatabaseManager showToast={showToast} /></ProtectedRoute>} />
 
           {/* Fallback */}
