@@ -1,25 +1,20 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { getToken } from '../utils/tokenStorage';
 import SplitText from '../components/SplitText';
 import StyledButton from '../components/Template/StyledButton.jsx'; 
 import StyledInput from '../components/Template/StyledInput.jsx'; 
-import { useTheme } from '../contexts/ThemeContext.jsx';
 import { useSession } from '../contexts/SessionContext.jsx';
 
 import { 
     Save, 
     RefreshCw, 
-    Download, 
     CheckCircle, 
     XCircle, 
     User,
     FileText,
     Image,
     Building,
-    Upload,
-    Eye,
     AlertCircle,
-    Calendar,
     UserCheck
 } from 'lucide-react';
 
@@ -36,7 +31,6 @@ const initialTemplateState = {
 };
 
 function MajorTemplateEditor({ showToast }) {
-    const { theme } = useTheme();
     const { session, loading: sessionLoading } = useSession();
 
     const [template, setTemplate] = useState(initialTemplateState);
@@ -44,22 +38,6 @@ function MajorTemplateEditor({ showToast }) {
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState('');
     const [error, setError] = useState('');
-
-    const clearMessages = useCallback(() => {
-        const timer = setTimeout(() => {
-            setMessage('');
-            setError('');
-        }, 5000);
-        return () => clearTimeout(timer);
-    }, []);
-
-    const getAuthHeaders = useCallback(() => {
-        const token = session?.token || getToken();
-        return {
-            'Authorization': token ? `Bearer ${token}` : '',
-            'Content-Type': 'application/json'
-        };
-    }, [session]);
 
     const handleInputChange = (field, value) => {
         setTemplate(prev => ({ ...prev, [field]: value }));

@@ -3,41 +3,15 @@ Major Exam Template Management Endpoints
 Provides RESTful API for managing major exam PDF templates
 """
 from flask import Blueprint, request, jsonify
-from algo.services.auth_service import verify_token
+from algo.services.auth_service import token_required
 from algo.core.cache.major_exam_template_manager import MajorExamTemplateManager
-from functools import wraps, lru_cache
 
 major_exam_template_bp = Blueprint('major_exam_template', __name__, url_prefix='/api/major-exam/template')
 template_manager = MajorExamTemplateManager()
 
 
-def login_required(f):
-    """Decorator to check authentication"""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        token = request.headers.get('Authorization')
-        if not token:
-            return jsonify({'error': 'Missing authorization token'}), 401
-        
-        try:
-            # Remove 'Bearer ' prefix if present
-            if token.startswith('Bearer '):
-                token = token[7:]
-            
-            user = verify_token(token)
-            if not user:
-                return jsonify({'error': 'Invalid token'}), 401
-            
-            request.user_id = user.get('user_id') or user.get('id')
-            return f(*args, **kwargs)
-        except Exception as e:
-            return jsonify({'error': f'Authentication failed: {str(e)}'}), 401
-    
-    return decorated_function
-
-
 @major_exam_template_bp.route('/config', methods=['GET'])
-@login_required
+@token_required
 def get_template_config():
     """
     GET /api/major-exam/template/config
@@ -61,7 +35,7 @@ def get_template_config():
 
 
 @major_exam_template_bp.route('/config', methods=['POST'])
-@login_required
+@token_required
 def save_template_config():
     """
     POST /api/major-exam/template/config
@@ -127,7 +101,7 @@ def save_template_config():
 
 
 @major_exam_template_bp.route('/config/reset', methods=['POST'])
-@login_required
+@token_required
 def reset_template():
     """
     POST /api/major-exam/template/config/reset
@@ -157,7 +131,7 @@ def reset_template():
 
 
 @major_exam_template_bp.route('/config', methods=['DELETE'])
-@login_required
+@token_required
 def delete_template():
     """
     DELETE /api/major-exam/template/config

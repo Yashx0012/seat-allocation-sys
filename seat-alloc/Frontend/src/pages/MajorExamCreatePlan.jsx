@@ -516,12 +516,11 @@ const MajorExamCreatePlan = ({ showToast }) => {
             <div className="flex gap-3">
               <span className="px-3 py-1 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-xs text-gray-600 dark:text-gray-400">.xlsx</span>
               <span className="px-3 py-1 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-xs text-gray-600 dark:text-gray-400">.xls</span>
-              <span className="px-3 py-1 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-xs text-gray-600 dark:text-gray-400">.csv</span>
             </div>
             <input
               ref={fileInputRef}
               type="file"
-              accept=".xlsx,.xls,.csv"
+              accept=".xlsx,.xls"
               onChange={handleFileSelect}
               className="hidden"
             />
