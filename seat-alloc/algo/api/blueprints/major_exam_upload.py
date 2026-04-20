@@ -16,7 +16,7 @@ major_exam_upload_bp = Blueprint('major_exam_upload', __name__, url_prefix='/api
 
 cache_manager = get_major_cache_manager()
 
-ALLOWED_EXTENSIONS = {'xlsx', 'xls', 'csv'}
+ALLOWED_EXTENSIONS = {'xlsx', 'xls'}
 
 # Flexible column detection patterns
 COLUMN_PATTERNS = {
@@ -26,9 +26,77 @@ COLUMN_PATTERNS = {
     'password': [r'password', r'pwd', r'pass', r'passowrd']  # note: handles typo 'Passowrd'
 }
 
+# Branch alias groups aligned with minor PDF generation branch expansion logic
+# (CS -> CSE, CD -> CSD, EC -> ECE, EE -> EEE) with full-name keyword aliases.
+BRANCH_ALIAS_GROUPS = {
+    'CSE': {
+        'CSE', 'CS', 'COMPUTERSCIENCE', 'COMPUTERSCIENCEENGINEERING',
+        'COMPUTERSCIENCEANDENGINEERING'
+    },
+    'CSD': {
+        'CSD', 'CD', 'COMPUTERSCIENCEDESIGN', 'COMPUTERSCIENCEANDDESIGN'
+    },
+    'ECE': {
+        'ECE', 'EC', 'ELECTRONICSCOMMUNICATION',
+        'ELECTRONICSCOMMUNICATIONENGINEERING',
+        'ELECTRONICSANDCOMMUNICATIONENGINEERING'
+    },
+    'EEE': {
+        'EEE', 'EE', 'ELECTRICALENGINEERING',
+        'ELECTRICALANDELECTRONICSENGINEERING'
+    },
+    'IT': {
+        'IT', 'INFORMATIONTECHNOLOGY'
+    },
+    'ME': {
+        'ME', 'MECHANICALENGINEERING'
+    },
+    'CE': {
+        'CE', 'CIVILENGINEERING'
+    },
+    'ET': {
+        'ET', 'ELECTRONICSTELECOMMUNICATIONENGINEERING',
+        'ELECTRONICSANDTELECOMMUNICATIONENGINEERING'
+    },
+}
+
 
 def allowed_file(filename: str) -> bool:
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def _normalize_branch_key(value: str) -> str:
+    """Normalize branch name for alias matching."""
+    return re.sub(r'[^A-Z0-9]', '', str(value or '').upper())
+
+
+def _resolve_branch_group(normalized_branch: str) -> str:
+    """Resolve a normalized branch token into a known alias group."""
+    for group_name, aliases in BRANCH_ALIAS_GROUPS.items():
+        if normalized_branch in aliases:
+            return group_name
+    return ''
+
+
+def _build_branch_lookup(available_branches) -> dict:
+    """Build normalized lookup map from user-provided branch labels to stored branch names."""
+    lookup = {}
+
+    for branch in available_branches:
+        normalized = _normalize_branch_key(branch)
+        if not normalized:
+            continue
+
+        # Exact normalized match
+        lookup[normalized] = branch
+
+        # Alias expansion (e.g. CS -> CSE, EC -> ECE)
+        group = _resolve_branch_group(normalized)
+        if group:
+            for alias in BRANCH_ALIAS_GROUPS[group]:
+                lookup.setdefault(alias, branch)
+
+    return lookup
 
 
 def detect_columns(df_columns) -> dict:
@@ -183,7 +251,7 @@ def upload_file():
             return jsonify({'error': 'No file selected'}), 400
 
         if not allowed_file(file.filename):
-            return jsonify({'error': 'Only Excel (.xlsx, .xls) and CSV files are allowed'}), 400
+            return jsonify({'error': 'Only Excel (.xlsx, .xls) files are allowed'}), 400
 
         # Read file bytes (keep in memory)
         file_bytes = file.read()
@@ -205,7 +273,7 @@ def upload_file():
         # Create plan data (no allocation yet — that happens after room config)
         plan_data = {
             'plan_id': plan_id,
-            'users_id': user_id,
+            'user_id': user_id,
             'exam_name': f'Major Exam - {plan_id}',
             'branches': {
                 name: data['students']
@@ -272,6 +340,12 @@ def configure_rooms(plan_id):
         if not plan:
             return jsonify({'error': 'Plan not found'}), 404
 
+        available_branches = plan.get('metadata', {}).get('branch_names') or list((plan.get('branches') or {}).keys())
+        if not available_branches:
+            return jsonify({'error': 'No branch data found in plan. Re-upload the Excel file.'}), 400
+
+        branch_lookup = _build_branch_lookup(available_branches)
+
         if plan.get('metadata', {}).get('status') != 'uploaded':
             # Allow re-configuration
             pass
@@ -288,6 +362,35 @@ def configure_rooms(plan_id):
                 return jsonify({'error': f'Room "{room["name"]}" must have a valid capacity'}), 400
             if not room.get('branches') or len(room['branches']) < 1:
                 return jsonify({'error': f'Room "{room["name"]}" must have at least one branch assigned'}), 400
+
+            normalized_room_branches = []
+            unknown_branches = []
+            seen = set()
+
+            for raw_branch in room.get('branches', []):
+                normalized_key = _normalize_branch_key(raw_branch)
+                resolved_branch = branch_lookup.get(normalized_key)
+
+                if not resolved_branch:
+                    unknown_branches.append(str(raw_branch))
+                    continue
+
+                if resolved_branch not in seen:
+                    normalized_room_branches.append(resolved_branch)
+                    seen.add(resolved_branch)
+
+            if unknown_branches:
+                return jsonify({
+                    'error': f'Room "{room["name"]}" has unknown branch(es): {", ".join(unknown_branches)}',
+                    'unknown_branches': unknown_branches,
+                    'available_branches': available_branches,
+                }), 400
+
+            if not normalized_room_branches:
+                return jsonify({'error': f'Room "{room["name"]}" must map to at least one valid branch'}), 400
+
+            # Persist normalized branches so allocation always receives canonical keys.
+            room['branches'] = normalized_room_branches
 
         # Run allocation
         from algo.api.blueprints.major_exam_allocation import allocate_branches_to_rooms
