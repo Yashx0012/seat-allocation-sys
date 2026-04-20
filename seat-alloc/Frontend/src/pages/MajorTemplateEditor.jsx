@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { getToken } from '../utils/tokenStorage';
 import SplitText from '../components/SplitText';
 import StyledButton from '../components/Template/StyledButton.jsx'; 
@@ -24,30 +24,24 @@ import {
 } from 'lucide-react';
 
 const initialTemplateState = {
-    // Seating Plan Fields
-    dept_name: '',
-    seating_plan_title: '',
-    exam_details: '',
-    current_year: new Date().getFullYear(),
-    coordinator_name: '',
-    coordinator_title: '',
-    banner_image_path: '',
-    
-    // Attendance Sheet Fields
-    attendance_dept_name: '',
-    attendance_year: new Date().getFullYear(),
-    attendance_exam_heading: 'SESSIONAL EXAMINATION',
-    attendance_banner_path: '',
+    // Major Exam Fields
+    major_exam_dept_name: '',
+    major_exam_heading: '',
+    major_exam_title: '',
+    major_banner_path: '',
+    major_coordinator_name: '',
+    major_coordinator_title: '',
+    major_hod_name: '',
+    major_hod_title: '',
 };
 
-function TemplateEditor({ showToast }) {
+function MajorTemplateEditor({ showToast }) {
     const { theme } = useTheme();
     const { session, loading: sessionLoading } = useSession();
 
     const [template, setTemplate] = useState(initialTemplateState);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [generating, setGenerating] = useState(false);
     const [message, setMessage] = useState('');
     const [error, setError] = useState('');
 
@@ -70,6 +64,7 @@ function TemplateEditor({ showToast }) {
     const handleInputChange = (field, value) => {
         setTemplate(prev => ({ ...prev, [field]: value }));
     };
+
     useEffect(() => {
         // 1. Wait for session to finish loading
         if (sessionLoading) return;
@@ -86,11 +81,7 @@ function TemplateEditor({ showToast }) {
         // 4. Define fetch logic INSIDE effect to prevent dependency loops
         const fetchTemplate = async () => {
             try {
-                // Don't set loading=true here if we want background updates, 
-                // but for initial load it's fine.
-                // setLoading(true); 
-                
-                const response = await fetch('/api/template/config', { 
+                const response = await fetch('/api/major-exam/template/config', { 
                     headers: {
                         'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
@@ -106,10 +97,8 @@ function TemplateEditor({ showToast }) {
                 
                 if (data.success) {
                     setTemplate(data.template || initialTemplateState);
-                    // Optional: showToast('Configuration loaded', 'success');
                 } else {
                     console.error("Template load error:", data.error);
-                    // Don't set global error here to avoid blocking UI on minor fetch errors
                 }
             } catch (err) {
                 console.error("Connection error:", err);
@@ -128,46 +117,39 @@ function TemplateEditor({ showToast }) {
         const token = session?.token || getToken();
         if (!token) return setError('Please log in to save');
 
+        // Validate required fields
+        const requiredFields = [
+            'major_exam_dept_name',
+            'major_exam_heading',
+            'major_coordinator_name',
+            'major_coordinator_title'
+        ];
+
+        const missing = requiredFields.filter(f => !template[f] || template[f].trim() === '');
+        if (missing.length > 0) {
+            setError(`Missing required fields: ${missing.join(', ')}`);
+            return;
+        }
+
         setSaving(true);
         setError('');
         setMessage('');
 
-        const formData = new FormData();
-        Object.keys(template).forEach(key => {
-            // Append all fields to FormData
-            if (key !== 'banner_image_path' && template[key]) {
-                formData.append(key, template[key]);
-            }
-        });
-
-        // Append file if selected
-        const fileInput = document.getElementById('bannerImage');
-        if (fileInput?.files[0]) {
-            formData.append('bannerImage', fileInput.files[0]);
-        }
-
-        // Add template name explicitly
-        formData.append('template_name', 'default');
-
         try {
-            const response = await fetch('/api/template/config', {
+            const response = await fetch('/api/major-exam/template/config', {
                 method: 'POST',
                 headers: { 
-                    'Authorization': `Bearer ${token}` 
-                    // NO Content-Type header here! Browser adds it automatically.
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
                 },
-                body: formData
+                body: JSON.stringify(template)
             });
             const data = await response.json();
             
             if (response.ok && data.success) {
                 setMessage('Template saved successfully!');
                 setTemplate(data.template); 
-                if (fileInput) fileInput.value = '';
                 if(showToast) showToast('Saved successfully!', 'success');
-                
-                // OPTIONAL: Auto-generate PDF after successful save
-                // generateTestPDF(); 
             } else {
                 setError(data.error || 'Failed to save.');
             }
@@ -178,52 +160,37 @@ function TemplateEditor({ showToast }) {
         }
     };
 
-    const generateTestPDF = async () => {
+    const handleReset = async () => {
         const token = session?.token || getToken();
-        if (!token) {
-            setError('Please log in to generate PDFs');
-            return;
-        }
+        if (!token) return setError('Please log in');
 
-        setGenerating(true);
+        if (!window.confirm('Reset all template settings to defaults?')) return;
+
+        setSaving(true);
         setError('');
         setMessage('');
 
         try {
-            const response = await fetch('/api/test-pdf', { 
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`
+            const response = await fetch('/api/major-exam/template/config/reset', {
+                method: 'POST',
+                headers: { 
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
                 }
             });
-
-            if (response.status === 401) {
-                setError('Session expired. Please log in again.');
-                setGenerating(false);
-                return;
-            }
-
-            if (response.ok) {
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = `test_seating_plan_${new Date().getTime()}.pdf`;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                window.URL.revokeObjectURL(url);
-                
-                setMessage('Test PDF generated and downloaded successfully!');
-                if(showToast) showToast('Test PDF generated!', 'success');
+            const data = await response.json();
+            
+            if (response.ok && data.success) {
+                setMessage('Template reset to defaults successfully!');
+                setTemplate(data.template);
+                if(showToast) showToast('Reset to defaults!', 'success');
             } else {
-                const errorData = await response.json().catch(() => ({ error: 'Unknown server error.' }));
-                setError(errorData.error || `Failed to generate test PDF (Status: ${response.status})`);
+                setError(data.error || 'Failed to reset template.');
             }
         } catch (err) {
-            setError('Failed to generate test PDF: ' + err.message);
+            setError('Reset failed: ' + err.message);
         } finally {
-            setGenerating(false);
+            setSaving(false);
         }
     };
 
@@ -274,11 +241,11 @@ function TemplateEditor({ showToast }) {
                                 <div className="absolute inset-0 bg-orange-500 rounded-full animate-ping opacity-75"></div>
                                 <div className="relative w-3 h-3 bg-orange-500 rounded-full border border-orange-400"></div>
                             </div>
-                            <span className="text-xs font-mono text-orange-500 tracking-wider uppercase">Template Configuration</span>
+                            <span className="text-xs font-mono text-orange-500 tracking-wider uppercase">Major Exam Template</span>
                         </div>
-                        <SplitText text="PDF Template Editor" className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-gray-900 via-gray-700 to-gray-500 dark:from-gray-100 dark:via-gray-300 dark:to-gray-500 bg-clip-text text-transparent" splitType="chars" delay={30} />
+                        <SplitText text="Major Exam PDF Template Editor" className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-gray-900 via-gray-700 to-gray-500 dark:from-gray-100 dark:via-gray-300 dark:to-gray-500 bg-clip-text text-transparent" splitType="chars" delay={30} />
                         <p className="text-gray-600 dark:text-gray-400 mt-2">
-                            Customize your PDF templates for seating plans
+                            Customize your PDF templates for major exam seating plans
                         </p>
                     </div>
                     
@@ -325,39 +292,42 @@ function TemplateEditor({ showToast }) {
                     </div>
                 )}
 
-                <div className="space-y-6">
+                <form onSubmit={handleSubmit} className="space-y-6">
                     
+                    {/* Header Information */}
                     <div className="glass-card p-8 border border-[#c0c0c0] dark:border-[#8a8a8a]">
                         <div className="flex items-center gap-3 mb-6 pb-4 border-b border-[#c0c0c0] dark:border-[#8a8a8a]">
                             <div className="p-2 rounded-lg bg-orange-100 dark:bg-orange-900/30">
                                 <FileText className="text-orange-600 dark:text-orange-400" size={24} />
                             </div>
-                            <h3 className="text-2xl font-bold text-gray-900 dark:text-white uppercase tracking-wide">Header Information</h3>
+                            <h3 className="text-2xl font-bold text-gray-900 dark:text-white uppercase tracking-wide">Exam Header Information</h3>
                         </div>
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-2">
                                 <label className="flex items-center gap-2 text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
                                     <Building size={16} className="text-orange-500" />
-                                    Department Name
+                                    Department Name *
                                 </label>
                                 <StyledInput
                                     type="text"
-                                    value={template.dept_name || ''}
-                                    onChange={(e) => handleInputChange('dept_name', e.target.value)}
+                                    value={template.major_exam_dept_name || ''}
+                                    onChange={(e) => handleInputChange('major_exam_dept_name', e.target.value)}
                                     placeholder="e.g., Department of Computer Science & Engineering"
+                                    required
                                 />
                             </div>
                             <div className="space-y-2">
                                 <label className="flex items-center gap-2 text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
                                     <FileText size={16} className="text-orange-500" />
-                                    Seating Plan Title
+                                    Exam Heading *
                                 </label>
                                 <StyledInput
                                     type="text"
-                                    value={template.seating_plan_title || ''}
-                                    onChange={(e) => handleInputChange('seating_plan_title', e.target.value)}
-                                    placeholder="e.g., Seating Plan"
+                                    value={template.major_exam_heading || ''}
+                                    onChange={(e) => handleInputChange('major_exam_heading', e.target.value)}
+                                    placeholder="e.g., MAJOR EXAMINATION"
+                                    required
                                 />
                             </div>
                         </div>
@@ -365,200 +335,129 @@ function TemplateEditor({ showToast }) {
                         <div className="mt-6 space-y-2">
                             <label className="flex items-center gap-2 text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
                                 <FileText size={16} className="text-orange-500" />
-                                Exam Details
+                                Exam Title
                             </label>
                             <StyledInput 
-                                type="textarea"
-                                rows="2"
-                                value={template.exam_details || ''}
-                                onChange={(e) => handleInputChange('exam_details', e.target.value)}
-                                placeholder="e.g., Minor-II Examination (2025 Admitted), November 2025"
+                                type="text"
+                                value={template.major_exam_title || ''}
+                                onChange={(e) => handleInputChange('major_exam_title', e.target.value)}
+                                placeholder="e.g., Seating Plan - Major Examination"
                             />
                         </div>
                     </div>
 
-                    <div className="glass-card p-8 border border-[#c0c0c0] dark:border-[#8a8a8a]">
-                        <div className="flex items-center gap-3 mb-6 pb-4 border-b border-[#c0c0c0] dark:border-[#8a8a8a]">
-                            <div className="p-2 rounded-lg bg-orange-100 dark:bg-orange-900/30">
-                                <Building className="text-orange-600 dark:text-orange-400" size={24} />
-                            </div>
-                            <h3 className="text-2xl font-bold text-gray-900 dark:text-white uppercase tracking-wide">Branch & Room Information</h3>
-                        </div>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="space-y-2">
-                                <label className="flex items-center gap-2 text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
-                                    <Calendar size={16} className="text-orange-500" />
-                                    Current Exam Year
-                                </label>
-                                <StyledInput
-                                    type="number"
-                                    value={template.current_year || ''}
-                                    onChange={(e) => handleInputChange('current_year', e.target.value)}
-                                    placeholder="e.g., 2024"
-                                />
-                            </div>
-                        </div>
-                    </div>
-
+                    {/* Coordinator Information */}
                     <div className="glass-card p-8 border border-[#c0c0c0] dark:border-[#8a8a8a]">
                         <div className="flex items-center gap-3 mb-6 pb-4 border-b border-[#c0c0c0] dark:border-[#8a8a8a]">
                             <div className="p-2 rounded-lg bg-orange-100 dark:bg-orange-900/30">
                                 <User className="text-orange-600 dark:text-orange-400" size={24} />
                             </div>
-                            <h3 className="text-2xl font-bold text-gray-900 dark:text-white uppercase tracking-wide">Coordinator Information</h3>
+                            <h3 className="text-2xl font-bold text-gray-900 dark:text-white uppercase tracking-wide">Exam Coordinator Information</h3>
                         </div>
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-2">
                                 <label className="flex items-center gap-2 text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
                                     <User size={16} className="text-orange-500" />
-                                    Coordinator Name
+                                    Coordinator Name *
                                 </label>
                                 <StyledInput
                                     type="text"
-                                    value={template.coordinator_name || ''}
-                                    onChange={(e) => handleInputChange('coordinator_name', e.target.value)}
-                                    placeholder="e.g., Dr. Dheeraj K. Dixit"
+                                    value={template.major_coordinator_name || ''}
+                                    onChange={(e) => handleInputChange('major_coordinator_name', e.target.value)}
+                                    placeholder="e.g., Dr. Exam Coordinator"
+                                    required
                                 />
                             </div>
                             <div className="space-y-2">
                                 <label className="flex items-center gap-2 text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
                                     <FileText size={16} className="text-orange-500" />
-                                    Coordinator Title
+                                    Coordinator Title *
                                 </label>
                                 <StyledInput
                                     type="text"
-                                    value={template.coordinator_title || ''}
-                                    onChange={(e) => handleInputChange('coordinator_title', e.target.value)}
+                                    value={template.major_coordinator_title || ''}
+                                    onChange={(e) => handleInputChange('major_coordinator_title', e.target.value)}
                                     placeholder="e.g., Dept. Exam Coordinator"
+                                    required
+                                />
+                            </div>
+                        </div>
+
+                        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                                <label className="flex items-center gap-2 text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
+                                    <UserCheck size={16} className="text-orange-500" />
+                                    HOD Name
+                                </label>
+                                <StyledInput
+                                    type="text"
+                                    value={template.major_hod_name || ''}
+                                    onChange={(e) => handleInputChange('major_hod_name', e.target.value)}
+                                    placeholder="e.g., Dr. Head of Department"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="flex items-center gap-2 text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
+                                    <FileText size={16} className="text-orange-500" />
+                                    HOD Title
+                                </label>
+                                <StyledInput
+                                    type="text"
+                                    value={template.major_hod_title || ''}
+                                    onChange={(e) => handleInputChange('major_hod_title', e.target.value)}
+                                    placeholder="e.g., Head of Department"
                                 />
                             </div>
                         </div>
                     </div>
 
-                    {/* Banner Image Upload */}
+                    {/* Banner Image */}
                     <div className="glass-card p-8 border border-[#c0c0c0] dark:border-[#8a8a8a]">
                         <div className="flex items-center gap-3 mb-6 pb-4 border-b border-[#c0c0c0] dark:border-[#8a8a8a]">
                             <div className="p-2 rounded-lg bg-orange-100 dark:bg-orange-900/30">
                                 <Image className="text-orange-600 dark:text-orange-400" size={24} />
                             </div>
-                            <h3 className="text-2xl font-bold text-gray-900 dark:text-white uppercase tracking-wide">Banner / Logo Image</h3>
+                            <h3 className="text-2xl font-bold text-gray-900 dark:text-white uppercase tracking-wide">Banner Image</h3>
                         </div>
                         
-                        <div className="space-y-6">
-                            <div className="space-y-2">
-                                <label className="flex items-center gap-2 text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
-                                    <Eye size={16} className="text-orange-500" />
-                                    Current Banner Path
-                                </label>
-                                <input
-                                    type="text"
-                                    value={template.banner_image_path || 'No image set'}
-                                    readOnly
-                                    className="w-full px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-2 border-[#c0c0c0] dark:border-[#8a8a8a] cursor-not-allowed"
-                                />
-                            </div>
-                            
-                            <div className="space-y-2">
-                                <label htmlFor="bannerImage" className="flex items-center gap-2 text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
-                                    <Upload size={16} className="text-orange-500" />
-                                    Upload New Banner (Optional)
-                                </label>
-                                <input
-                                    type="file"
-                                    id="bannerImage"
-                                    accept="image/*"
-                                    className="w-full text-sm text-gray-700 dark:text-gray-300
-                                        file:mr-4 file:py-3 file:px-6
-                                        file:rounded-lg file:border-2 file:border-orange-500 dark:file:border-orange-400
-                                        file:text-sm file:font-bold
-                                        file:bg-orange-50 dark:file:bg-orange-900/20 file:text-orange-700 dark:file:text-orange-300
-                                        hover:file:bg-orange-100 dark:hover:file:bg-orange-900/30 file:cursor-pointer
-                                        file:transition-all file:duration-300
-                                        cursor-pointer"
-                                />
-                                <p className="text-xs text-gray-500 dark:text-gray-400">
-                                    Supported formats: PNG, JPG, JPEG, GIF. Max size: 5MB.
+                        <div className="space-y-4">
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                                Current banner path: <span className="font-mono text-orange-600 dark:text-orange-400">{template.major_banner_path || 'Not set'}</span>
+                            </p>
+                            <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                                <p className="text-sm text-blue-700 dark:text-blue-300">
+                                    💡 Banner management coming soon. Upload and manage banner images from the dashboard.
                                 </p>
                             </div>
                         </div>
                     </div>
 
-                    <div className="flex flex-wrap gap-4 justify-center pt-6 border-t border-[#c0c0c0] dark:border-[#8a8a8a]">
-                        <button
-                            onClick={handleSubmit}
+                    {/* Action Buttons */}
+                    <div className="flex gap-4 justify-end pt-6 border-t border-[#c0c0c0] dark:border-[#8a8a8a]">
+                        <StyledButton
+                            type="button"
+                            onClick={handleReset}
                             disabled={saving}
-                            className="inline-flex items-center gap-2 px-6 py-3.5 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl hover:from-emerald-600 hover:to-emerald-700 transition-all duration-200 font-semibold disabled:opacity-60 disabled:cursor-not-allowed shadow-lg hover:scale-[1.02] group"
+                            className="px-6 py-3"
                         >
-                            {saving ? (
-                                <>
-                                    <RefreshCw className="animate-spin" size={18} />
-                                    Saving...
-                                </>
-                            ) : (
-                                <>
-                                    <Save size={18} className="group-hover:scale-110 transition-transform" />
-                                    Save Template
-                                </>
-                            )}
-                        </button>
-
-                        <button
-                            onClick={generateTestPDF}
-                            disabled={generating}
-                            className="inline-flex items-center gap-2 px-6 py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl hover:from-orange-600 hover:to-amber-600 transition-all duration-200 font-semibold disabled:opacity-60 disabled:cursor-not-allowed shadow-lg hover:scale-[1.02] group"
+                            <RefreshCw size={18} className={saving ? 'animate-spin' : ''} />
+                            Reset to Defaults
+                        </StyledButton>
+                        <StyledButton
+                            type="submit"
+                            disabled={saving}
+                            className="px-8 py-3 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600"
                         >
-                            {generating ? (
-                                <>
-                                    <RefreshCw className="animate-spin" size={18} />
-                                    Generating...
-                                </>
-                            ) : (
-                                <>
-                                    <Download size={18} className="group-hover:translate-y-1 transition-transform" />
-                                    Generate Test PDF
-                                </>
-                            )}
-                        </button>
+                            <Save size={18} />
+                            {saving ? 'Saving...' : 'Save Template'}
+                        </StyledButton>
+                    </div>
+                </form>
 
-                        <button
-                            onClick={() => window.location.reload()}
-                            className="inline-flex items-center gap-2 px-6 py-3.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-300 dark:hover:bg-gray-600 transition-all duration-200 font-semibold shadow-lg hover:scale-[1.02] group"
-                        >
-                            <RefreshCw size={18} className="group-hover:rotate-180 transition-transform duration-500" />
-                            Reload Template
-                        </button>
-                    </div>
-                </div>
-
-                <div className="glass-card p-8 border border-[#c0c0c0] dark:border-[#8a8a8a]">
-                    <div className="flex items-center gap-3 mb-6 pb-4 border-b border-[#c0c0c0] dark:border-[#8a8a8a]">
-                        <div className="p-2 rounded-lg bg-orange-100 dark:bg-orange-900/30">
-                            <Eye className="text-orange-600 dark:text-orange-400" size={24} />
-                        </div>
-                        <h3 className="text-2xl font-bold text-gray-900 dark:text-white uppercase tracking-wide">Current Configuration Preview</h3>
-                    </div>
-                    
-                    <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-xl border-2 border-dashed border-[#c0c0c0] dark:border-[#8a8a8a] space-y-3 text-sm">
-                        {[
-                            { label: 'Department', value: template.dept_name },
-                            { label: 'Title', value: template.seating_plan_title },
-                            { label: 'Exam Details', value: template.exam_details },
-                            { label: 'Current Year', value: template.current_year },
-                            { label: 'Coordinator', value: `${template.coordinator_name || 'Not set'} - ${template.coordinator_title || 'Not set'}` },
-                            { label: 'Banner Path', value: template.banner_image_path }
-                        ].map((item, idx) => (
-                            <div key={idx} className="flex">
-                                <span className="font-bold text-orange-600 dark:text-orange-400 min-w-[140px]">{item.label}:</span>
-                                <span className="text-gray-700 dark:text-gray-300">{item.value || 'Not set'}</span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
             </div>
         </div>
     );
 }
 
-export default TemplateEditor;
+export default MajorTemplateEditor;

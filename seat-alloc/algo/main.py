@@ -30,6 +30,12 @@ from algo.api.blueprints.templates import templates_bp
 from algo.api.blueprints.master_plan_pdf import master_plan_bp
 from algo.api.blueprints.excel_export import excel_export_bp
 from algo.api.blueprints.publish_plan import publish_plan_bp
+# Major Exam Blueprints
+from algo.api.blueprints.major_exam_upload import major_exam_upload_bp
+from algo.api.blueprints.major_exam_attendance import major_exam_attendance_bp
+from algo.api.blueprints.major_exam_export import major_exam_export_bp
+from algo.api.blueprints.major_exam_allocation import major_exam_allocation_bp
+from algo.api.blueprints.major_exam_template import major_exam_template_bp
 
 
 def create_app(test_config=None):
@@ -138,6 +144,12 @@ def create_app(test_config=None):
     app.register_blueprint(master_plan_bp)
     app.register_blueprint(excel_export_bp)
     app.register_blueprint(publish_plan_bp)
+    # Major Exam Blueprints
+    app.register_blueprint(major_exam_upload_bp)
+    app.register_blueprint(major_exam_attendance_bp)
+    app.register_blueprint(major_exam_export_bp)
+    app.register_blueprint(major_exam_allocation_bp)
+    app.register_blueprint(major_exam_template_bp)
     
     from algo.api.blueprints.plans import plans_bp
     app.register_blueprint(plans_bp)

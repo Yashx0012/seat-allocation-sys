@@ -10,7 +10,7 @@ from reportlab.lib.units import cm
 # --- CONFIGURATION ---
 # Use paths relative to this file's location (works on any OS)
 _BASE_DIR = Path(__file__).resolve().parent
-IMAGE_PATH = str(_BASE_DIR / "data" / "banner.png")
+IMAGE_PATH = str(_BASE_DIR.parent / "pdf_gen" / "data" / "banner.png")
 CACHE_DIR = str(_BASE_DIR.parent / "cache") 
 
 def header_and_footer(c, doc, room_no):

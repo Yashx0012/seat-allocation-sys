@@ -14,14 +14,15 @@ import {
   Info,
   FileEdit,
   Plus,
-  Shield
+  Shield,
+  BookMarked
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import PillNav from './PillNav';
 
 const Navbar = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, setExamType } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
@@ -29,7 +30,9 @@ const Navbar = () => {
 
   const handleLogout = async () => {
     await logout();
-    navigate('/landing');
+    setExamType(null);
+    localStorage.removeItem('examType');
+    navigate('/');
     setMobileMenuOpen(false);
   };
 
@@ -52,6 +55,8 @@ const Navbar = () => {
   }, [user]);
 
   const isActive = (page) => location.pathname === page;
+  const activePath = location.pathname === '/minor-exam/create-plan' ? '/create-plan' : location.pathname;
+  const showMinorModeTag = location.pathname === '/minor-exam/create-plan';
 
   const pillItems = useMemo(
     () =>
@@ -97,7 +102,7 @@ const Navbar = () => {
               initialLoadAnimation
               className="ml-2"
               items={pillItems}
-              activeValue={location.pathname}
+              activeValue={activePath}
               onSelect={(page) => navigate(page)}
               baseColor="rgb(var(--pillnav-base) / 0.35)"
               pillColor={
@@ -140,6 +145,16 @@ const Navbar = () => {
 
             {user ? (
               <div className="flex items-center gap-2">
+                {showMinorModeTag && (
+                  <div
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-blue-300/60 dark:border-blue-600/60 bg-blue-50/80 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
+                    title="Current exam type"
+                  >
+                    <BookMarked className="w-4 h-4" />
+                    <span className="text-xs font-bold uppercase tracking-wide hidden lg:inline">Minor Mode</span>
+                  </div>
+                )}
+
                 <motion.button
                   onClick={() => navigate('/profile')}
                   className="w-10 h-10 rounded-full border border-gray-200/60 dark:border-gray-600/60 hover:bg-gray-200/40 dark:hover:bg-gray-700/40 flex items-center justify-center transition-colors"
@@ -204,6 +219,12 @@ const Navbar = () => {
 
           {/* Mobile Actions */}
           <div className="flex items-center gap-2">
+            {user && showMinorModeTag && (
+              <div className="px-2 py-1 rounded-md border border-blue-300/60 dark:border-blue-600/60 bg-blue-50/80 dark:bg-blue-900/20 text-[10px] font-bold uppercase tracking-wide text-blue-700 dark:text-blue-300">
+                Minor
+              </div>
+            )}
+
             <motion.button
               onClick={toggleTheme}
               whileHover={{ scale: 1.05 }}
@@ -255,7 +276,7 @@ const Navbar = () => {
               <>
                 {navItems.map((item) => {
                   const Icon = item.icon;
-                  const active = isActive(item.page);
+                  const active = isActive(item.page) || (item.page === '/create-plan' && location.pathname === '/minor-exam/create-plan');
 
                   return (
                     <motion.button

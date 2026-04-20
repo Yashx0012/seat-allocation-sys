@@ -1,5 +1,5 @@
 // frontend/src/App.jsx
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Outlet } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -8,10 +8,16 @@ import { SessionProvider, useSession } from './contexts/SessionContext';
 
 // --- Components ---
 import Navbar from './components/Navbar';
+import MajorNavbar from './components/MajorNavbar';
 import Footer from './components/Footer';
 import Toast from './components/Toast';
 import SessionRecoveryModal from './components/SessionRecoveryModal';
 import ErrorBoundary from './components/ErrorBoundary';
+import {
+  clearCreatePlanStickyMode,
+  getCreatePlanStickyMode,
+  isMinorCreatePlanFlowPath,
+} from './utils/examTypeRouting';
 
 // --- Pages ---
 import LandingPage from './pages/LandingPage';
@@ -22,10 +28,13 @@ import DashboardPage from './pages/DashboardPage';
 import UploadPage from './pages/UploadPage';
 import Allocation from './pages/Allocation';
 import CreatePlan from './pages/CreatePlan';
+import ExamTypeChooserPage from './pages/ExamTypeChooserPage';
+import MajorExamCreatePlan from './pages/MajorExamCreatePlan';
 import FeedbackPage from './pages/FeedbackPage';
 import AdminFeedbackPage from './pages/AdminFeedbackPage';
 import AboutusPage from './pages/AboutusPage';
 import TemplateEditor from './pages/TemplateEditor';
+import MajorTemplateEditor from './pages/MajorTemplateEditor';
 import AttendancePage from './pages/AttendencePage';
 import MoreOptionsPage from './pages/MoreOptionsPage';
 import ClassroomPage from './pages/ClassroomPage';
@@ -110,10 +119,24 @@ const SessionRecoveryHandler = () => {
 // ROOT LAYOUT (Navbar + Animated Content + Footer)
 // -------------------------------------------------------------------
 const RootLayout = ({ showToast }) => {
+  const location = useLocation();
+  
+  // Detect navbar from URL path instead of examType state (C6)
+  const isMajorPath = location.pathname.startsWith('/major-exam/');
+
+  // Keep minor mode sticky only while user is inside planning flow pages.
+  useEffect(() => {
+    if (getCreatePlanStickyMode() !== 'minor') return;
+
+    if (!isMinorCreatePlanFlowPath(location.pathname)) {
+      clearCreatePlanStickyMode();
+    }
+  }, [location.pathname]);
+  
   return (
     <div className="min-h-screen flex flex-col bg-white dark:bg-[#050505] transition-colors duration-200">
       <SessionRecoveryHandler />
-      <Navbar />
+      {isMajorPath ? <MajorNavbar /> : <Navbar />}
       <main className="flex-1">
         <AnimatedLayout showToast={showToast} />
       </main>
@@ -151,11 +174,14 @@ const AppRoutes = () => {
           <Route path="/manual-allocation" element={<ProtectedRoute><ManualAllocation showToast={showToast} /></ProtectedRoute>} />
           <Route path="/upload" element={<ProtectedRoute><UploadPage showToast={showToast} /></ProtectedRoute>} />
           <Route path="/allocation" element={<ProtectedRoute><Allocation showToast={showToast} /></ProtectedRoute>} />
-          <Route path="/create-plan" element={<ProtectedRoute><CreatePlan /></ProtectedRoute>} />
+          <Route path="/create-plan" element={<ProtectedRoute><ExamTypeChooserPage /></ProtectedRoute>} />
+          <Route path="/minor-exam/create-plan" element={<ProtectedRoute><CreatePlan showToast={showToast} /></ProtectedRoute>} />
+          <Route path="/major-exam/create-plan" element={<ProtectedRoute><MajorExamCreatePlan showToast={showToast} /></ProtectedRoute>} />
           <Route path="/classroom" element={<ProtectedRoute><ClassroomPage /></ProtectedRoute>} />
           <Route path="/feedback" element={<ProtectedRoute><FeedbackPage showToast={showToast} /></ProtectedRoute>} />
           <Route path="/admin-feedback" element={<ProtectedRoute><AdminFeedbackPage showToast={showToast} /></ProtectedRoute>} />
           <Route path="/template-editor" element={<ProtectedRoute><TemplateEditor showToast={showToast} /></ProtectedRoute>} />
+          <Route path="/major-exam/template-editor" element={<ProtectedRoute><MajorTemplateEditor showToast={showToast} /></ProtectedRoute>} />
           <Route path="/attendance/:planId" element={<ProtectedRoute><AttendancePage showToast={showToast} /></ProtectedRoute>} />
           <Route path="/more-options/:planId" element={<ProtectedRoute><MoreOptionsPage showToast={showToast} /></ProtectedRoute>} />
           <Route path="/database" element={<ProtectedRoute><DatabaseManager showToast={showToast} /></ProtectedRoute>} />

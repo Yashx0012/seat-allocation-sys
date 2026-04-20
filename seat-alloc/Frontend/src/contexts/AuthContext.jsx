@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import {
-  getToken, setToken, removeToken,
+  getToken, setToken,
   getUser as getStoredUser, setUserData, clearAuth,
-  migrateFromLocalStorage, getAuthHeaders
+  migrateFromLocalStorage
 } from '../utils/tokenStorage';
 
 const AuthContext = createContext();
@@ -17,6 +17,12 @@ export const AuthProvider = ({ children }) => {
     // Load dark mode from localStorage on initial load
     const saved = localStorage.getItem('darkMode');
     return saved ? JSON.parse(saved) : false;
+  });
+
+  // Major Exam type tracking
+  const [examType, setExamType] = useState(() => {
+    const saved = localStorage.getItem('examType');
+    return saved ? JSON.parse(saved) : null;  // null, 'minor', or 'major'
   });
 
   // ============================================================================
@@ -58,6 +64,18 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem('darkMode', JSON.stringify(darkMode));
     console.log(`🌓 Dark mode ${darkMode ? 'enabled' : 'disabled'}`);
   }, [darkMode]);
+
+  // ============================================================================
+  // PERSIST EXAM TYPE TO localStorage
+  // ============================================================================
+  useEffect(() => {
+    if (examType) {
+      localStorage.setItem('examType', JSON.stringify(examType));
+      console.log(`📋 Exam type set to: ${examType}`);
+    } else {
+      localStorage.removeItem('examType');
+    }
+  }, [examType]);
 
   // ============================================================================
   // APPLY DARK MODE TO DOCUMENT
@@ -345,6 +363,8 @@ const signup = async (userData) => {
     loading,
     darkMode,
     toggleDarkMode,
+    examType,
+    setExamType,
   };
 
   return (

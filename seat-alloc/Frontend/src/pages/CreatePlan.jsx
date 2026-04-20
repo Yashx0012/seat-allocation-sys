@@ -1,19 +1,20 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getToken } from '../utils/tokenStorage';
+import { clearCreatePlanStickyMode, setMinorCreatePlanStickyMode } from '../utils/examTypeRouting';
 import SplitText from '../components/SplitText';
 import { 
   Upload, Layout, Monitor, Clock, ArrowRight, Loader2, AlertCircle, 
   CheckCircle2, Users, Download, Eye, RefreshCw, X, FileText, 
-  BarChart3, Wrench, Building2, FileSpreadsheet, MoreHorizontal, FolderArchive
+  BarChart3, Wrench, Building2, FileSpreadsheet, MoreHorizontal, FolderArchive, ArrowLeftRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 
 const CreatePlan = ({ showToast }) => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { setExamType } = useAuth();
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -27,20 +28,10 @@ const CreatePlan = ({ showToast }) => {
   const [exportLoading, setExportLoading] = useState(null); // Track which room is exporting
 
   useEffect(() => {
+    setExamType('minor');
+    setMinorCreatePlanStickyMode();
     fetchRecentPlans();
-  }, []);
-
-  // Re-fetch when user changes (account switch)
-  const userIdentity = user?.email || user?.id;
-  useEffect(() => {
-    if (userIdentity) {
-      setPlans([]);
-      setError(null);
-      setViewingPlan(null);
-      setPlanDetails(null);
-      fetchRecentPlans();
-    }
-  }, [userIdentity]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [setExamType]);
 
   const fetchRecentPlans = async () => {
     setLoading(true);
@@ -419,7 +410,7 @@ const CreatePlan = ({ showToast }) => {
             </p>
           </div>
           
-          <div className="flex gap-4">
+          <div className="flex gap-4 items-center">
             <div className="text-right">
               <div className="text-xs text-gray-500 mb-1">Total Plans</div>
               <div className="text-3xl font-black text-orange-600 dark:text-orange-400">
@@ -432,6 +423,19 @@ const CreatePlan = ({ showToast }) => {
                 {plans.filter(p => p.status === 'active').length}
               </div>
             </div>
+            
+            {/* Return to chooser */}
+            <button
+              onClick={() => {
+                clearCreatePlanStickyMode();
+                navigate('/create-plan');
+              }}
+              className="ml-6 px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg font-bold transition-all duration-200 flex items-center gap-2 whitespace-nowrap shadow-lg"
+              title="Choose Exam Type"
+            >
+              <span className="hidden sm:inline">Choose Type</span>
+              <ArrowLeftRight size={16} />
+            </button>
           </div>
         </div>
 
