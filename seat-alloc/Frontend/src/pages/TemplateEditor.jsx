@@ -90,7 +90,7 @@ function TemplateEditor({ showToast }) {
                 // but for initial load it's fine.
                 // setLoading(true); 
                 
-                const response = await fetch('/api/template/config', { 
+                const response = await fetch('/api/templates/config', { 
                     headers: {
                         'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
@@ -150,7 +150,7 @@ function TemplateEditor({ showToast }) {
         formData.append('template_name', 'default');
 
         try {
-            const response = await fetch('/api/template/config', {
+            const response = await fetch('/api/templates/config', {
                 method: 'POST',
                 headers: { 
                     'Authorization': `Bearer ${token}` 

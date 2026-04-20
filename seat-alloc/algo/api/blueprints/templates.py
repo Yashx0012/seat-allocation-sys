@@ -2,7 +2,7 @@
 # Serves sample CSV templates for file upload format guidance.
 import logging
 import os
-from flask import Blueprint, send_from_directory, jsonify, Response, current_app
+from flask import Blueprint, send_from_directory, jsonify, Response, current_app, request
 
 templates_bp = Blueprint('templates', __name__, url_prefix='/api/templates')
 logger = logging.getLogger(__name__)
@@ -217,3 +217,23 @@ def get_format_info():
             ]
         }
     }), 200
+
+@templates_bp.route('/config', methods=['GET', 'POST'])
+def manage_config():
+    if request.method == 'GET':
+        return jsonify({
+            "success": True, 
+            "template": {
+                "dept_name": "Sample Dept",
+                "seating_plan_title": "Seat Allocation",
+                "exam_details": "Mid Terms",
+                "current_year": 2026,
+                "coordinator_name": "Admin",
+                "coordinator_title": "Mr.",
+                "attendance_dept_name": "Sample Dept",
+                "attendance_year": 2026,
+                "attendance_exam_heading": "Mid Terms"
+            }
+        })
+    else:
+        return jsonify({"success": True, "message": "Template saved successfully"})

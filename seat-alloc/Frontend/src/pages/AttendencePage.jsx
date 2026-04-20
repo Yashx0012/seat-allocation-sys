@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { getToken } from '../utils/tokenStorage';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -227,7 +227,8 @@ const AttendancePage = ({ showToast }) => {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `Attendance_Debarred_${planId}_${Date.now()}.zip`;
+      const safeRoomName = (roomName || 'Unknown').replace(/ /g, '_').replace(/\//g, '-');
+      a.download = `Attendance_${safeRoomName}_${planId}_${Date.now()}.zip`;
       document.body.appendChild(a);
       a.click();
       a.remove();

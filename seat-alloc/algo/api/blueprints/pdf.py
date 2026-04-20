@@ -1091,6 +1091,9 @@ def parse_debarred_file(file_obj):
             return False
         return True  # any other value (Y, yes, 1, 3, 5, X, debarred, detained …)
 
+    # Import subject code → name mapping for enrichment
+    from algo.config.subject_mapping import resolve_subject_name
+
     if sub_code_col is not None:
         # ── Format 1: rows  (enroll, subject_code, subject_name) ─────────────
         for row in rows[1:]:
@@ -1101,6 +1104,9 @@ def parse_debarred_file(file_obj):
                 continue
             sub_code = (row[sub_code_col].strip() if len(row) > sub_code_col else 'SUBJECT') or 'SUBJECT'
             sub_name = (row[sub_name_col].strip() if sub_name_col is not None and len(row) > sub_name_col else sub_code) or sub_code
+            # Enrich subject name from mapping if file didn't provide a real name
+            if sub_name == sub_code:
+                sub_name = resolve_subject_name(sub_code)
             if sub_code not in result:
                 result[sub_code] = {'subject_name': sub_name, 'debarred_students': set()}
             result[sub_code]['debarred_students'].add(enroll)
@@ -1115,21 +1121,57 @@ def parse_debarred_file(file_obj):
                 continue
             h_clean = h.strip()
 
-            # Attempt to extract a short code prefix (e.g. "CS601" from "CS601-OS")
-            # A short code is a run of uppercase letters + digits with no spaces
+            # ── Extract subject code + name from column headers ──────────
+            # Handles many formats teachers might use:
+            #   "CS601"  |  "CS601-Operating Systems"  |  "15251201"
+            #   "15251201 - Computer Graphics"  |  "Computer Graphics (15251201)"
+            #   "Operating Systems"  (fallback: scan for known codes in mapping)
             import re as _re
-            code_match = _re.match(r'^([A-Za-z]{1,4}\d{2,6})', h_clean)
+            from algo.config.subject_mapping import SUBJECT_CODE_MAP
 
-            if code_match:
-                # Header starts with a recognisable subject-code like CS601
-                short_code = code_match.group(1).upper()
-                remaining   = h_clean[len(code_match.group(1)):].lstrip(' -_:').strip()
-                subject_name = remaining if remaining else h_clean
+            short_code   = None
+            subject_name = None
+
+            # Pattern A: alpha-prefix code at start (e.g. "CS601", "CS601-OS")
+            alpha_code = _re.match(r'^([A-Za-z]{1,4}\d{2,6})', h_clean)
+            # Pattern B: purely numeric code (e.g. "15251201")
+            numeric_only = _re.match(r'^(\d{5,10})$', h_clean)
+            # Pattern C: numeric code at start with trailing name ("15251201 - Computer Graphics")
+            numeric_prefix = _re.match(r'^(\d{5,10})\s*[-_:.\s]\s*(.+)', h_clean)
+            # Pattern D: name with code in parentheses at end ("Computer Graphics (15251201)")
+            paren_code = _re.search(r'\((\d{5,10})\)\s*$', h_clean)
+
+            if alpha_code:
+                short_code = alpha_code.group(1).upper()
+                remaining  = h_clean[len(alpha_code.group(1)):].lstrip(' -_:').strip()
+                subject_name = remaining if remaining else resolve_subject_name(short_code)
+            elif numeric_only:
+                short_code   = numeric_only.group(1)
+                subject_name = resolve_subject_name(short_code)
+            elif numeric_prefix:
+                short_code   = numeric_prefix.group(1)
+                remaining    = numeric_prefix.group(2).strip()
+                subject_name = remaining if remaining else resolve_subject_name(short_code)
+            elif paren_code:
+                short_code   = paren_code.group(1)
+                # Strip the "(code)" part from the name
+                subject_name = h_clean[:paren_code.start()].rstrip(' -_:').strip()
+                if not subject_name:
+                    subject_name = resolve_subject_name(short_code)
             else:
-                # Generic header ("subject 1", "Mathematics", etc.)
-                # Use the FULL header as the unique key to prevent collisions
-                short_code   = h_clean.upper()   # whole header → unique key
-                subject_name = h_clean
+                # Fallback: scan header text for any known subject code from mapping
+                found_code = None
+                for known_code in SUBJECT_CODE_MAP:
+                    if known_code in h_clean:
+                        found_code = known_code
+                        break
+                if found_code:
+                    short_code   = found_code
+                    subject_name = resolve_subject_name(found_code)
+                else:
+                    # Truly generic header — use full header as key
+                    short_code   = h_clean.upper()
+                    subject_name = h_clean
 
             # If this short_code was already seen, append a counter to keep it unique
             count = seen_keys.get(short_code, 0) + 1
@@ -1338,6 +1380,7 @@ def export_attendance_debarred():
         # ── Build base metadata ────────────────────────────────────────────────
         target_room = (seating_payload.get('metadata', {}).get('room_no')
                        or room_no or 'N/A')
+        safe_target_room = target_room.replace(' ', '_').replace('/', '-')
         base_meta = {
             'exam_title':               frontend_metadata.get('exam_title', 'EXAMINATION-ATTENDANCE SHEET'),
             'course_name':              frontend_metadata.get('course_name', 'N/A'),
@@ -1379,9 +1422,11 @@ def export_attendance_debarred():
                             {**s, 'is_debarred': s.get('roll_number', '') in debarred_rolls}
                             for s in students
                         ]
+                        from algo.config.subject_mapping import resolve_subject_name as _resolve
+                        resolved_name = sub_info.get('subject_name') or _resolve(sub_code)
                         subject_meta = {
                             **base_meta,
-                            'course_name': sub_info.get('subject_name', sub_code),
+                            'course_name': resolved_name,
                             'course_code': sub_code,
                         }
                         safe_sub  = sub_code.replace('/', '-').replace(' ', '_')
@@ -1420,7 +1465,7 @@ def export_attendance_debarred():
             zip_buffer,
             mimetype='application/zip',
             as_attachment=True,
-            download_name=f"Attendance_Debarred_{plan_id}_{ts}.zip"
+            download_name=f"Attendance_{safe_target_room}_{plan_id}_{ts}.zip"
         )
 
     except Exception as e:
